@@ -17,7 +17,7 @@ Everything is computed in the browser — no backend, no database, no external A
 | Open economy | Mundell-Fleming (small/large × floating/fixed) |
 | International macro | Parity conditions (UIP, CIP, PPP, real rate, trilemma), Dornbusch overshooting, external balance (S−I, NFA, debt dynamics), trade flows (Marshall-Lerner, J-curve, Dutch disease), Taylor rule |
 
-Plus a **Shock lab** that fires dated shocks and plots the shocked path against the baseline.
+Add **shocks** to any economy: apply one or more named shocks (monetary, fiscal, technology boom, oil, risk premium, devaluation…) and every model then shows the economy *with* the shock and — in Compare — the same economy *without* it, with the difference called out on every figure.
 
 ## Features
 
@@ -26,7 +26,12 @@ Plus a **Shock lab** that fires dated shocks and plots the shocked path against 
 - **Real-country presets** — ~10 stylised economies (US, Germany, Japan, Netherlands,
   Switzerland, Singapore, China, India, Brazil, Saudi Arabia). Figures are rounded
   approximations and fully editable.
-- **Live sliders** — every model recomputes as you drag.
+- **Live sliders** — every model recomputes as you drag, and the curves morph to the new shape.
+- **Shocks and comparisons** — apply named shocks; see the same model with and without them, with
+dashed baseline curves and ▲/▼ deltas on every figure. "Pin baseline" freezes any economy to compare against.
+- **Saved presets** — save your own economies in the browser (localStorage) and reload them later.
+- **Glossary** — every symbol (Y, r, α, ε…) and switch (openness, country size, exchange-rate regime)
+explained in plain language; hover any label for the short version.
 - **Show the calculation** — each chart has an expandable block with the symbolic
   equations, your values substituted in, and the resulting numbers (rendered with KaTeX).
 
@@ -53,7 +58,7 @@ npm run dev        # http://localhost:3000
 ```
 src/
   lib/econ/
-    types.ts        Economy / Scenario / ShockEvent definitions + validation
+    types.ts        Economy definition + validation
     math.ts         Linear solver, RK4 integrator, bisection
     expr.ts         Expression AST: evaluates numerically AND emits LaTeX
     trace.ts        CalcStep recording (the "exact calculation")
@@ -61,7 +66,10 @@ src/
     models/         One file per model
     registry.ts     Model catalogue used by the UI
     countries.ts    Country presets
-    scenario.ts     Shock simulation
+    shocks.ts       Shock presets applied on top of the economy
+    glossary.ts     Plain-language reference for symbols and switches
+    compare.ts      Merges a baseline run into the current run
+  lib/presets-store.ts   User-saved presets in localStorage
   components/       Charts (SVG + Recharts), KaTeX maths, panels, simulator shell
   app/              Next.js App Router pages
 docs/               Model notes and data sources

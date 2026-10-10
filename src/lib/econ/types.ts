@@ -61,23 +61,6 @@ export interface Economy {
   piE: number; // expected inflation
 }
 
-/** A single dated shock event applied to a baseline economy. */
-export interface ShockEvent {
-  id: string;
-  t: number; // time the shock hits
-  label: string;
-  /** Partial overrides merged into the economy from time t onwards. */
-  changes: Partial<Economy>;
-}
-
-/** A scenario = a baseline economy plus an ordered list of shocks. */
-export interface Scenario {
-  economy: Economy;
-  shocks: ShockEvent[];
-  horizon: number;
-  steps: number;
-}
-
 export interface ValidationIssue {
   field: keyof Economy | "regime";
   message: string;

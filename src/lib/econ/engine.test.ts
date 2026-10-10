@@ -14,7 +14,8 @@ import { dornbusch } from "@/lib/econ/models/dornbusch";
 import { debtNext, debtSteadyState, currentAccount, nationalSaving, investment } from "@/lib/econ/models/externalBalance";
 import { marshallLernerSum, jCurve, netExports } from "@/lib/econ/models/tradeFlows";
 import { uipDeviation, cipDeviation, trilemmaCount } from "@/lib/econ/models/parity";
-import { simulateScenario } from "@/lib/econ/scenario";
+import { SHOCK_PRESETS, applyShocks } from "@/lib/econ/shocks";
+import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
 
 const e = defaultEconomy();
 
@@ -240,21 +241,40 @@ describe("every model runs and produces finite output", () => {
   }
 });
 
-describe("scenario simulation", () => {
-  it("runs shocks without producing NaNs", () => {
-    const scenario = {
-      economy: defaultEconomy(),
-      shocks: [
-        { id: "s1", t: 10, label: "Monetary expansion", changes: { M: 100 } },
-        { id: "s2", t: 20, label: "Fiscal expansion", changes: { G: 30 } },
-      ],
-      horizon: 60,
-      steps: 240,
-    };
-    const path = simulateScenario(scenario);
-    expect(path.length).toBe(241);
-    for (const p of path) {
-      expect(Number.isFinite(p.Y) && Number.isFinite(p.P)).toBe(true);
+describe("shock presets", () => {
+  it("apply on top of the economy without mutating the base", () => {
+    const base = defaultEconomy();
+    const snapshot = { ...base };
+    const { economy: shocked, applied } = applyShocks(base, ["monetary", "fiscal"]);
+    expect(applied).toHaveLength(2);
+    expect(shocked.M).toBeGreaterThan(base.M);
+    expect(shocked.G).toBeGreaterThan(base.G);
+    expect(base).toEqual(snapshot);
+  });
+
+  it("every preset only touches real Economy fields and stays valid", () => {
+    const keys = new Set(Object.keys(defaultEconomy()));
+    for (const s of SHOCK_PRESETS) {
+      const changes = s.apply(defaultEconomy());
+      for (const k of Object.keys(changes)) {
+        expect(keys.has(k), `${s.id} writes unknown field ${k}`).toBe(true);
+      }
+      const merged = { ...defaultEconomy(), ...changes };
+      expect(validateEconomy(merged), `${s.id} produces an invalid economy`).toEqual([]);
+    }
+  });
+
+  it("ignores unknown shock ids", () => {
+    expect(applyShocks(defaultEconomy(), ["not-a-shock"]).applied).toHaveLength(0);
+  });
+});
+
+describe("glossary", () => {
+  it("every entry is explained", () => {
+    expect(GLOSSARY_ENTRIES.length).toBeGreaterThan(10);
+    for (const e of GLOSSARY_ENTRIES) {
+      expect(e.name.length).toBeGreaterThan(0);
+      expect(e.meaning.length).toBeGreaterThan(10);
     }
   });
 });

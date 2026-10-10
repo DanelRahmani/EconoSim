@@ -11,14 +11,14 @@ import { AnimatedNumber } from "./ui/AnimatedNumber";
 function Delta({ value, previous }: { value: number; previous: number }) {
   const diff = value - previous;
   if (!Number.isFinite(diff) || Math.abs(diff) < 1e-9) {
-    return <span className="font-mono text-[0.625rem] text-muted">—</span>;
+    return <span className="font-mono text-[0.6875rem] text-muted">—</span>;
   }
   const up = diff > 0;
   const pct = Math.abs(previous) > 1e-9 ? (diff / Math.abs(previous)) * 100 : null;
   return (
     <span
-      title={`baseline ${fmtNum(previous, 4)}`}
-      className={`font-mono text-[0.625rem] ${up ? "text-gain" : "text-accent"}`}
+      title={`without shock / baseline: ${fmtNum(previous, 4)}`}
+      className={`shrink-0 font-mono text-[0.6875rem] ${up ? "text-gain" : "text-accent"}`}
     >
       {up ? "▲" : "▼"} {pct !== null ? `${Math.abs(pct).toFixed(1)}%` : fmtNum(Math.abs(diff), 2)}
     </span>
@@ -35,12 +35,9 @@ export function PanelCard({ panel, index = 0 }: { panel: Panel; index?: number }
         : [];
 
   return (
-    <section
-      className="card card-hover reveal p-5"
-      style={index ? { animationDelay: `${index * 80}ms` } : undefined}
-    >
+    <section className="card card-hover reveal p-5" style={index ? { animationDelay: `${index * 80}ms` } : undefined}>
       <h3 className="text-base font-semibold tracking-tight text-ink">{panel.title}</h3>
-      {panel.description && <p className="mt-1 text-sm text-muted">{panel.description}</p>}
+      {panel.description && <p className="mt-1 text-sm leading-relaxed text-muted">{panel.description}</p>}
 
       {panel.chart && (
         <div className="mt-4">
@@ -65,10 +62,12 @@ export function PanelCard({ panel, index = 0 }: { panel: Panel; index?: number }
             <div
               key={s.label}
               title={s.hint}
-              className="rounded-lg border border-hairline bg-surface2/60 px-3 py-2 transition-colors hover:border-accent/40"
+              className="min-w-0 rounded-lg border border-hairline bg-surface2/60 px-3 py-2.5 transition-colors hover:border-accent/40"
             >
-              <dt className="font-mono text-[0.625rem] uppercase tracking-wider text-muted">{s.label}</dt>
-              <dd className="mt-0.5 flex items-baseline gap-1.5 font-mono text-sm text-ink">
+              <dt className="break-words font-mono text-[0.6875rem] uppercase leading-tight tracking-wider text-muted">
+                {s.label}
+              </dt>
+              <dd className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 font-mono text-[0.9375rem] leading-tight text-ink">
                 <AnimatedNumber value={s.value} />
                 {s.previous !== undefined && <Delta value={s.value} previous={s.previous} />}
               </dd>
@@ -78,7 +77,7 @@ export function PanelCard({ panel, index = 0 }: { panel: Panel; index?: number }
       )}
 
       {panel.notes && panel.notes.length > 0 && (
-        <ul className="mt-4 space-y-1.5 text-xs text-muted">
+        <ul className="mt-4 space-y-1.5 text-xs leading-relaxed text-muted">
           {panel.notes.map((n, i) => (
             <li key={i} className="flex gap-2">
               <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />

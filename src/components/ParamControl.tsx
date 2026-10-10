@@ -2,7 +2,7 @@
 
 import { fmtNum } from "@/lib/format";
 
-/** A labelled slider with a synced numeric input. */
+/** A labelled slider with a synced numeric input and a hover explanation. */
 export function ParamControl({
   label,
   value,
@@ -10,6 +10,7 @@ export function ParamControl({
   max,
   step,
   onChange,
+  help,
 }: {
   label: string;
   value: number;
@@ -17,13 +18,19 @@ export function ParamControl({
   max: number;
   step: number;
   onChange: (v: number) => void;
+  help?: string;
 }) {
   const id = `p-${label.replace(/[^a-z0-9]/gi, "-")}`;
   return (
     <div className="py-2">
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={id} className="text-xs text-muted">
+        <label htmlFor={id} className="cursor-help text-[0.75rem] leading-snug text-muted" title={help}>
           {label}
+          {help && (
+            <span aria-hidden className="ml-1 text-[0.625rem] text-muted/60">
+              ⓘ
+            </span>
+          )}
         </label>
         <input
           type="number"
@@ -35,7 +42,7 @@ export function ParamControl({
             const n = Number(e.target.value);
             if (Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)));
           }}
-          className="w-20 rounded-md border border-hairline bg-surface2 px-1.5 py-0.5 text-right font-mono text-[0.6875rem] text-ink transition-colors focus:border-accent focus:outline-none"
+          className="w-20 shrink-0 rounded-md border border-hairline bg-surface2 px-1.5 py-0.5 text-right font-mono text-[0.6875rem] text-ink transition-colors focus:border-accent focus:outline-none"
         />
       </div>
       <input
@@ -47,8 +54,9 @@ export function ParamControl({
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={label}
       />
-      <div className="flex justify-between font-mono text-[0.625rem] text-muted/70">
+      <div className="flex justify-between font-mono text-[0.6875rem] text-muted/70">
         <span>{fmtNum(min, 2)}</span>
         <span>{fmtNum(max, 2)}</span>
       </div>
@@ -56,15 +64,17 @@ export function ParamControl({
   );
 }
 
-/** A segmented control with a sliding indicator. */
+/** A segmented control with a sliding indicator and an optional explanation. */
 export function Segmented<T extends string>({
   label,
+  help,
   value,
   options,
   onChange,
   className,
 }: {
   label?: string;
+  help?: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
@@ -76,7 +86,16 @@ export function Segmented<T extends string>({
   );
   return (
     <div className={`py-1.5 ${className ?? ""}`}>
-      {label && <div className="mb-1 text-xs text-muted">{label}</div>}
+      {label && (
+        <div className="mb-1 cursor-help text-[0.75rem] text-muted" title={help}>
+          {label}
+          {help && (
+            <span aria-hidden className="ml-1 text-[0.625rem] text-muted/60">
+              ⓘ
+            </span>
+          )}
+        </div>
+      )}
       <div
         role="group"
         aria-label={label ?? "options"}
@@ -97,7 +116,7 @@ export function Segmented<T extends string>({
             type="button"
             aria-pressed={value === o.value}
             onClick={() => onChange(o.value)}
-            className={`relative z-10 rounded-full px-2.5 py-1 text-xs transition-colors duration-200 ${
+            className={`relative z-10 truncate rounded-full px-2 py-1 text-[0.75rem] transition-colors duration-200 ${
               value === o.value ? "text-accentink" : "text-muted hover:text-ink"
             }`}
           >

@@ -220,9 +220,20 @@ input[type="range"].slider::-moz-range-thumb {
   }
 }
 
-/* KaTeX display blocks should not overflow their card. */
+/* KaTeX: keep display blocks from overflowing, and keep the macro symbols
+   comfortably readable (they carry the explanation). */
 .katex-display {
   overflow-x: auto;
   overflow-y: hidden;
   padding: 2px 0;
+}
+.calc-math .katex {
+  font-size: 1.22em;
+}
+.glossary-math .katex {
+  font-size: 1.32em;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
 }
