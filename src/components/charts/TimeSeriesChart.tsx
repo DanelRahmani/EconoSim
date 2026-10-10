@@ -1,0 +1,60 @@
+"use client";
+
+import {
+  CartesianGrid,
+  Legend as RLegend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import type { TimeSeriesSpec } from "@/lib/econ/panel";
+import { SERIES_COLORS } from "./CurveChart";
+
+/** Recharts-based time-series plot (used for trajectory/path panels). */
+export function TimeSeriesChart({ spec, height = 300 }: { spec: TimeSeriesSpec; height?: number }) {
+  // Merge the series into rows keyed on x so Recharts can plot them together.
+  const byX = new Map<number, Record<string, number>>();
+  spec.series.forEach((s) => {
+    for (const p of s.points) {
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+      const row = byX.get(p.x) ?? { x: p.x };
+      row[s.label] = p.y;
+      byX.set(p.x, row);
+    }
+  });
+  const data = [...byX.values()].sort((a, b) => a.x - b.x);
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={data} margin={{ top: 8, right: 16, bottom: 24, left: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.18} />
+        <XAxis
+          dataKey="x"
+          type="number"
+          domain={["dataMin", "dataMax"]}
+          tick={{ fontSize: 11 }}
+          label={{ value: spec.xLabel, position: "insideBottom", offset: -12, fontSize: 11 }}
+        />
+        <YAxis tick={{ fontSize: 11 }} width={56} label={{ value: spec.yLabel, angle: -90, position: "insideLeft", fontSize: 11 }} />
+        <Tooltip contentStyle={{ fontSize: 12 }} />
+        <RLegend wrapperStyle={{ fontSize: 12 }} />
+        {spec.series.map((s, i) => (
+          <Line
+            key={s.label}
+            type="monotone"
+            dataKey={s.label}
+            name={s.label}
+            dot={false}
+            strokeWidth={2}
+            stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
+            isAnimationActive={false}
+            connectNulls
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
