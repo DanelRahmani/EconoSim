@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { CountrySize, Economy, ExchangeRegime, Openness } from "@/lib/econ/types";
+import type { AiOptions, CountrySize, Economy, ExchangeRegime, Openness } from "@/lib/econ/types";
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { DEFAULT_HORIZON, HORIZON_PRESETS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
+import { DEFAULT_AI, DEFAULT_HORIZON, HORIZON_PRESETS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
 import { resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { mergePanels } from "@/lib/econ/compare";
 import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
@@ -67,6 +67,41 @@ const PARAMS: ParamDef[] = [
 
 const GROUP_ORDER = ["Production", "Growth (long run)", "Fiscal & money", "Behaviour", "Open economy", "Adjustment"];
 
+/** Scenario controls for the AI boom model. */
+function AiControls({ value, onChange }: { value: AiOptions; onChange: (v: AiOptions) => void }) {
+  return (
+    <div className="grid gap-x-4 sm:grid-cols-3">
+      <ParamControl
+        label="Labour replaced by AI (%)"
+        help="The share of labour tasks AI performs. Displaced workers are not re-employed — the work moves to capital."
+        value={value.substitutionPct}
+        min={0}
+        max={95}
+        step={5}
+        onChange={(v) => onChange({ ...value, substitutionPct: v })}
+      />
+      <ParamControl
+        label="AI capital per displaced worker (×)"
+        help="How much AI capital is installed per displaced worker, as a multiple of the economy's existing capital–labour ratio. 1× means like-for-like."
+        value={value.capitalIntensity}
+        min={0.2}
+        max={3}
+        step={0.1}
+        onChange={(v) => onChange({ ...value, capitalIntensity: v })}
+      />
+      <ParamControl
+        label="AI capital productivity (×)"
+        help="How productive AI capital is relative to ordinary capital. Below the break-even, replacing labour with AI shrinks the economy."
+        value={value.capitalProductivity}
+        min={0.5}
+        max={4}
+        step={0.1}
+        onChange={(v) => onChange({ ...value, capitalProductivity: v })}
+      />
+    </div>
+  );
+}
+
 /** Compact time-window picker, shown above a time-path chart. */
 function HorizonControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
@@ -116,6 +151,7 @@ export function Simulator() {
   const [expert, setExpert] = useState(false);
   const [compare, setCompare] = useState<CompareMode>("current");
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
+  const [ai, setAi] = useState<AiOptions>(DEFAULT_AI);
 
   const update = (patch: Partial<Economy>) => setEconomy((e) => ({ ...e, ...patch }));
   const issues = useMemo(() => validateEconomy(economy), [economy]);
@@ -134,14 +170,14 @@ export function Simulator() {
   const panels = useMemo(() => {
     if (model === "glossary") return [];
     try {
-      const opts = { horizon };
+      const opts = { horizon, ai };
       const current = runModel(model, shownEconomy, opts);
       if (compare !== "both") return current;
       return mergePanels(current, runModel(model, reference, opts));
     } catch {
       return null;
     }
-  }, [model, shownEconomy, reference, compare, horizon]);
+  }, [model, shownEconomy, reference, compare, horizon, ai]);
 
   const loadEconomy = (e: Economy) => {
     setEconomy(e);
@@ -366,7 +402,13 @@ export function Simulator() {
                 key={p.id}
                 panel={p}
                 index={i}
-                chartControls={p.timeseries ? <HorizonControl value={horizon} onChange={setHorizon} /> : undefined}
+                chartControls={
+                  model === "ai-boom" && i === 0 ? (
+                    <AiControls value={ai} onChange={setAi} />
+                  ) : p.timeseries ? (
+                    <HorizonControl value={horizon} onChange={setHorizon} />
+                  ) : undefined
+                }
               />
             ))
           ) : (

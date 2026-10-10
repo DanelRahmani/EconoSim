@@ -61,6 +61,19 @@ export interface Economy {
   piE: number; // expected inflation
 }
 
+/**
+ * Parameters for the AI-substitution scenario. These live outside `Economy`
+ * because they describe a hypothetical, not the economy as it stands.
+ */
+export interface AiOptions {
+  /** Share of labour tasks AI performs, in percent (0–95). */
+  substitutionPct: number;
+  /** AI capital installed per displaced worker, as a multiple of the economy's capital–labour ratio. */
+  capitalIntensity: number;
+  /** Productivity of AI capital relative to ordinary capital (1 = like-for-like). */
+  capitalProductivity: number;
+}
+
 export interface ValidationIssue {
   field: keyof Economy | "regime";
   message: string;

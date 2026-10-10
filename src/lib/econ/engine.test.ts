@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { validateEconomy } from "@/lib/econ/types";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { MODELS, runModel } from "@/lib/econ/registry";
+import { DEFAULT_OPTIONS, MODELS, runModel } from "@/lib/econ/registry";
 import { solveLinear } from "@/lib/econ/math";
 import { vars, evaluate } from "@/lib/econ/expr";
 import { outputExpr, perWorkerExpr } from "@/lib/econ/models/cobbDouglas";
@@ -16,6 +16,7 @@ import { marshallLernerSum, jCurve, netExports } from "@/lib/econ/models/tradeFl
 import { uipDeviation, cipDeviation, trilemmaCount } from "@/lib/econ/models/parity";
 import { SHOCK_PRESETS, applyMode, resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
+import { aiOutcome } from "@/lib/econ/models/aiBoom";
 
 const e = defaultEconomy();
 
@@ -307,6 +308,52 @@ describe("shocks", () => {
   });
 });
 
+describe("AI boom scenario", () => {
+  const e = defaultEconomy();
+  const likeForLike = { substitutionPct: 30, capitalIntensity: 1, capitalProductivity: 1 };
+
+  it("with no substitution, output equals the plain economy", () => {
+    const r = aiOutcome(e, { ...likeForLike, substitutionPct: 0 });
+    expect(r.output).toBeCloseTo(r.baselineOutput, 6);
+    expect(r.aiCapital).toBeCloseTo(0, 10);
+  });
+
+  it("displaces labour and installs capital", () => {
+    const r = aiOutcome(e, { ...likeForLike, substitutionPct: 25 });
+    expect(r.labourEffective).toBeCloseTo(e.L * 0.75, 6);
+    expect(r.aiCapital).toBeCloseTo(0.25 * e.K0, 6);
+    expect(r.capitalTotal).toBeCloseTo(e.K0 + r.aiCapital, 6);
+  });
+
+  it("a like-for-like swap destroys output when capital's share is below a half", () => {
+    const r = aiOutcome(e, likeForLike);
+    expect(e.alpha).toBeLessThan(0.5);
+    expect(r.output).toBeLessThan(r.baselineOutput);
+    expect(r.change).toBeLessThan(0);
+  });
+
+  it("matches the baseline exactly at the break-even productivity", () => {
+    const probe = aiOutcome(e, likeForLike);
+    const atBreakEven = aiOutcome(e, { ...likeForLike, capitalProductivity: probe.breakEvenForShare });
+    expect(atBreakEven.output).toBeCloseTo(atBreakEven.baselineOutput, 6);
+  });
+
+  it("wins above break-even and loses below it", () => {
+    const probe = aiOutcome(e, likeForLike);
+    const above = aiOutcome(e, { ...likeForLike, capitalProductivity: probe.breakEvenForShare * 1.2 });
+    const below = aiOutcome(e, { ...likeForLike, capitalProductivity: probe.breakEvenForShare * 0.8 });
+    expect(above.change).toBeGreaterThan(0);
+    expect(below.change).toBeLessThan(0);
+  });
+
+  it("break-even rises with the share being replaced", () => {
+    const small = aiOutcome(e, { ...likeForLike, substitutionPct: 10 });
+    const large = aiOutcome(e, { ...likeForLike, substitutionPct: 60 });
+    expect(large.breakEvenForShare).toBeGreaterThan(small.breakEvenForShare);
+    expect(small.breakEvenForShare).toBeGreaterThan(small.breakEvenMarginal);
+  });
+});
+
 describe("glossary", () => {
   it("every entry is explained", () => {
     expect(GLOSSARY_ENTRIES.length).toBeGreaterThan(10);
@@ -319,7 +366,7 @@ describe("glossary", () => {
 
 describe("time window", () => {
   const maxX = (id: string, horizon: number) => {
-    const panels = runModel(id, defaultEconomy(), { horizon });
+    const panels = runModel(id, defaultEconomy(), { ...DEFAULT_OPTIONS, horizon });
     const xs = panels.flatMap((p) => (p.timeseries?.series ?? []).flatMap((s) => s.points.map((pt) => pt.x)));
     return xs.length ? Math.max(...xs) : NaN;
   };

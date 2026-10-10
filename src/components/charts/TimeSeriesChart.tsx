@@ -14,6 +14,17 @@ import { SERIES_COLORS } from "./CurveChart";
 
 const AXIS_TICK = { fontSize: 11, fill: "var(--muted)" } as const;
 
+/**
+ * Axis ticks come from the chart library's own tick algorithm, so they arrive as
+ * values like 10.000000000000002. Round to 3 decimals and drop trailing zeros —
+ * a tick should read "10", not a wall of digits.
+ */
+const formatTick = (value: unknown): string => {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return String(value ?? "");
+  return String(Math.round(n * 1000) / 1000);
+};
+
 /** Recharts-based time-series plot (used for trajectory/path panels). */
 export function TimeSeriesChart({
   spec,
@@ -46,12 +57,14 @@ export function TimeSeriesChart({
           domain={["dataMin", "dataMax"]}
           tick={AXIS_TICK}
           stroke="var(--hairline)"
+          tickFormatter={formatTick}
           label={{ value: spec.xLabel, position: "insideBottom", offset: -12, fontSize: 11, fill: "var(--muted)" }}
         />
         <YAxis
           tick={AXIS_TICK}
           stroke="var(--hairline)"
           width={58}
+          tickFormatter={formatTick}
           label={{ value: spec.yLabel, angle: -90, position: "insideLeft", fontSize: 11, fill: "var(--muted)" }}
         />
         <Tooltip

@@ -1,4 +1,4 @@
-import type { Economy } from "./types";
+import type { AiOptions, Economy } from "./types";
 import type { Panel } from "./panel";
 import { cobbDouglas } from "./models/cobbDouglas";
 import { solow } from "./models/solow";
@@ -10,16 +10,20 @@ import { dornbuschPanel } from "./models/dornbusch";
 import { externalBalance } from "./models/externalBalance";
 import { tradeFlows } from "./models/tradeFlows";
 import { policyRule } from "./models/policyRule";
+import { aiBoom } from "./models/aiBoom";
 
 /** How far forward the time-path charts should look, in periods. */
 export interface RunOptions {
   horizon: number;
+  /** Scenario settings for the AI boom model. */
+  ai: AiOptions;
 }
 
 export const DEFAULT_HORIZON = 50;
 /** Preset windows — a couple of clicks rather than a fiddly slider. */
 export const HORIZON_PRESETS = [10, 25, 50, 100, 120];
-export const DEFAULT_OPTIONS: RunOptions = { horizon: DEFAULT_HORIZON };
+export const DEFAULT_AI: AiOptions = { substitutionPct: 30, capitalIntensity: 1, capitalProductivity: 1 };
+export const DEFAULT_OPTIONS: RunOptions = { horizon: DEFAULT_HORIZON, ai: DEFAULT_AI };
 
 export interface ModelDef {
   id: string;
@@ -41,6 +45,7 @@ export const MODELS: ModelDef[] = [
   { id: "external-balance", label: "External balance", group: "International macro", blurb: "Current account, net foreign assets and debt dynamics.", run: (e, o) => externalBalance(e, o.horizon) },
   { id: "trade-flows", label: "Trade flows", group: "International macro", blurb: "Marshall-Lerner, the J-curve and Dutch disease.", run: (e) => tradeFlows(e) },
   { id: "policy-rule", label: "Policy rule", group: "International macro", blurb: "The Taylor rule and the policy stance.", run: (e) => policyRule(e) },
+  { id: "ai-boom", label: "AI boom", group: "Applied scenarios", blurb: "AI doing a share of labour tasks, funded by capital instead.", run: (e, o) => aiBoom(e, o.ai) },
 ];
 
 export function getModel(id: string): ModelDef {

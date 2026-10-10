@@ -71,6 +71,12 @@ export const SHOCK_PRESETS: ShockDef[] = [
     help: "Population growth rises 1 percentage point. Lowers steady-state capital per worker.",
     apply: (e) => ({ n: e.n + 0.01 }),
   },
+  {
+    id: "ai",
+    label: "AI labour substitution",
+    help: "AI takes on 30% of labour tasks and each displaced worker is replaced like-for-like by capital (AI capital = 30% of the existing stock). Open the AI boom model to vary the share, the capital needed and AI's productivity.",
+    apply: (e) => ({ L: e.L * 0.7, K0: e.K0 * 1.3 }),
+  },
 ];
 
 export function findShock(id: string): ShockDef | undefined {
