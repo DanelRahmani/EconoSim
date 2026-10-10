@@ -88,13 +88,13 @@ export function externalBalance(e: Economy, horizon = 60): Panel[] {
         { label: "Investment (I)", value: I },
         { label: "Current account (CA)", value: CA },
         ...(hasDebtSteadyState
-          ? [{ label: "Debt steady state d*", value: dStar, hint: "pb/(r−g)" }]
-          : [{ label: "r − g", value: r - g, hint: "r ≤ g: no finite debt steady state" }]),
+          ? [{ label: "Debt ratio that stands still", value: dStar, hint: "pb/(r−g)" }]
+          : [{ label: "r − g", value: r - g, hint: "r ≤ g: no positive debt ratio is a knife edge" }]),
       ],
       notes: [
         hasDebtSteadyState
-          ? "With r > g, debt converges to pb/(r−g); a primary surplus is needed to stabilise a positive debt ratio."
-          : "With r ≤ g there is no finite debt steady state — growth keeps pace with or outruns the interest burden.",
+          ? "With r > g, pb/(r−g) is the debt ratio that stands still: holding a positive debt ratio constant needs a primary surplus of (r−g)·b, and any other ratio drifts away from this one."
+          : "With r ≤ g there is no positive debt ratio that stands still — growth keeps pace with or outruns the interest burden, so debt falls on its own.",
       ],
       trace: t.steps,
     },

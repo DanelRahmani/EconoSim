@@ -17,7 +17,7 @@ export function taylorRule(
   return rStar + pi + aPi * (pi - piTarget) + aY * outputGap;
 }
 
-export function policyRule(e: Economy, piTarget = 0.02): Panel[] {
+export function policyRule(e: Economy, piTarget = e.piTarget): Panel[] {
   const t = new Tracer();
   const Yn = naturalOutput(e);
   const core = islmCore(e);

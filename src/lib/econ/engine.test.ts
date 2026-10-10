@@ -17,6 +17,16 @@ import { uipDeviation, cipDeviation, trilemmaCount } from "@/lib/econ/models/par
 import { SHOCK_PRESETS, applyMode, resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
 import { decodeState, encodeState, readState, shareUrl, type SimState } from "@/lib/econ/permalink";
+import { phillipsCore, phillipsPath } from "@/lib/econ/models/phillips";
+import { naturalUnemployment } from "@/lib/econ/models/labourMarket";
+import { debtCore } from "@/lib/econ/models/debtDynamics";
+import { akCore } from "@/lib/econ/models/akGrowth";
+import { crisisCore } from "@/lib/econ/models/currencyCrisis";
+import { zlbCore } from "@/lib/econ/models/zlb";
+import { gameCore, GAMES } from "@/lib/econ/models/gameTheory";
+import { consumerCore } from "@/lib/econ/models/consumerChoice";
+import { marketCore } from "@/lib/econ/models/marketStructure";
+import { externalityCore } from "@/lib/econ/models/externalities";
 import { aiOutcome } from "@/lib/econ/models/aiBoom";
 
 const e = defaultEconomy();
@@ -400,6 +410,351 @@ describe("permalink", () => {
     expect(back?.ai.capitalIntensity).toBe(DEFAULT_AI.capitalIntensity);
     expect(back?.shocks).toHaveLength(1);
     expect(back?.shocks[0]).toMatchObject({ kind: "custom", key: "G", mode: "percent", amount: 5 });
+  });
+});
+
+describe("Phillips curve and expectations", () => {
+  const e = defaultEconomy();
+
+  it("costs nothing when the disinflation is believed", () => {
+    const credible = phillipsCore(e, "credible");
+    expect(credible.sacrificeRatio).toBe(0);
+    expect(credible.outputCost).toBe(0);
+    expect(credible.impactU).toBeCloseTo(e.un, 12);
+    const path = phillipsPath(e, "credible", 20);
+    for (const p of path) {
+      expect(p.u).toBeCloseTo(e.un, 12);
+      expect(p.pi).toBeCloseTo(e.piTarget, 12);
+    }
+  });
+
+  it("raises unemployment when expectations are slow", () => {
+    const adaptive = phillipsCore(e, "adaptive");
+    expect(adaptive.impactU).toBeGreaterThan(e.un);
+    // u at impact = u_n + (piE - pi*)/beta
+    expect(adaptive.impactU).toBeCloseTo(e.un + (e.piE - e.piTarget) / e.pcBeta, 10);
+    expect(adaptive.outputCost).toBeGreaterThan(0);
+  });
+
+  it("has the textbook sacrifice ratio 1/(beta·theta)", () => {
+    const adaptive = phillipsCore(e, "adaptive");
+    expect(adaptive.sacrificeRatio).toBeCloseTo(1 / (e.pcBeta * e.theta), 12);
+  });
+
+  it("matches the closed form when the path is summed", () => {
+    // The path integral tends to the analytic sacrifice ratio times the
+    // disinflation as the window lengthens.
+    const path = phillipsPath(e, "adaptive", 400, 400);
+    const excess = path.reduce((s, p) => s + (p.u - e.un), 0);
+    const analytic = (e.piE - e.piTarget) / (e.pcBeta * e.theta);
+    expect(excess).toBeCloseTo(analytic, 1);
+    expect(excess).toBeLessThan(analytic);
+  });
+
+  it("shifts the short-run curve down by the disinflation", () => {
+    const adaptive = phillipsCore(e, "adaptive");
+    // At unemployment = the natural rate, inflation equals expected inflation.
+    const atNatural = (piE: number) => piE - e.pcBeta * (e.un - e.un);
+    expect(atNatural(adaptive.pi0) - atNatural(adaptive.target)).toBeCloseTo(e.piE - e.piTarget, 12);
+  });
+});
+
+describe("WS-PS labour market", () => {
+  it("derives the natural rate the economy is calibrated to", () => {
+    const e = defaultEconomy();
+    const { exact, linear } = naturalUnemployment(e);
+    // The defaults are set so the textbook linearisation lands exactly on `un`;
+    // the exact solution sits just below it.
+    expect(linear).toBeCloseTo(e.un, 12);
+    expect(Math.abs(exact - e.un)).toBeLessThan(0.001);
+  });
+
+  it("rises with the mark-up and with wage push, and falls with the slope", () => {
+    const e = defaultEconomy();
+    const base = naturalUnemployment(e).exact;
+    expect(naturalUnemployment({ ...e, markup: e.markup + 0.05 }).exact).toBeGreaterThan(base);
+    expect(naturalUnemployment({ ...e, wagePush: e.wagePush + 0.05 }).exact).toBeGreaterThan(base);
+    expect(naturalUnemployment({ ...e, wageSlope: e.wageSlope * 2 }).exact).toBeLessThan(base);
+  });
+
+  it("differs from the linearisation by exactly m²/((1+m)γ)", () => {
+    const e = defaultEconomy();
+    const { exact, linear } = naturalUnemployment(e);
+    // The approximation error is second order in the mark-up. Stating it as an
+    // identity is worth more than a hand-picked tolerance.
+    expect(exact - linear).toBeCloseTo(-(e.markup ** 2) / ((1 + e.markup) * e.wageSlope), 12);
+  });
+});
+
+describe("debt dynamics", () => {
+  const e = defaultEconomy();
+
+  it("drifts by the interest-growth differential net of the primary balance", () => {
+    const core = debtCore(e, 10);
+    expect(core.differential).toBeCloseTo(e.rStar + e.rho - (e.n + e.g), 12);
+    expect(core.snowball).toBeCloseTo(core.differential * e.debtRatio, 12);
+    expect(core.stabilisingBalance).toBeCloseTo(core.snowball, 12);
+    // One period on: b' = (1 + r - g)b - pb
+    const expected = (1 + core.differential) * e.debtRatio - e.primaryBalance;
+    expect(core.path[1].b).toBeCloseTo(expected, 10);
+  });
+
+  it("makes pb/(r − g) a knife edge the ratio drifts away from", () => {
+    const rich = { ...e, rStar: 0.08, rho: 0, n: 0.01, g: 0.02 };
+    const star = e.primaryBalance / 0.05;
+    const core = debtCore(rich, 5);
+    expect(core.steadyState).toBeCloseTo(star, 10);
+    // Sit exactly on it and nothing moves…
+    expect(debtCore({ ...rich, debtRatio: star }, 20).endDebt).toBeCloseTo(star, 8);
+    // …but above it the ratio grows away, and below it falls away.
+    expect(debtCore({ ...rich, debtRatio: star * 2 }, 20).endDebt).toBeGreaterThan(star * 2);
+    expect(debtCore({ ...rich, debtRatio: star / 2 }, 20).endDebt).toBeLessThan(star / 2);
+  });
+
+  it("has no steady state when r <= g", () => {
+    const cheap = { ...e, rStar: 0.01 };
+    expect(Number.isFinite(debtCore(cheap, 10).steadyState)).toBe(false);
+  });
+});
+
+describe("AK endogenous growth", () => {
+  const e = defaultEconomy();
+
+  it("reproduces today's output and grows permanently", () => {
+    const core = akCore(e, 40);
+    // A = Y/K makes the AK technology exact at the current capital stock.
+    expect(core.outputPerWorker).toBeCloseTo(core.capitalProductivity * (e.K0 / e.L), 8);
+    expect(core.growth).toBeCloseTo(e.s * core.capitalProductivity - e.delta - e.n, 12);
+    expect(core.growth).toBeGreaterThan(0);
+  });
+
+  it("has no steady state: the level keeps rising", () => {
+    const core = akCore(e, 60);
+    const mid = core.path[30].ak;
+    const late = core.path[60].ak;
+    // A constant growth rate means the ratio over equal spans is constant.
+    expect(late / mid).toBeCloseTo(mid / core.path[0].ak, 6);
+  });
+
+  it("makes the growth rate rise one-for-one with the saving rate", () => {
+    const low = akCore({ ...e, s: 0.1 }, 10).growth;
+    const high = akCore({ ...e, s: 0.3 }, 10).growth;
+    const A = akCore(e, 10).capitalProductivity;
+    expect(high - low).toBeCloseTo(0.2 * A, 10);
+  });
+});
+
+describe("currency crisis", () => {
+  const e = defaultEconomy();
+
+  it("dates the collapse from the credit path alone", () => {
+    const core = crisisCore(e, 40);
+    const expected = -Math.log(1 - e.reservesShare) / Math.log(1 + e.creditGrowth);
+    expect(core.crisisTime).toBeCloseTo(expected, 10);
+    expect(core.initialReserves + core.initialCredit).toBeCloseTo(e.M, 10);
+  });
+
+  it("brings reserves through zero exactly at the collapse date", () => {
+    const core = crisisCore(e, 40);
+    // The collapse date is a fraction of a period, so the crossing sits between
+    // two samples: positive before it, negative after it.
+    const before = core.path[Math.floor(core.crisisTime)];
+    const after = core.path[Math.ceil(core.crisisTime)];
+    expect(before.reserves).toBeGreaterThan(0);
+    expect(after.reserves).toBeLessThan(0);
+    expect(before.shadow).toBeLessThan(100);
+    expect(after.shadow).toBeGreaterThan(100);
+  });
+
+  it("collapses sooner when credit grows faster, and never when it does not", () => {
+    const slow = crisisCore({ ...e, creditGrowth: 0.04 }, 40).crisisTime;
+    const fast = crisisCore({ ...e, creditGrowth: 0.16 }, 40).crisisTime;
+    expect(fast).toBeLessThan(slow);
+    expect(Number.isFinite(crisisCore({ ...e, creditGrowth: 0 }, 40).crisisTime)).toBe(false);
+  });
+
+  it("survives longer with more reserves", () => {
+    const thin = crisisCore({ ...e, reservesShare: 0.2 }, 40).crisisTime;
+    const fat = crisisCore({ ...e, reservesShare: 0.8 }, 40).crisisTime;
+    expect(fat).toBeGreaterThan(thin);
+  });
+});
+
+describe("zero lower bound", () => {
+  const e = defaultEconomy();
+
+  it("holds output at potential when the natural rate is positive", () => {
+    const calm = zlbCore(e, 10, { demandShock: 0 });
+    expect(calm.naturalRate).toBeGreaterThan(0);
+    expect(calm.outputGap).toBeCloseTo(0, 8);
+  });
+
+  it("binds when the shock drives the natural rate negative", () => {
+    const deep = zlbCore(e, 10, { demandShock: 0.3 });
+    expect(deep.naturalRate).toBeLessThan(0);
+    expect(deep.policyRate).toBe(0);
+    expect(deep.outputGap).toBeLessThan(0);
+  });
+
+  it("reports the textbook multiplier comparison", () => {
+    const deep = zlbCore(e, 10, { demandShock: 0.3 });
+    expect(deep.multiplierAtFloor).toBeCloseTo(1 / (1 - e.c1), 12);
+    expect(deep.multiplierAway).toBeCloseTo(1 / ((1 - e.c1) + (e.b * e.kY) / e.hR), 12);
+    // Fiscal policy does more work on the floor than off it.
+    expect(deep.multiplierAtFloor).toBeGreaterThan(deep.multiplierAway);
+  });
+
+  it("lets the bound stop binding as the shock decays", () => {
+    const deep = zlbCore(e, 120, { demandShock: 0.3 });
+    expect(deep.boundPeriods).toBeGreaterThan(0);
+    const last = deep.path[deep.path.length - 1];
+    expect(last.naturalRate).toBeGreaterThan(0);
+    expect(last.Y).toBeCloseTo(last.Yn, 6);
+  });
+});
+
+describe("game theory", () => {
+  it("finds the dilemma's unique equilibrium and the dominant strategy", () => {
+    const core = gameCore({ game: "prisoners", temptation: 5 });
+    expect(core.nashCount).toBe(1);
+    expect(core.nash[1][1]).toBe(true);
+    expect(core.rowDominant).toBe(1);
+    expect(core.colDominant).toBe(1);
+    // No interior mixed equilibrium when a strategy dominates.
+    expect(core.mixed).toBeNull();
+    // Joint payoff lost: 2·(3 − 1).
+    expect(core.dilemmaCost).toBe(4);
+    // (T − R)/(T − P) = (5 − 3)/(5 − 1).
+    expect(core.cooperationThreshold).toBeCloseTo(0.5, 12);
+  });
+
+  it("sustains cooperation at a lower discount factor when temptation falls", () => {
+    const greedy = gameCore({ game: "prisoners", temptation: 8 }).cooperationThreshold!;
+    const mild = gameCore({ game: "prisoners", temptation: 4 }).cooperationThreshold!;
+    expect(mild).toBeLessThan(greedy);
+    expect(mild).toBeCloseTo((4 - 3) / (4 - 1), 12);
+  });
+
+  it("finds two equilibria in the coordination game and none in matching pennies", () => {
+    const coord = gameCore({ game: "coordination", temptation: 5 });
+    expect(coord.nashCount).toBe(2);
+    expect(coord.nash[0][0] && coord.nash[1][1]).toBe(true);
+
+    const pennies = gameCore({ game: "matching", temptation: 5 });
+    expect(pennies.nashCount).toBe(0);
+    // Matching pennies is the classic case: randomise 50-50.
+    expect(pennies.mixed?.p).toBeCloseTo(0.5, 10);
+    expect(pennies.mixed?.q).toBeCloseTo(0.5, 10);
+  });
+
+  it("marks the right cells as best responses in chicken", () => {
+    const core = gameCore({ game: "chicken", temptation: 5 });
+    // Swerving is a best response when the other player goes straight, and vice versa.
+    expect(core.bestResponseRow[1][0]).toBe(true);
+    expect(core.bestResponseRow[0][1]).toBe(true);
+    expect(core.nashCount).toBe(2);
+  });
+
+  it("plays every game it offers", () => {
+    for (const g of GAMES) {
+      const core = gameCore({ game: g.id, temptation: 5 });
+      expect(core.nashCount).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(core.equilibriumPayoff[0])).toBe(true);
+    }
+  });
+});
+
+describe("consumer choice", () => {
+  const m = { px: 1, py: 2, income: 24, weight: 0.5 };
+
+  it("solves the Cobb-Douglas demands", () => {
+    const core = consumerCore(m);
+    expect(core.x).toBeCloseTo((m.weight * m.income) / m.px, 12);
+    expect(core.y).toBeCloseTo(((1 - m.weight) * m.income) / m.py, 12);
+  });
+
+  it("satisfies the tangency condition", () => {
+    const core = consumerCore(m);
+    expect(core.mrs).toBeCloseTo(core.priceRatio, 10);
+  });
+
+  it("spends a fixed share of income on each good", () => {
+    const core = consumerCore(m);
+    expect((m.px * core.x) / m.income).toBeCloseTo(m.weight, 12);
+    // Double the price of x and spending on x is unchanged: unit elasticity.
+    const dear = consumerCore({ ...m, px: 2 });
+    expect(dear.x).toBeCloseTo(core.x / 2, 10);
+    expect(dear.x * 2).toBeCloseTo(core.x * 1, 10);
+  });
+
+  it("puts the optimum on the budget line and on the indifference curve", () => {
+    const core = consumerCore(m);
+    expect(m.px * core.x + m.py * core.y).toBeCloseTo(m.income, 10);
+    expect(core.indifference(core.x)).toBeCloseTo(core.y, 10);
+  });
+});
+
+describe("market structure", () => {
+  const m = { demandA: 20, demandB: 1, mc: 4, fixed: 10 };
+
+  it("solves competition and monopoly", () => {
+    const core = marketCore(m);
+    expect(core.qc).toBeCloseTo((m.demandA - m.mc) / m.demandB, 12);
+    expect(core.qm).toBeCloseTo((m.demandA - m.mc) / (2 * m.demandB), 12);
+    expect(core.priceM).toBeCloseTo((m.demandA + m.mc) / 2, 12);
+    expect(core.priceC).toBe(m.mc);
+  });
+
+  it("has the textbook deadweight loss", () => {
+    const core = marketCore(m);
+    const expected = (m.demandA - m.mc) ** 2 / (8 * m.demandB);
+    expect(core.deadweightLoss).toBeCloseTo(expected, 12);
+    // The missing units are exactly the ones where P exceeds MC.
+    expect(core.qc - core.qm).toBeCloseTo((m.demandA - m.mc) / (2 * m.demandB), 12);
+  });
+
+  it("keeps the surplus identity: lost consumer surplus = transfer + deadweight loss", () => {
+    const core = marketCore(m);
+    const consumerLoss = core.csC - core.csM;
+    const transfer = core.psM - core.psC;
+    expect(consumerLoss - transfer).toBeCloseTo(core.deadweightLoss, 10);
+    expect(core.surplusC - core.surplusM).toBeCloseTo(core.deadweightLoss, 10);
+  });
+
+  it("raises the Lerner index as marginal cost falls", () => {
+    const cheap = marketCore({ ...m, mc: 2 });
+    expect(cheap.lerner).toBeGreaterThan(marketCore(m).lerner);
+  });
+});
+
+describe("externalities and the Pigouvian tax", () => {
+  const m = { demandA: 20, demandB: 1, mc: 4, fixed: 10 };
+
+  it("over-produces by the harm when nothing is taxed", () => {
+    const core = externalityCore(m, { external: 2, tax: 0 });
+    expect(core.qPrivate).toBeCloseTo((m.demandA - m.mc) / m.demandB, 12);
+    expect(core.qSocial).toBeCloseTo((m.demandA - m.mc - 2) / m.demandB, 12);
+    expect(core.deadweightLoss).toBeCloseTo(2 ** 2 / (2 * m.demandB), 12);
+  });
+
+  it("removes the distortion exactly at the Pigouvian tax", () => {
+    const core = externalityCore(m, { external: 2, tax: 2 });
+    expect(core.residualLoss).toBeCloseTo(0, 12);
+    expect(core.qTaxed).toBeCloseTo(core.qSocial, 10);
+  });
+
+  it("costs the same to tax too little as too much", () => {
+    const under = externalityCore(m, { external: 2, tax: 1 });
+    const over = externalityCore(m, { external: 2, tax: 3 });
+    expect(under.residualLoss).toBeCloseTo(over.residualLoss, 12);
+    expect(under.residualLoss).toBeGreaterThan(0);
+  });
+
+  it("handles an external benefit as a subsidy", () => {
+    const core = externalityCore(m, { external: -2, tax: 0 });
+    // With an external benefit the market under-produces: the social optimum is
+    // above the private quantity.
+    expect(core.qSocial).toBeGreaterThan(core.qPrivate);
   });
 });
 

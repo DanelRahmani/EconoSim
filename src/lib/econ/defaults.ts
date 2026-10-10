@@ -43,7 +43,22 @@ export function defaultEconomy(): Economy {
     lambda: 0.5,
     theta: 0.5,
     gamma: 0.5,
-    piE: 0,
+    piE: 0.05,
+
+    // Chosen so the WS-PS natural rate matches `un` below: (m+z)/γ = 5%.
+    un: 0.05,
+    wagePush: 0.02,
+    markup: 0.03,
+    wageSlope: 1,
+
+    pcBeta: 0.5,
+    piTarget: 0.02,
+
+    debtRatio: 0.6,
+    primaryBalance: 0.01,
+
+    reservesShare: 0.5,
+    creditGrowth: 0.08,
   };
 }
 

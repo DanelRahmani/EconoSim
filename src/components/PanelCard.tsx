@@ -1,13 +1,60 @@
 "use client";
 
 import { useState } from "react";
-import type { Panel } from "@/lib/econ/panel";
+import type { Panel, TableSpec } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
 import { CurveChart, Legend, SERIES_COLORS } from "./charts/CurveChart";
 import { TimeSeriesChart } from "./charts/TimeSeriesChart";
 import { Calculation } from "./math/Calculation";
 import { AnimatedNumber } from "./ui/AnimatedNumber";
 import { InfoNote } from "./ui/InfoNote";
+
+/** A plain table — used for the game matrix and the market-structure comparison. */
+function DataTable({ spec }: { spec: TableSpec }) {
+  return (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <th className="border border-hairline px-2 py-1.5" />
+            {spec.columns.map((c) => (
+              <th
+                key={c}
+                scope="col"
+                className="border border-hairline px-2 py-1.5 text-center font-mono text-[0.6875rem] uppercase tracking-wider text-muted"
+              >
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {spec.rows.map((r) => (
+            <tr key={r.label}>
+              <th
+                scope="row"
+                className="border border-hairline px-2 py-2 text-left font-mono text-[0.6875rem] uppercase tracking-wider text-muted"
+              >
+                {r.label}
+              </th>
+              {r.cells.map((cell, j) => (
+                <td
+                  key={j}
+                  className={`border border-hairline px-2 py-2 text-center font-mono text-[0.8125rem] ${
+                    cell.emphasis ? "bg-accent/10 text-accent" : "text-ink"
+                  } ${cell.underline ? "underline decoration-accent decoration-2 underline-offset-4" : ""}`}
+                >
+                  {cell.text}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {spec.caption && <p className="mt-2 text-[0.6875rem] leading-snug text-muted">{spec.caption}</p>}
+    </div>
+  );
+}
 
 /** A small up/down chip showing a figure against its baseline value. */
 function Delta({ value, previous }: { value: number; previous: number }) {
@@ -73,6 +120,8 @@ export function PanelCard({
           <TimeSeriesChart spec={timeseries} colors={colors} />
         </div>
       )}
+
+      {panel.table && <DataTable spec={panel.table} />}
 
       {legend.length > 0 && (
         <div className="mt-3">

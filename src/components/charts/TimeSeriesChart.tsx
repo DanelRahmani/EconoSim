@@ -92,6 +92,7 @@ export function TimeSeriesChart({
             name={s.label}
             dot={false}
             strokeWidth={2}
+            strokeDasharray={s.dashed ? "5 4" : undefined}
             stroke={colors?.[s.label] ?? SERIES_COLORS[i % SERIES_COLORS.length]}
             isAnimationActive
             animationDuration={400}

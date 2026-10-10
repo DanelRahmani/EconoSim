@@ -59,10 +59,28 @@ export interface Economy {
   theta: number; // expectations-adjustment speed
   gamma: number; // output response to real depreciation (Dornbusch)
   piE: number; // expected inflation
+
+  // Labour market (WS-PS)
+  un: number; // natural rate of unemployment
+  wagePush: number; // wage-push factors z (benefits, union power, minimum wage)
+  markup: number; // price-setting mark-up m
+  wageSlope: number; // how strongly the real wage responds to unemployment γ
+
+  // Inflation
+  pcBeta: number; // Phillips-curve slope β
+  piTarget: number; // inflation target announced by the central bank
+
+  // Fiscal
+  debtRatio: number; // starting government debt, as a ratio to GDP
+  primaryBalance: number; // primary balance, as a ratio to GDP (positive = surplus)
+
+  // Balance of payments
+  reservesShare: number; // foreign reserves as a share of the money supply
+  creditGrowth: number; // growth rate of domestic credit μ
 }
 
 /**
- * Parameters for the AI-substitution scenario. These live outside `Economy`
+ * Scenario settings for the AI boom model. These live outside `Economy`
  * because they describe a hypothetical, not the economy as it stands.
  */
 export interface AiOptions {
@@ -72,6 +90,58 @@ export interface AiOptions {
   capitalIntensity: number;
   /** Productivity of AI capital relative to ordinary capital (1 = like-for-like). */
   capitalProductivity: number;
+}
+
+/**
+ * Whether a disinflation is believed immediately or has to be earned.
+ * This is the whole teaching point of the Phillips-curve model, so it is a
+ * switch rather than a slider.
+ */
+export type Expectations = "adaptive" | "credible";
+
+/** Textbook micro dials. They describe a single market, not the whole economy. */
+export interface MicroOptions {
+  /** Price of good x. */
+  px: number;
+  /** Price of good y. */
+  py: number;
+  /** Income. */
+  income: number;
+  /** Preference weight on x in U = x^α·y^(1−α). */
+  weight: number;
+}
+
+/** Market-structure dials: demand P = a − b·Q and a constant marginal cost. */
+export interface MarketOptions {
+  /** Demand intercept a. */
+  demandA: number;
+  /** Demand slope b. */
+  demandB: number;
+  /** Constant marginal cost. */
+  mc: number;
+  /** Fixed cost. */
+  fixed: number;
+}
+
+/** Externality dials: the wedge between private and social cost, and the tax that closes it. */
+export interface ExternalityOptions {
+  /** Marginal external cost per unit (negative for an external benefit). */
+  external: number;
+  /** Pigouvian tax per unit. */
+  tax: number;
+}
+
+/** Which 2×2 game to play, and the temptation payoff that makes it a dilemma. */
+export interface GameOptions {
+  game: "prisoners" | "coordination" | "chicken" | "matching";
+  /** Payoff to defecting against a cooperator (the source of the dilemma). */
+  temptation: number;
+}
+
+/** Size of the negative demand shock used by the zero-lower-bound model. */
+export interface ZlbOptions {
+  /** Demand contraction, as a fraction of potential output. */
+  demandShock: number;
 }
 
 export interface ValidationIssue {
@@ -87,7 +157,19 @@ export interface ValidationIssue {
  */
 export function validateEconomy(e: Economy): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const positive: (keyof Economy)[] = ["A", "L", "K0", "delta", "hR", "b", "kappa", "lambda", "theta"];
+  const positive: (keyof Economy)[] = [
+    "A",
+    "L",
+    "K0",
+    "delta",
+    "hR",
+    "b",
+    "kappa",
+    "lambda",
+    "theta",
+    "pcBeta",
+    "wageSlope",
+  ];
   for (const k of positive) {
     const v = e[k];
     if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) {
@@ -103,6 +185,7 @@ export function validateEconomy(e: Economy): ValidationIssue[] {
   unit("alpha");
   unit("c1");
   unit("s");
+  unit("un");
   if (e.n + e.g + e.delta <= 0) {
     issues.push({ field: "n", message: "n + g + delta must be positive" });
   }

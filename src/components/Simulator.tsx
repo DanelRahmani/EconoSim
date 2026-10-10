@@ -1,11 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { AiOptions, CountrySize, Economy, ExchangeRegime, Openness } from "@/lib/econ/types";
+import type {
+  AiOptions,
+  CountrySize,
+  Economy,
+  ExchangeRegime,
+  ExternalityOptions,
+  Expectations,
+  GameOptions,
+  MarketOptions,
+  MicroOptions,
+  Openness,
+  ZlbOptions,
+} from "@/lib/econ/types";
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { DEFAULT_AI, DEFAULT_HORIZON, DEFAULT_MODEL, HORIZON_PRESETS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
+import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_ZLB, HORIZON_PRESETS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
 import { readState, shareUrl, type CompareMode } from "@/lib/econ/permalink";
 import { resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { mergePanels } from "@/lib/econ/compare";
@@ -62,10 +74,23 @@ const PARAMS: ParamDef[] = [
   { key: "fxPeg", label: "Peg level ε̄", min: 0.5, max: 1.5, step: 0.01, group: "Open economy", help: "The real exchange rate the central bank defends when the regime is Fixed." },
 
   { key: "lambda", label: "SRAS slope λ", min: 0.1, max: 2, step: 0.05, group: "Adjustment", help: "How strongly prices respond to an output gap — i.e. how flexible short-run supply is." },
-  { key: "theta", label: "Expectations speed θ", min: 0.05, max: 1, step: 0.05, group: "Adjustment", help: "How quickly price expectations catch up to realised prices, and so how fast the economy returns to potential output." },
+  { key: "theta", label: "Expectations speed θ", min: 0.05, max: 1, step: 0.05, group: "Adjustment", help: "How quickly price expectations catch up to realised prices, and so how fast the economy returns to potential output. In the Phillips curve it also sets the sacrifice ratio 1/(βθ)." },
+
+  { key: "piE", label: "Expected inflation πᵉ", min: 0, max: 0.2, step: 0.005, group: "Inflation & labour", simple: true, help: "The inflation rate people expect, and the rate the economy starts at. A high πᵉ makes a disinflation expensive." },
+  { key: "piTarget", label: "Inflation target π*", min: 0, max: 0.15, step: 0.005, group: "Inflation & labour", simple: true, help: "What the central bank announces and delivers. The gap between πᵉ and π* is the size of the disinflation." },
+  { key: "pcBeta", label: "Phillips slope β", min: 0.1, max: 1.5, step: 0.05, group: "Inflation & labour", simple: true, help: "How strongly unemployment pushes inflation away from expectations. A steeper curve means a cheaper disinflation." },
+  { key: "un", label: "Natural unemployment uₙ", min: 0.01, max: 0.2, step: 0.005, group: "Inflation & labour", help: "The unemployment rate that leaves inflation unchanged. The WS-PS model derives it; this slider overrides it for the Phillips curve." },
+  { key: "wagePush", label: "Wage push z", min: 0, max: 0.15, step: 0.005, group: "Inflation & labour", help: "Benefits, union strength, minimum wages — anything that lets workers win a higher real wage at a given unemployment rate." },
+  { key: "markup", label: "Firms' mark-up m", min: 0, max: 0.4, step: 0.005, group: "Inflation & labour", help: "The mark-up firms charge over marginal cost. It fixes the real wage they can pay, and so helps set the natural rate." },
+  { key: "wageSlope", label: "Wage-setting slope γ", min: 0.3, max: 3, step: 0.05, group: "Inflation & labour", help: "How sharply the real wage workers can win falls as unemployment rises. A steeper curve means a lower natural rate." },
+
+  { key: "debtRatio", label: "Debt ratio b₀", min: 0, max: 2, step: 0.05, group: "Debt & balance of payments", simple: true, help: "Government debt as a share of GDP at the start." },
+  { key: "primaryBalance", label: "Primary balance pb", min: -0.1, max: 0.1, step: 0.005, group: "Debt & balance of payments", simple: true, help: "The budget balance excluding interest payments, as a share of GDP. Positive is a surplus; debt is stable only if pb covers (r − g)·b." },
+  { key: "reservesShare", label: "Reserves (share of M)", min: 0.05, max: 0.95, step: 0.05, group: "Debt & balance of payments", help: "Foreign reserves as a share of the money supply. The rest of the money supply is domestic credit, which is what drains the reserves." },
+  { key: "creditGrowth", label: "Domestic credit growth μ", min: 0, max: 0.4, step: 0.005, group: "Debt & balance of payments", help: "How fast the government borrows from the central bank. Financing a deficit this way is what dates the collapse of a peg." },
 ];
 
-const GROUP_ORDER = ["Production", "Growth (long run)", "Fiscal & money", "Behaviour", "Open economy", "Adjustment"];
+const GROUP_ORDER = ["Production", "Growth (long run)", "Fiscal & money", "Behaviour", "Open economy", "Adjustment", "Inflation & labour", "Debt & balance of payments"];
 
 /** Scenario controls for the AI boom model. */
 function AiControls({ value, onChange }: { value: AiOptions; onChange: (v: AiOptions) => void }) {
@@ -102,8 +127,207 @@ function AiControls({ value, onChange }: { value: AiOptions; onChange: (v: AiOpt
   );
 }
 
-/** Compact time-window picker, shown above a time-path chart. */
-function HorizonControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+/** Scenario switch for the Phillips curve: is a disinflation believed or earned? */
+function ExpectationsControl({ value, onChange }: { value: Expectations; onChange: (v: Expectations) => void }) {
+  return (
+    <Segmented<Expectations>
+      label="Expectations"
+      help="Adaptive: people learn from realised inflation, so the bank has to hold inflation below expectations and unemployment rises. Credible: the announcement is believed at once, expectations jump to the target, and the disinflation costs nothing."
+      value={value}
+      options={[
+        { value: "adaptive", label: "Adaptive" },
+        { value: "credible", label: "Credible" },
+      ]}
+      onChange={onChange}
+    />
+  );
+}
+
+/** Size of the demand shock in the zero-lower-bound model. */
+function ZlbControls({ value, onChange }: { value: ZlbOptions; onChange: (v: ZlbOptions) => void }) {
+  return (
+    <div className="grid gap-x-4 sm:grid-cols-2">
+      <ParamControl
+        label="Demand shock (% of potential output)"
+        help="How hard demand is hit, as a share of potential output. Increase it until the natural rate of interest goes negative — that is when the zero bound starts to bind."
+        value={value.demandShock * 100}
+        min={0}
+        max={60}
+        step={5}
+        onChange={(v) => onChange({ ...value, demandShock: v / 100 })}
+      />
+    </div>
+  );
+}
+
+/** Textbook micro dials: prices, income and preference weight. */
+function MicroControls({ value, onChange }: { value: MicroOptions; onChange: (v: MicroOptions) => void }) {
+  return (
+    <div className="grid gap-x-4 sm:grid-cols-4">
+      <ParamControl
+        label="Price of x pₓ"
+        help="The price of the good on the horizontal axis. Raising it rotates the budget line inwards."
+        value={value.px}
+        min={0.2}
+        max={5}
+        step={0.1}
+        onChange={(v) => onChange({ ...value, px: v })}
+      />
+      <ParamControl
+        label="Price of y p_y"
+        help="The price of the good on the vertical axis. Raising it makes the budget line steeper."
+        value={value.py}
+        min={0.2}
+        max={5}
+        step={0.1}
+        onChange={(v) => onChange({ ...value, py: v })}
+      />
+      <ParamControl
+        label="Income I"
+        help="Total income to spend. With Cobb-Douglas preferences, more income scales the whole bundle up proportionally."
+        value={value.income}
+        min={4}
+        max={120}
+        step={1}
+        onChange={(v) => onChange({ ...value, income: v })}
+      />
+      <ParamControl
+        label="Preference weight α"
+        help="How much the consumer cares about x relative to y. It also fixes the share of income spent on x, whatever the prices are."
+        value={value.weight}
+        min={0.1}
+        max={0.9}
+        step={0.05}
+        onChange={(v) => onChange({ ...value, weight: v })}
+      />
+    </div>
+  );
+}
+
+/** One market's demand and cost — shared by the competition and externality models. */
+function MarketControls({ value, onChange }: { value: MarketOptions; onChange: (v: MarketOptions) => void }) {
+  return (
+    <div className="grid gap-x-4 sm:grid-cols-4">
+      <ParamControl
+        label="Demand intercept a"
+        help="The price at which demand falls to zero, in P = a − b·Q. Higher means a bigger market."
+        value={value.demandA}
+        min={5}
+        max={60}
+        step={1}
+        onChange={(v) => onChange({ ...value, demandA: v })}
+      />
+      <ParamControl
+        label="Demand slope b"
+        help="How quickly the price falls as quantity rises. A flatter curve means consumers are more price-sensitive."
+        value={value.demandB}
+        min={0.2}
+        max={5}
+        step={0.1}
+        onChange={(v) => onChange({ ...value, demandB: v })}
+      />
+      <ParamControl
+        label="Marginal cost c"
+        help="The cost of producing one more unit, constant by assumption. Under competition price is driven down to this."
+        value={value.mc}
+        min={0}
+        max={15}
+        step={0.5}
+        onChange={(v) => onChange({ ...value, mc: v })}
+      />
+      <ParamControl
+        label="Fixed cost F"
+        help="A cost that does not vary with output. Under competition it is a loss; for a monopolist it is what the operating profit has to cover."
+        value={value.fixed}
+        min={0}
+        max={80}
+        step={1}
+        onChange={(v) => onChange({ ...value, fixed: v })}
+      />
+    </div>
+  );
+}
+
+/** The externality dials: how big the harm is, and how much tax is in place. */
+function ExternalityControls({
+  value,
+  onChange,
+}: {
+  value: ExternalityOptions;
+  onChange: (v: ExternalityOptions) => void;
+}) {
+  return (
+    <div className="grid gap-x-4 sm:grid-cols-2">
+      <ParamControl
+        label="Marginal external cost"
+        help="The harm each unit imposes on people outside the market. Set it to zero for a market with no externality, or negative for an external benefit that would call for a subsidy."
+        value={value.external}
+        min={-3}
+        max={8}
+        step={0.5}
+        onChange={(v) => onChange({ ...value, external: v })}
+      />
+      <ParamControl
+        label="Tax per unit t"
+        help="The tax actually in place. Set it equal to the marginal external cost — the Pigouvian tax — and the distortion disappears entirely. Either side of that costs surplus."
+        value={value.tax}
+        min={0}
+        max={10}
+        step={0.5}
+        onChange={(v) => onChange({ ...value, tax: v })}
+      />
+    </div>
+  );
+}
+
+/** Which 2×2 game to play. The temptation dial only bites in the dilemma. */
+function GameControls({ value, onChange }: { value: GameOptions; onChange: (v: GameOptions) => void }) {
+  const options: { id: GameOptions["game"]; label: string }[] = [
+    { id: "prisoners", label: "Prisoner's dilemma" },
+    { id: "coordination", label: "Coordination" },
+    { id: "chicken", label: "Chicken" },
+    { id: "matching", label: "Matching pennies" },
+  ];
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="mb-1 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Game</div>
+        <div className="flex flex-wrap gap-1.5">
+          {options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              aria-pressed={value.game === o.id}
+              onClick={() => onChange({ ...value, game: o.id })}
+              className={`rounded-full border px-2.5 py-1 text-xs transition-all duration-200 ${
+                value.game === o.id
+                  ? "border-accent bg-accent text-accentink accent-glow"
+                  : "border-hairline text-muted hover:-translate-y-px hover:border-accent/50 hover:text-ink"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {value.game === "prisoners" && (
+        <div className="grid gap-x-4 sm:grid-cols-2">
+          <ParamControl
+            label="Temptation payoff T"
+            help="What defecting pays against a cooperator. Above the cooperation payoff of 3 this is a dilemma: defecting dominates, so both end up with 1 each instead of 3."
+            value={value.temptation}
+            min={4}
+            max={10}
+            step={0.5}
+            onChange={(v) => onChange({ ...value, temptation: v })}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Compact time-window picker, shown above a time-path chart. */function HorizonControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Time window</span>
@@ -152,6 +376,17 @@ export function Simulator() {
   const [compare, setCompare] = useState<CompareMode>("current");
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
   const [ai, setAi] = useState<AiOptions>(DEFAULT_AI);
+  const [expectations, setExpectations] = useState<Expectations>(DEFAULT_EXPECTATIONS);
+  const [micro, setMicro] = useState<MicroOptions>(DEFAULT_MICRO);
+  const [market, setMarket] = useState<MarketOptions>(DEFAULT_MARKET);
+  const [externality, setExternality] = useState<ExternalityOptions>(DEFAULT_EXTERNALITY);
+  const [game, setGame] = useState<GameOptions>(DEFAULT_GAME);
+  const [zlb, setZlb] = useState<ZlbOptions>(DEFAULT_ZLB);
+
+  const options = useMemo(
+    () => ({ horizon, ai, expectations, micro, market, externality, game, zlb }),
+    [horizon, ai, expectations, micro, market, externality, game, zlb],
+  );
 
   // A shared link carries the whole view. The server has no URL to read, so the
   // page renders its defaults first and the shared state is applied on the next
@@ -188,14 +423,13 @@ export function Simulator() {
   const panels = useMemo(() => {
     if (model === "glossary") return [];
     try {
-      const opts = { horizon, ai };
-      const current = runModel(model, shownEconomy, opts);
+      const current = runModel(model, shownEconomy, options);
       if (compare !== "both") return current;
-      return mergePanels(current, runModel(model, reference, opts));
+      return mergePanels(current, runModel(model, reference, options));
     } catch {
       return null;
     }
-  }, [model, shownEconomy, reference, compare, horizon, ai]);
+  }, [model, shownEconomy, reference, compare, options]);
 
   const loadEconomy = (e: Economy) => {
     setEconomy(e);
@@ -220,6 +454,27 @@ export function Simulator() {
 
   const removeShock = (id: string) => setShockList(shocks.filter((s) => s.id !== id));
   const clearShocks = () => setShockList([]);
+
+  // Scenario dials shown above the first panel of the models that have them.
+  const scenarioControls =
+    model === "ai-boom" ? (
+      <AiControls value={ai} onChange={setAi} />
+    ) : model === "phillips" ? (
+      <ExpectationsControl value={expectations} onChange={setExpectations} />
+    ) : model === "zlb" ? (
+      <ZlbControls value={zlb} onChange={setZlb} />
+    ) : model === "consumer-choice" ? (
+      <MicroControls value={micro} onChange={setMicro} />
+    ) : model === "market-structure" ? (
+      <MarketControls value={market} onChange={setMarket} />
+    ) : model === "externalities" ? (
+      <div className="space-y-3">
+        <ExternalityControls value={externality} onChange={setExternality} />
+        <MarketControls value={market} onChange={setMarket} />
+      </div>
+    ) : model === "game-theory" ? (
+      <GameControls value={game} onChange={setGame} />
+    ) : undefined;
 
   return (
     <div className="relative min-h-screen">
@@ -249,8 +504,7 @@ export function Simulator() {
 
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
-            <ShareLink build={() => shareUrl({ economy, model, compare, horizon, ai, shocks }, window.location.href)} />
-            <div className="w-[13rem]">
+            <ShareLink build={() => shareUrl({ economy, model, compare, horizon, ai, shocks }, window.location.href)} />            <div className="w-[13rem]">
               <Segmented<CompareMode>
                 value={compare}
                 options={[
@@ -416,20 +670,24 @@ export function Simulator() {
           {model === "glossary" ? (
             <GlossaryPanel />
           ) : panels && panels.length > 0 ? (
-            panels.map((p, i) => (
-              <PanelCard
-                key={p.id}
-                panel={p}
-                index={i}
-                chartControls={
-                  model === "ai-boom" && i === 0 ? (
-                    <AiControls value={ai} onChange={setAi} />
-                  ) : p.timeseries ? (
-                    <HorizonControl value={horizon} onChange={setHorizon} />
-                  ) : undefined
-                }
-              />
-            ))
+            panels.map((p, i) => {
+              const scenario = i === 0 ? scenarioControls : undefined;
+              return (
+                <PanelCard
+                  key={p.id}
+                  panel={p}
+                  index={i}
+                  chartControls={
+                    scenario || p.timeseries ? (
+                      <>
+                        {scenario}
+                        {p.timeseries && <HorizonControl value={horizon} onChange={setHorizon} />}
+                      </>
+                    ) : undefined
+                  }
+                />
+              );
+            })
           ) : (
             <div className="card border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-ink">
               This model could not be computed with the current parameters. Adjust the sliders to bring the economy
