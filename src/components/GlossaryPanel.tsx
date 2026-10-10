@@ -7,8 +7,11 @@ export function GlossaryPanel() {
     <section className="card reveal p-5">
       <h3 className="text-base font-semibold tracking-tight text-ink">Glossary</h3>
       <p className="mt-1 text-sm text-muted">
-        Every symbol and switch used across the models, in plain language. Hover any label elsewhere in the app for a
-        short version.
+        Every symbol and switch used across the models, in plain language. Elsewhere in the app, click the small
+        <span className="mx-1 inline-grid h-4 w-4 place-items-center rounded-full border border-hairline align-middle text-[0.5625rem] font-bold text-muted">
+          i
+        </span>
+        next to a control to open a short explanation.
       </p>
 
       {GLOSSARY.map((group) => (

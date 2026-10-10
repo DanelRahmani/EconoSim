@@ -41,7 +41,6 @@ export function ShockControls({
             <button
               key={s.id}
               type="button"
-              title={s.help}
               aria-pressed={on}
               onClick={() => onToggle(s.id)}
               className={`rounded-full border px-3 py-1 text-xs transition-all duration-200 ${
@@ -55,6 +54,20 @@ export function ShockControls({
           );
         })}
       </div>
+      <details className="mt-3 rounded-xl border border-hairline bg-surface2/50">
+        <summary className="cursor-pointer select-none list-none px-3 py-2 text-[0.75rem] text-muted marker:content-none hover:text-ink">
+          What does each shock do?
+        </summary>
+        <dl className="space-y-2 px-3 pb-3 pt-1">
+          {SHOCK_PRESETS.map((s) => (
+            <div key={s.id}>
+              <dt className="text-[0.75rem] font-medium text-ink">{s.label}</dt>
+              <dd className="text-[0.6875rem] leading-relaxed text-muted">{s.help}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
+
       {active.length === 0 && (
         <p className="mt-2 font-mono text-[0.625rem] uppercase tracking-wider text-muted/70">no shocks applied</p>
       )}

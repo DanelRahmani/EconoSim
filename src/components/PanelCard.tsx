@@ -6,6 +6,7 @@ import { CurveChart, Legend, SERIES_COLORS } from "./charts/CurveChart";
 import { TimeSeriesChart } from "./charts/TimeSeriesChart";
 import { Calculation } from "./math/Calculation";
 import { AnimatedNumber } from "./ui/AnimatedNumber";
+import { InfoNote } from "./ui/InfoNote";
 
 /** A small up/down chip showing a figure against its baseline value. */
 function Delta({ value, previous }: { value: number; previous: number }) {
@@ -61,11 +62,11 @@ export function PanelCard({ panel, index = 0 }: { panel: Panel; index?: number }
           {panel.scalars.map((s) => (
             <div
               key={s.label}
-              title={s.hint}
               className="min-w-0 rounded-lg border border-hairline bg-surface2/60 px-3 py-2.5 transition-colors hover:border-accent/40"
             >
-              <dt className="break-words font-mono text-[0.6875rem] uppercase leading-tight tracking-wider text-muted">
-                {s.label}
+              <dt className="flex flex-wrap items-center gap-x-1 break-words font-mono text-[0.6875rem] uppercase leading-tight tracking-wider text-muted">
+                <span>{s.label}</span>
+                {s.hint && <InfoNote help={s.hint} label={s.label} />}
               </dt>
               <dd className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 font-mono text-[0.9375rem] leading-tight text-ink">
                 <AnimatedNumber value={s.value} />

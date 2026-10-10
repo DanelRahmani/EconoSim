@@ -1,8 +1,9 @@
 "use client";
 
 import { fmtNum } from "@/lib/format";
+import { InfoNote } from "./ui/InfoNote";
 
-/** A labelled slider with a synced numeric input and a hover explanation. */
+/** A labelled slider with a synced numeric input and a click-to-open explanation. */
 export function ParamControl({
   label,
   value,
@@ -23,15 +24,11 @@ export function ParamControl({
   const id = `p-${label.replace(/[^a-z0-9]/gi, "-")}`;
   return (
     <div className="py-2">
-      <div className="flex items-center justify-between gap-2">
-        <label htmlFor={id} className="cursor-help text-[0.75rem] leading-snug text-muted" title={help}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <label htmlFor={id} className="text-[0.75rem] leading-snug text-muted">
           {label}
-          {help && (
-            <span aria-hidden className="ml-1 text-[0.625rem] text-muted/60">
-              ⓘ
-            </span>
-          )}
         </label>
+        {help && <InfoNote help={help} label={label} />}
         <input
           type="number"
           value={Number.isFinite(value) ? value : 0}
@@ -42,7 +39,7 @@ export function ParamControl({
             const n = Number(e.target.value);
             if (Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)));
           }}
-          className="w-20 shrink-0 rounded-md border border-hairline bg-surface2 px-1.5 py-0.5 text-right font-mono text-[0.6875rem] text-ink transition-colors focus:border-accent focus:outline-none"
+          className="ml-auto w-20 shrink-0 rounded-md border border-hairline bg-surface2 px-1.5 py-0.5 text-right font-mono text-[0.6875rem] text-ink transition-colors focus:border-accent focus:outline-none"
         />
       </div>
       <input
@@ -87,13 +84,9 @@ export function Segmented<T extends string>({
   return (
     <div className={`py-1.5 ${className ?? ""}`}>
       {label && (
-        <div className="mb-1 cursor-help text-[0.75rem] text-muted" title={help}>
-          {label}
-          {help && (
-            <span aria-hidden className="ml-1 text-[0.625rem] text-muted/60">
-              ⓘ
-            </span>
-          )}
+        <div className="mb-1 flex flex-wrap items-center gap-x-2">
+          <span className="text-[0.75rem] text-muted">{label}</span>
+          {help && <InfoNote help={help} label={label} />}
         </div>
       )}
       <div
