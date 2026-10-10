@@ -16,8 +16,9 @@ export interface RunOptions {
   horizon: number;
 }
 
-export const DEFAULT_HORIZON = 60;
-export const HORIZON_BOUNDS = { min: 5, max: 120, step: 5 };
+export const DEFAULT_HORIZON = 50;
+/** Preset windows — a couple of clicks rather than a fiddly slider. */
+export const HORIZON_PRESETS = [10, 25, 50, 100, 120];
 export const DEFAULT_OPTIONS: RunOptions = { horizon: DEFAULT_HORIZON };
 
 export interface ModelDef {
@@ -51,8 +52,3 @@ export function runModel(id: string, e: Economy, o: RunOptions = DEFAULT_OPTIONS
 }
 
 export const MODEL_GROUPS: string[] = Array.from(new Set(MODELS.map((m) => m.group)));
-
-/** Step count that keeps a path smooth for a given horizon. */
-export function stepsFor(horizon: number, perPeriod: number, min = 90, max = 1500): number {
-  return Math.max(min, Math.min(max, Math.round(horizon * perPeriod)));
-}

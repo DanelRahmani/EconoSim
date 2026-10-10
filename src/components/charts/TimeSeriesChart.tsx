@@ -2,7 +2,6 @@
 
 import {
   CartesianGrid,
-  Legend as RLegend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -16,7 +15,15 @@ import { SERIES_COLORS } from "./CurveChart";
 const AXIS_TICK = { fontSize: 11, fill: "var(--muted)" } as const;
 
 /** Recharts-based time-series plot (used for trajectory/path panels). */
-export function TimeSeriesChart({ spec, height = 300 }: { spec: TimeSeriesSpec; height?: number }) {
+export function TimeSeriesChart({
+  spec,
+  height = 300,
+  colors,
+}: {
+  spec: TimeSeriesSpec;
+  height?: number;
+  colors?: Record<string, string>;
+}) {
   // Merge the series into rows keyed on x so Recharts can plot them together.
   const byX = new Map<number, Record<string, number>>();
   spec.series.forEach((s) => {
@@ -63,7 +70,7 @@ export function TimeSeriesChart({ spec, height = 300 }: { spec: TimeSeriesSpec; 
             return Number.isFinite(n) ? n.toFixed(3) : String(value);
           }}
         />
-        <RLegend wrapperStyle={{ fontSize: 12, color: "var(--muted)" }} />
+        {/* No Recharts legend here — the panel renders one interactive legend. */}
         {spec.series.map((s, i) => (
           <Line
             key={s.label}
@@ -72,7 +79,7 @@ export function TimeSeriesChart({ spec, height = 300 }: { spec: TimeSeriesSpec; 
             name={s.label}
             dot={false}
             strokeWidth={2}
-            stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
+            stroke={colors?.[s.label] ?? SERIES_COLORS[i % SERIES_COLORS.length]}
             isAnimationActive
             animationDuration={400}
             animationEasing="ease-out"

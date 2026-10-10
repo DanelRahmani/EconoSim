@@ -26,7 +26,16 @@ function domain(values: number[], pad = 0.08): [number, number] {
 }
 
 /** A lightweight SVG chart for economic curve diagrams (curve shifts, phase diagrams, IS-LM). */
-export function CurveChart({ spec, height = 300 }: { spec: ChartSpec; height?: number }) {
+export function CurveChart({
+  spec,
+  height = 300,
+  colors,
+}: {
+  spec: ChartSpec;
+  height?: number;
+  /** Optional label → colour map, so colours stay stable when lines are hidden. */
+  colors?: Record<string, string>;
+}) {
   const H = height;
   const pad = { l: 56, r: 18, t: 16, b: 44 };
   const iw = W - pad.l - pad.r;
@@ -76,7 +85,7 @@ export function CurveChart({ spec, height = 300 }: { spec: ChartSpec; height?: n
             className={s.dashed ? "pop-in" : "chart-line"}
             style={{ animationDelay: `${i * 90}ms`, opacity: s.dashed ? 0.7 : undefined }}
             fill="none"
-            stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
+            stroke={colors?.[s.label] ?? SERIES_COLORS[i % SERIES_COLORS.length]}
             strokeWidth={2}
             strokeLinecap="round"
             strokeDasharray={s.dashed ? "6 5" : undefined}

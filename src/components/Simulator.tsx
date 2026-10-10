@@ -5,8 +5,8 @@ import type { CountrySize, Economy, ExchangeRegime, Openness } from "@/lib/econ/
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { DEFAULT_HORIZON, HORIZON_BOUNDS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
-import { applyShocks } from "@/lib/econ/shocks";
+import { DEFAULT_HORIZON, HORIZON_PRESETS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
+import { resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { mergePanels } from "@/lib/econ/compare";
 import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
 import { PanelCard } from "./PanelCard";
@@ -67,29 +67,30 @@ const PARAMS: ParamDef[] = [
 
 const GROUP_ORDER = ["Production", "Growth (long run)", "Fiscal & money", "Behaviour", "Open economy", "Adjustment"];
 
-/** Compact time-window control, shown in the header of a time-path chart. */
+/** Compact time-window picker, shown above a time-path chart. */
 function HorizonControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex shrink-0 items-center gap-2 rounded-full border border-hairline bg-surface2 px-3 py-1">
-        <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Window</span>
-        <span className="w-24 shrink-0">
-          <input
-            type="range"
-            className="slider"
-            min={HORIZON_BOUNDS.min}
-            max={HORIZON_BOUNDS.max}
-            step={HORIZON_BOUNDS.step}
-            value={value}
-            onChange={(e) => onChange(Number(e.target.value))}
-            aria-label="Time window in periods"
-          />
-        </span>
-        <span className="w-8 text-right font-mono text-[0.75rem] text-ink">{value}</span>
+      <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Time window</span>
+      <div className="inline-flex overflow-hidden rounded-full border border-hairline">
+        {HORIZON_PRESETS.map((h) => (
+          <button
+            key={h}
+            type="button"
+            aria-pressed={value === h}
+            onClick={() => onChange(h)}
+            className={`px-3 py-1 font-mono text-[0.6875rem] transition-colors ${
+              value === h ? "bg-accent text-accentink" : "text-muted hover:bg-surface2 hover:text-ink"
+            }`}
+          >
+            {h}
+          </button>
+        ))}
       </div>
+      <span className="font-mono text-[0.6875rem] text-muted">periods</span>
       <InfoNote
         label="time window"
-        help="How far forward this path is plotted, in periods. A short window keeps the early periods readable; a long one shows the full convergence to the steady state."
+        help="How far forward the path is plotted, in periods. A short window keeps the early periods readable; a long one shows the full convergence to the steady state."
       />
     </div>
   );
@@ -110,7 +111,7 @@ function LogoMark() {
 export function Simulator() {
   const [economy, setEconomy] = useState<Economy>(() => defaultEconomy());
   const [baseline, setBaseline] = useState<Economy>(() => defaultEconomy());
-  const [shocks, setShocks] = useState<string[]>([]);
+  const [shocks, setShocks] = useState<ShockSpec[]>([]);
   const [model, setModel] = useState("solow");
   const [expert, setExpert] = useState(false);
   const [compare, setCompare] = useState<CompareMode>("current");
@@ -119,7 +120,7 @@ export function Simulator() {
   const update = (patch: Partial<Economy>) => setEconomy((e) => ({ ...e, ...patch }));
   const issues = useMemo(() => validateEconomy(economy), [economy]);
 
-  const { economy: shockedEconomy } = useMemo(() => applyShocks(economy, shocks), [economy, shocks]);
+  const { economy: shockedEconomy, applied } = useMemo(() => resolveShocks(economy, shocks), [economy, shocks]);
   const hasShocks = shocks.length > 0;
 
   // Ease the economy so curves and figures morph instead of jumping.
@@ -149,16 +150,22 @@ export function Simulator() {
     setCompare("current");
   };
 
-  const toggleShock = (id: string) => {
-    const next = shocks.includes(id) ? shocks.filter((x) => x !== id) : [...shocks, id];
+  const setShockList = (next: ShockSpec[]) => {
     setShocks(next);
     setCompare(next.length > 0 ? "both" : "current");
   };
 
-  const clearShocks = () => {
-    setShocks([]);
-    setCompare("current");
+  const togglePreset = (id: string) => {
+    const on = shocks.some((s) => s.kind === "preset" && s.id === id);
+    setShockList(on ? shocks.filter((s) => !(s.kind === "preset" && s.id === id)) : [...shocks, { kind: "preset", id }]);
   };
+
+  const addCustom = (s: Omit<Extract<ShockSpec, { kind: "custom" }>, "id" | "kind">) => {
+    setShockList([...shocks, { ...s, kind: "custom", id: `custom-${Date.now()}` }]);
+  };
+
+  const removeShock = (id: string) => setShockList(shocks.filter((s) => s.id !== id));
+  const clearShocks = () => setShockList([]);
 
   return (
     <div className="relative min-h-screen">
@@ -317,7 +324,16 @@ export function Simulator() {
         </aside>
 
         <main key={model} className="min-w-0 space-y-4">
-          {model !== "glossary" && <ShockControls active={shocks} onToggle={toggleShock} onClear={clearShocks} />}
+          {model !== "glossary" && (
+            <ShockControls
+              specs={shocks}
+              applied={applied}
+              onTogglePreset={togglePreset}
+              onAddCustom={addCustom}
+              onRemove={removeShock}
+              onClear={clearShocks}
+            />
+          )}
 
           {compare !== "current" && model !== "glossary" && (
             <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-xs text-muted">
@@ -350,7 +366,7 @@ export function Simulator() {
                 key={p.id}
                 panel={p}
                 index={i}
-                headerExtra={p.timeseries ? <HorizonControl value={horizon} onChange={setHorizon} /> : undefined}
+                chartControls={p.timeseries ? <HorizonControl value={horizon} onChange={setHorizon} /> : undefined}
               />
             ))
           ) : (

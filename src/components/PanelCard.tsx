@@ -31,12 +31,12 @@ function Delta({ value, previous }: { value: number; previous: number }) {
 export function PanelCard({
   panel,
   index = 0,
-  headerExtra,
+  chartControls,
 }: {
   panel: Panel;
   index?: number;
-  /** Rendered top-right of the card — e.g. the time-window control. */
-  headerExtra?: React.ReactNode;
+  /** Rendered directly above the chart — e.g. the time-window control. */
+  chartControls?: React.ReactNode;
 }) {
   // Lines can be switched off from the legend.
   const [hidden, setHidden] = useState<string[]>([]);
@@ -44,10 +44,13 @@ export function PanelCard({
     setHidden((prev) => (prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]));
 
   const source = panel.chart ? panel.chart.series : (panel.timeseries?.series ?? []);
-  const legend =
-    source.length > 1
-      ? source.map((s, i) => ({ label: s.label, color: SERIES_COLORS[i % SERIES_COLORS.length] }))
-      : [];
+  // Colours are keyed by label off the *full* list, so hiding a line never
+  // shifts the colours of the remaining ones.
+  const colors: Record<string, string> = {};
+  source.forEach((s, i) => {
+    colors[s.label] = SERIES_COLORS[i % SERIES_COLORS.length];
+  });
+  const legend = source.length > 1 ? source.map((s) => ({ label: s.label, color: colors[s.label] })) : [];
   const visible = <T extends { label: string }>(series: T[]) => series.filter((s) => !hidden.includes(s.label));
 
   const chart = panel.chart ? { ...panel.chart, series: visible(panel.chart.series) } : undefined;
@@ -55,22 +58,19 @@ export function PanelCard({
 
   return (
     <section className="card card-hover reveal p-5" style={index ? { animationDelay: `${index * 80}ms` } : undefined}>
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0">
-          <h3 className="text-base font-semibold tracking-tight text-ink">{panel.title}</h3>
-          {panel.description && <p className="mt-1 text-sm leading-relaxed text-muted">{panel.description}</p>}
-        </div>
-        {headerExtra}
-      </div>
+      <h3 className="text-base font-semibold tracking-tight text-ink">{panel.title}</h3>
+      {panel.description && <p className="mt-1 text-sm leading-relaxed text-muted">{panel.description}</p>}
+
+      {chartControls && <div className="mt-3">{chartControls}</div>}
 
       {chart && (
-        <div className="mt-4">
-          <CurveChart spec={chart} />
+        <div className="mt-3">
+          <CurveChart spec={chart} colors={colors} />
         </div>
       )}
       {!chart && timeseries && (
-        <div className="mt-4">
-          <TimeSeriesChart spec={timeseries} />
+        <div className="mt-3">
+          <TimeSeriesChart spec={timeseries} colors={colors} />
         </div>
       )}
 

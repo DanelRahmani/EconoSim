@@ -14,7 +14,7 @@ import { dornbusch } from "@/lib/econ/models/dornbusch";
 import { debtNext, debtSteadyState, currentAccount, nationalSaving, investment } from "@/lib/econ/models/externalBalance";
 import { marshallLernerSum, jCurve, netExports } from "@/lib/econ/models/tradeFlows";
 import { uipDeviation, cipDeviation, trilemmaCount } from "@/lib/econ/models/parity";
-import { SHOCK_PRESETS, applyShocks } from "@/lib/econ/shocks";
+import { SHOCK_PRESETS, applyMode, resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
 
 const e = defaultEconomy();
@@ -241,15 +241,22 @@ describe("every model runs and produces finite output", () => {
   }
 });
 
-describe("shock presets", () => {
-  it("apply on top of the economy without mutating the base", () => {
+describe("shocks", () => {
+  const preset = (id: string): ShockSpec => ({ kind: "preset", id });
+
+  it("applies presets on top of the economy without mutating the base", () => {
     const base = defaultEconomy();
     const snapshot = { ...base };
-    const { economy: shocked, applied } = applyShocks(base, ["monetary", "fiscal"]);
+    const { economy: shocked, applied } = resolveShocks(base, [preset("monetary"), preset("fiscal")]);
     expect(applied).toHaveLength(2);
     expect(shocked.M).toBeGreaterThan(base.M);
     expect(shocked.G).toBeGreaterThan(base.G);
     expect(base).toEqual(snapshot);
+  });
+
+  it("rebuilds presets from the live economy, so slider changes are respected", () => {
+    const richer = { ...defaultEconomy(), M: 200 };
+    expect(resolveShocks(richer, [preset("monetary")]).economy.M).toBeCloseTo(240, 10);
   });
 
   it("every preset only touches real Economy fields and stays valid", () => {
@@ -264,8 +271,39 @@ describe("shock presets", () => {
     }
   });
 
-  it("ignores unknown shock ids", () => {
-    expect(applyShocks(defaultEconomy(), ["not-a-shock"]).applied).toHaveLength(0);
+  it("ignores unknown preset ids", () => {
+    expect(resolveShocks(defaultEconomy(), [preset("not-a-shock")]).applied).toHaveLength(0);
+  });
+
+  it("applies a user-defined shock as a percentage", () => {
+    const base = defaultEconomy();
+    const { economy: shocked, applied } = resolveShocks(base, [
+      { kind: "custom", id: "c", label: "Tech investment boom", key: "A", mode: "percent", amount: 15 },
+    ]);
+    expect(shocked.A).toBeCloseTo(base.A * 1.15, 10);
+    expect(applied[0].detail).toContain("A");
+  });
+
+  it("applies a user-defined shock as a delta, including negative ones", () => {
+    const base = defaultEconomy();
+    const { economy: shocked } = resolveShocks(base, [
+      { kind: "custom", id: "c", label: "Baby bust", key: "n", mode: "delta", amount: -0.005 },
+    ]);
+    expect(shocked.n).toBeCloseTo(base.n - 0.005, 10);
+  });
+
+  it("clamps a custom shock that would otherwise break the model", () => {
+    const { economy: shocked } = resolveShocks(defaultEconomy(), [
+      { kind: "custom", id: "c", label: "Absurd saving", key: "s", mode: "absolute", amount: 5 },
+    ]);
+    expect(shocked.s).toBeLessThan(1);
+    expect(validateEconomy(shocked)).toEqual([]);
+  });
+
+  it("covers all three operations in applyMode", () => {
+    expect(applyMode(100, "percent", 10)).toBeCloseTo(110, 10);
+    expect(applyMode(100, "delta", -10)).toBeCloseTo(90, 10);
+    expect(applyMode(100, "absolute", 7)).toBeCloseTo(7, 10);
   });
 });
 

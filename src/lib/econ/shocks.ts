@@ -1,9 +1,14 @@
 import type { Economy } from "./types";
 
 /**
- * A shock is a named set of parameter changes applied on top of the current
- * economy. Every model then shows the economy *with* and *without* the shock.
+ * A shock is a named change applied on top of the current economy. Every model
+ * then shows the economy *with* and *without* it.
+ *
+ * Presets are parameterised by the live economy, so they stay sensible when a
+ * slider moves. User-defined shocks are stored as a field + operation + amount
+ * for the same reason — recomputing each render instead of freezing a number.
  */
+
 export interface ShockDef {
   id: string;
   label: string;
@@ -72,9 +77,93 @@ export function findShock(id: string): ShockDef | undefined {
   return SHOCK_PRESETS.find((s) => s.id === id);
 }
 
-/** Merge every active shock's changes onto the economy. */
-export function applyShocks(economy: Economy, activeIds: string[]): { economy: Economy; applied: ShockDef[] } {
-  const applied = activeIds.map(findShock).filter((s): s is ShockDef => Boolean(s));
-  const merged = applied.reduce<Partial<Economy>>((acc, s) => ({ ...acc, ...s.apply(economy) }), {});
-  return { economy: { ...economy, ...merged }, applied };
+/** Fields a user can shock themselves — act like a central bank or government. */
+export interface CustomField {
+  key: keyof Economy;
+  label: string;
+  group: string;
+  step: number;
+}
+
+export const CUSTOM_FIELDS: CustomField[] = [
+  { key: "A", label: "Technology / productivity A", group: "Production", step: 0.01 },
+  { key: "g", label: "Technological growth g", group: "Growth", step: 0.001 },
+  { key: "alpha", label: "Capital share α", group: "Production", step: 0.01 },
+  { key: "K0", label: "Capital stock K", group: "Production", step: 10 },
+  { key: "L", label: "Labour force L", group: "Production", step: 5 },
+  { key: "n", label: "Population growth n (births / migration)", group: "Growth", step: 0.001 },
+  { key: "s", label: "Saving rate s", group: "Growth", step: 0.01 },
+  { key: "delta", label: "Depreciation δ", group: "Growth", step: 0.005 },
+  { key: "G", label: "Government spending G", group: "Fiscal", step: 1 },
+  { key: "T", label: "Taxes T", group: "Fiscal", step: 1 },
+  { key: "M", label: "Money supply M", group: "Monetary", step: 1 },
+  { key: "P", label: "Price level P", group: "Monetary", step: 0.01 },
+  { key: "rStar", label: "World interest rate r*", group: "External", step: 0.001 },
+  { key: "rho", label: "Risk premium ρ", group: "External", step: 0.001 },
+  { key: "X0", label: "Exports X₀", group: "External", step: 1 },
+  { key: "importProp", label: "Import propensity m", group: "External", step: 0.005 },
+];
+
+export type ShockMode = "percent" | "delta" | "absolute";
+
+export type ShockSpec =
+  | { kind: "preset"; id: string }
+  | { kind: "custom"; id: string; label: string; key: keyof Economy; mode: ShockMode; amount: number };
+
+export interface ResolvedShock {
+  id: string;
+  label: string;
+  /** Short readout of what it does, e.g. "A +10%" or "n = -0.005". */
+  detail: string;
+}
+
+/** Fields that must stay strictly inside (0, 1) or the model breaks. */
+const UNIT_FIELDS = new Set<string>(["alpha", "c1", "s"]);
+/** Fields that must stay strictly positive. */
+const POSITIVE_FIELDS = new Set<string>(["A", "L", "K0", "delta", "hR", "b", "kappa", "lambda", "theta", "M", "P"]);
+
+function clampField(key: string, value: number): number {
+  if (!Number.isFinite(value)) return value;
+  if (UNIT_FIELDS.has(key)) return Math.min(0.99, Math.max(0.01, value));
+  if (POSITIVE_FIELDS.has(key)) return Math.max(1e-3, value);
+  return value;
+}
+
+function signed(x: number, dp = 1): string {
+  return `${x > 0 ? "+" : ""}${Number(x.toFixed(dp))}`;
+}
+
+export function applyMode(base: number, mode: ShockMode, amount: number): number {
+  if (mode === "percent") return base * (1 + amount / 100);
+  if (mode === "delta") return base + amount;
+  return amount;
+}
+
+/**
+ * Combine every active shock onto the economy, rebuilding each from the current
+ * values so the effects stay correct while the sliders move.
+ */
+export function resolveShocks(economy: Economy, specs: ShockSpec[]): { economy: Economy; applied: ResolvedShock[] } {
+  const changes: Partial<Economy> = {};
+  const applied: ResolvedShock[] = [];
+
+  for (const spec of specs) {
+    if (spec.kind === "preset") {
+      const def = findShock(spec.id);
+      if (!def) continue;
+      Object.assign(changes, def.apply(economy));
+      applied.push({ id: spec.id, label: def.label, detail: "" });
+      continue;
+    }
+    const base = economy[spec.key] as number;
+    const next = clampField(spec.key as string, applyMode(base, spec.mode, spec.amount));
+    (changes as Record<string, number>)[spec.key as string] = next;
+    const detail =
+      spec.mode === "absolute"
+        ? `${spec.key} = ${Number(next.toFixed(4))}`
+        : `${spec.key} ${spec.mode === "percent" ? `${signed(spec.amount)}%` : signed(spec.amount, 4)}`;
+    applied.push({ id: spec.id, label: spec.label, detail });
+  }
+
+  return { economy: { ...economy, ...changes }, applied };
 }
