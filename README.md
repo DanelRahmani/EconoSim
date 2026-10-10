@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EconoSim
 
-## Getting Started
+A browser-based economics simulator. Build an economy from its parameters, explore a
+suite of macro and international-macro models as both **equilibrium curves** and
+**dynamic time paths**, introduce dated shocks, and open any diagram to see the
+theory and the **exact step-by-step calculation** the engine ran.
 
-First, run the development server:
+Everything is computed in the browser — no backend, no database, no external APIs.
+
+## Models
+
+| Group | Models |
+| --- | --- |
+| Foundations | Cobb-Douglas production |
+| Long run | Solow-Swan (steady state, golden rule, transition path) |
+| Short run | IS-LM, AD-AS (with expectations adjustment) |
+| Open economy | Mundell-Fleming (small/large × floating/fixed) |
+| International macro | Parity conditions (UIP, CIP, PPP, real rate, trilemma), Dornbusch overshooting, external balance (S−I, NFA, debt dynamics), trade flows (Marshall-Lerner, J-curve, Dutch disease), Taylor rule |
+
+Plus a **Shock lab** that fires dated shocks and plots the shocked path against the baseline.
+
+## Features
+
+- **Create an economy** — set technology, capital and labour, saving and growth, fiscal
+  and monetary policy, and openness/size/exchange-rate regime.
+- **Real-country presets** — ~10 stylised economies (US, Germany, Japan, Netherlands,
+  Switzerland, Singapore, China, India, Brazil, Saudi Arabia). Figures are rounded
+  approximations and fully editable.
+- **Live sliders** — every model recomputes as you drag.
+- **Show the calculation** — each chart has an expandable block with the symbolic
+  equations, your values substituted in, and the resulting numbers (rendered with KaTeX).
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm start` | Serve the production build |
+| `npm run typecheck` | TypeScript, no emit |
+| `npm run lint` | ESLint |
+| `npm test` | Engine invariant tests (Vitest) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project structure
 
-## Learn More
+```
+src/
+  lib/econ/
+    types.ts        Economy / Scenario / ShockEvent definitions + validation
+    math.ts         Linear solver, RK4 integrator, bisection
+    expr.ts         Expression AST: evaluates numerically AND emits LaTeX
+    trace.ts        CalcStep recording (the "exact calculation")
+    panel.ts        Generic output shape every model returns
+    models/         One file per model
+    registry.ts     Model catalogue used by the UI
+    countries.ts    Country presets
+    scenario.ts     Shock simulation
+  components/       Charts (SVG + Recharts), KaTeX maths, panels, simulator shell
+  app/              Next.js App Router pages
+docs/               Model notes and data sources
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Design notes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The **expression AST is the single source of truth**: an equation defined once can be
+evaluated numerically *and* rendered as LaTeX, so what the UI shows is what the engine
+computed. Each model returns `Panel`s (charts, scalars, notes, trace); the UI renders
+them generically.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [`docs/models.md`](docs/models.md) for the equations and sign conventions, and
+[`DEPLOYMENT.md`](DEPLOYMENT.md) to deploy.
