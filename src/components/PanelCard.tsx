@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Panel } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
 import { CurveChart, Legend, SERIES_COLORS } from "./charts/CurveChart";
@@ -27,34 +28,61 @@ function Delta({ value, previous }: { value: number; previous: number }) {
 }
 
 /** Renders one model output panel: charts, scalars, notes and the maths. */
-export function PanelCard({ panel, index = 0 }: { panel: Panel; index?: number }) {
+export function PanelCard({
+  panel,
+  index = 0,
+  headerExtra,
+}: {
+  panel: Panel;
+  index?: number;
+  /** Rendered top-right of the card — e.g. the time-window control. */
+  headerExtra?: React.ReactNode;
+}) {
+  // Lines can be switched off from the legend.
+  const [hidden, setHidden] = useState<string[]>([]);
+  const toggle = (label: string) =>
+    setHidden((prev) => (prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]));
+
+  const source = panel.chart ? panel.chart.series : (panel.timeseries?.series ?? []);
   const legend =
-    panel.chart && panel.chart.series.length > 1
-      ? panel.chart.series.map((s, i) => ({ label: s.label, color: SERIES_COLORS[i % SERIES_COLORS.length] }))
-      : panel.timeseries && panel.timeseries.series.length > 1
-        ? panel.timeseries.series.map((s, i) => ({ label: s.label, color: SERIES_COLORS[i % SERIES_COLORS.length] }))
-        : [];
+    source.length > 1
+      ? source.map((s, i) => ({ label: s.label, color: SERIES_COLORS[i % SERIES_COLORS.length] }))
+      : [];
+  const visible = <T extends { label: string }>(series: T[]) => series.filter((s) => !hidden.includes(s.label));
+
+  const chart = panel.chart ? { ...panel.chart, series: visible(panel.chart.series) } : undefined;
+  const timeseries = panel.timeseries ? { ...panel.timeseries, series: visible(panel.timeseries.series) } : undefined;
 
   return (
     <section className="card card-hover reveal p-5" style={index ? { animationDelay: `${index * 80}ms` } : undefined}>
-      <h3 className="text-base font-semibold tracking-tight text-ink">{panel.title}</h3>
-      {panel.description && <p className="mt-1 text-sm leading-relaxed text-muted">{panel.description}</p>}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold tracking-tight text-ink">{panel.title}</h3>
+          {panel.description && <p className="mt-1 text-sm leading-relaxed text-muted">{panel.description}</p>}
+        </div>
+        {headerExtra}
+      </div>
 
-      {panel.chart && (
+      {chart && (
         <div className="mt-4">
-          <CurveChart spec={panel.chart} />
+          <CurveChart spec={chart} />
         </div>
       )}
-      {!panel.chart && panel.timeseries && (
+      {!chart && timeseries && (
         <div className="mt-4">
-          <TimeSeriesChart spec={panel.timeseries} />
+          <TimeSeriesChart spec={timeseries} />
         </div>
       )}
 
       {legend.length > 0 && (
         <div className="mt-3">
-          <Legend labels={legend} />
+          <Legend labels={legend} hidden={hidden} onToggle={toggle} />
         </div>
+      )}
+      {legend.length > 0 && hidden.length >= legend.length && (
+        <p className="mt-2 text-[0.6875rem] text-muted">
+          Every line is hidden — click a legend entry to bring it back.
+        </p>
       )}
 
       {panel.scalars && panel.scalars.length > 0 && (

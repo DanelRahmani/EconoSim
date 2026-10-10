@@ -56,6 +56,12 @@ export function TimeSeriesChart({ spec, height = 300 }: { spec: TimeSeriesSpec; 
             color: "var(--ink)",
           }}
           labelStyle={{ color: "var(--muted)" }}
+          labelFormatter={(label) => (typeof label === "number" ? label.toFixed(3) : String(label))}
+          // Round the readout: hovering should not dump a 15-digit float on you.
+          formatter={(value) => {
+            const n = typeof value === "number" ? value : Number(value);
+            return Number.isFinite(n) ? n.toFixed(3) : String(value);
+          }}
         />
         <RLegend wrapperStyle={{ fontSize: 12, color: "var(--muted)" }} />
         {spec.series.map((s, i) => (

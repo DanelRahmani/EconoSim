@@ -113,15 +113,50 @@ export function CurveChart({ spec, height = 300 }: { spec: ChartSpec; height?: n
   );
 }
 
-export function Legend({ labels }: { labels: { label: string; color: string }[] }) {
+export function Legend({
+  labels,
+  hidden,
+  onToggle,
+}: {
+  labels: { label: string; color: string }[];
+  hidden?: string[];
+  onToggle?: (label: string) => void;
+}) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[0.75rem] text-muted">
-      {labels.map((l) => (
-        <span key={l.label} className="inline-flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-full" style={{ background: l.color }} />
-          {l.label}
-        </span>
-      ))}
+      {labels.map((l) => {
+        const off = hidden?.includes(l.label) ?? false;
+        const swatch = (
+          <span
+            aria-hidden
+            className="inline-block h-2 w-2 shrink-0 rounded-full transition-opacity"
+            style={{ background: off ? "var(--muted)" : l.color, opacity: off ? 0.45 : 1 }}
+          />
+        );
+        if (!onToggle) {
+          return (
+            <span key={l.label} className="inline-flex items-center gap-1.5">
+              {swatch}
+              {l.label}
+            </span>
+          );
+        }
+        return (
+          <button
+            key={l.label}
+            type="button"
+            aria-pressed={!off}
+            title={off ? "Show this line" : "Hide this line"}
+            onClick={() => onToggle(l.label)}
+            className={`inline-flex items-center gap-1.5 transition-opacity hover:opacity-70 ${
+              off ? "line-through opacity-55" : ""
+            }`}
+          >
+            {swatch}
+            {l.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

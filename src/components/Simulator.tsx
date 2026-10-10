@@ -15,6 +15,7 @@ import { ShockControls } from "./ShockControls";
 import { GlossaryPanel } from "./GlossaryPanel";
 import { PresetManager } from "./PresetManager";
 import { ThemeToggle } from "./theme/ThemeToggle";
+import { InfoNote } from "./ui/InfoNote";
 
 type CompareMode = "current" | "baseline" | "both";
 
@@ -65,6 +66,34 @@ const PARAMS: ParamDef[] = [
 ];
 
 const GROUP_ORDER = ["Production", "Growth (long run)", "Fiscal & money", "Behaviour", "Open economy", "Adjustment"];
+
+/** Compact time-window control, shown in the header of a time-path chart. */
+function HorizonControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 rounded-full border border-hairline bg-surface2 px-3 py-1">
+        <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Window</span>
+        <span className="w-24 shrink-0">
+          <input
+            type="range"
+            className="slider"
+            min={HORIZON_BOUNDS.min}
+            max={HORIZON_BOUNDS.max}
+            step={HORIZON_BOUNDS.step}
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+            aria-label="Time window in periods"
+          />
+        </span>
+        <span className="w-8 text-right font-mono text-[0.75rem] text-ink">{value}</span>
+      </div>
+      <InfoNote
+        label="time window"
+        help="How far forward this path is plotted, in periods. A short window keeps the early periods readable; a long one shows the full convergence to the steady state."
+      />
+    </div>
+  );
+}
 
 function LogoMark() {
   return (
@@ -316,7 +345,14 @@ export function Simulator() {
           {model === "glossary" ? (
             <GlossaryPanel />
           ) : panels && panels.length > 0 ? (
-            panels.map((p, i) => <PanelCard key={p.id} panel={p} index={i} />)
+            panels.map((p, i) => (
+              <PanelCard
+                key={p.id}
+                panel={p}
+                index={i}
+                headerExtra={p.timeseries ? <HorizonControl value={horizon} onChange={setHorizon} /> : undefined}
+              />
+            ))
           ) : (
             <div className="card border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-ink">
               This model could not be computed with the current parameters. Adjust the sliders to bring the economy
@@ -326,25 +362,7 @@ export function Simulator() {
         </main>
 
         <aside className="lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
-          <div className="space-y-4">
           <div className="card reveal p-4">
-            <h2 className="mb-1 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Time window</h2>
-            <ParamControl
-              label="Periods shown"
-              help="How far forward the time-path charts look. Short windows keep the first years readable; longer windows show the full convergence to the steady state."
-              value={horizon}
-              min={HORIZON_BOUNDS.min}
-              max={HORIZON_BOUNDS.max}
-              step={HORIZON_BOUNDS.step}
-              onChange={setHorizon}
-            />
-            <p className="mt-1 text-[0.6875rem] leading-snug text-muted/80">
-              Applies to the Solow transition path, the AD-AS adjustment, Dornbusch overshooting and external balance. The
-              static models (IS-LM, parity, Taylor rule) ignore it.
-            </p>
-          </div>
-
-          <div className="card reveal p-4" style={{ animationDelay: "60ms" }}>
             <h2 className="mb-1 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Parameters</h2>
 
             <Segmented<Openness>
@@ -399,7 +417,6 @@ export function Simulator() {
                 </div>
               );
             })}
-          </div>
           </div>
         </aside>
       </div>
