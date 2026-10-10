@@ -34,8 +34,8 @@ function LogoMark() {
 
 export default function Home() {
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden">
-      <div aria-hidden className="pointer-events-none absolute inset-0 z-0">
+    <div className="relative flex flex-1 flex-col">
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
         <div
           className="aurora absolute -left-32 -top-40 h-[30rem] w-[30rem] rounded-full blur-[140px]"
           style={{ background: "color-mix(in oklab, var(--accent) 22%, transparent)" }}
