@@ -1,23 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AiOptions, CountrySize, Economy, ExchangeRegime, Openness } from "@/lib/econ/types";
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { DEFAULT_AI, DEFAULT_HORIZON, HORIZON_PRESETS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
+import { DEFAULT_AI, DEFAULT_HORIZON, DEFAULT_MODEL, HORIZON_PRESETS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
+import { readState, shareUrl, type CompareMode } from "@/lib/econ/permalink";
 import { resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { mergePanels } from "@/lib/econ/compare";
 import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
 import { PanelCard } from "./PanelCard";
 import { ParamControl, Segmented } from "./ParamControl";
+import { ShareLink } from "./ShareLink";
 import { ShockControls } from "./ShockControls";
 import { GlossaryPanel } from "./GlossaryPanel";
 import { PresetManager } from "./PresetManager";
 import { ThemeToggle } from "./theme/ThemeToggle";
 import { InfoNote } from "./ui/InfoNote";
-
-type CompareMode = "current" | "baseline" | "both";
 
 interface ParamDef {
   key: keyof Economy;
@@ -147,11 +147,29 @@ export function Simulator() {
   const [economy, setEconomy] = useState<Economy>(() => defaultEconomy());
   const [baseline, setBaseline] = useState<Economy>(() => defaultEconomy());
   const [shocks, setShocks] = useState<ShockSpec[]>([]);
-  const [model, setModel] = useState("solow");
+  const [model, setModel] = useState(DEFAULT_MODEL);
   const [expert, setExpert] = useState(false);
   const [compare, setCompare] = useState<CompareMode>("current");
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
   const [ai, setAi] = useState<AiOptions>(DEFAULT_AI);
+
+  // A shared link carries the whole view. The server has no URL to read, so the
+  // page renders its defaults first and the shared state is applied on the next
+  // frame — everything below then re-runs against it.
+  useEffect(() => {
+    const shared = readState(window.location.search);
+    if (!shared) return;
+    const raf = requestAnimationFrame(() => {
+      setEconomy(shared.economy);
+      setBaseline(shared.economy);
+      setShocks(shared.shocks);
+      setModel(shared.model);
+      setCompare(shared.compare);
+      setHorizon(shared.horizon);
+      setAi(shared.ai);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   const update = (patch: Partial<Economy>) => setEconomy((e) => ({ ...e, ...patch }));
   const issues = useMemo(() => validateEconomy(economy), [economy]);
@@ -231,6 +249,7 @@ export function Simulator() {
 
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
+            <ShareLink build={() => shareUrl({ economy, model, compare, horizon, ai, shocks }, window.location.href)} />
             <div className="w-[13rem]">
               <Segmented<CompareMode>
                 value={compare}

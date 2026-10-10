@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { validateEconomy } from "@/lib/econ/types";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { DEFAULT_OPTIONS, MODELS, runModel } from "@/lib/econ/registry";
+import { DEFAULT_AI, DEFAULT_MODEL, DEFAULT_OPTIONS, MODELS, runModel } from "@/lib/econ/registry";
 import { solveLinear } from "@/lib/econ/math";
 import { vars, evaluate } from "@/lib/econ/expr";
 import { outputExpr, perWorkerExpr } from "@/lib/econ/models/cobbDouglas";
@@ -16,6 +16,7 @@ import { marshallLernerSum, jCurve, netExports } from "@/lib/econ/models/tradeFl
 import { uipDeviation, cipDeviation, trilemmaCount } from "@/lib/econ/models/parity";
 import { SHOCK_PRESETS, applyMode, resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
+import { decodeState, encodeState, readState, shareUrl, type SimState } from "@/lib/econ/permalink";
 import { aiOutcome } from "@/lib/econ/models/aiBoom";
 
 const e = defaultEconomy();
@@ -305,6 +306,100 @@ describe("shocks", () => {
     expect(applyMode(100, "percent", 10)).toBeCloseTo(110, 10);
     expect(applyMode(100, "delta", -10)).toBeCloseTo(90, 10);
     expect(applyMode(100, "absolute", 7)).toBeCloseTo(7, 10);
+  });
+});
+
+describe("permalink", () => {
+  const base = defaultEconomy();
+  const state: SimState = {
+    economy: { ...base, name: "Café growth", alpha: 0.42, G: 33 },
+    model: "islm",
+    compare: "both",
+    horizon: 100,
+    ai: { substitutionPct: 45, capitalIntensity: 2, capitalProductivity: 1.5 },
+    shocks: [
+      { kind: "preset", id: "fiscal" },
+      { kind: "custom", id: "c1", label: "Tax cut", key: "T", mode: "percent", amount: -10 },
+    ],
+  };
+
+  it("round-trips the whole view", () => {
+    const back = decodeState(encodeState(state));
+    expect(back).not.toBeNull();
+    expect(back?.economy.name).toBe("Café growth");
+    expect(back?.economy.alpha).toBeCloseTo(0.42, 10);
+    expect(back?.economy.G).toBeCloseTo(33, 10);
+    expect(back?.model).toBe("islm");
+    expect(back?.compare).toBe("both");
+    expect(back?.horizon).toBe(100);
+    expect(back?.ai).toEqual(state.ai);
+    expect(back?.shocks).toEqual(state.shocks);
+  });
+
+  it("survives a real query string", () => {
+    const url = shareUrl(state, "https://example.com/simulator?old=1#frag");
+    expect(url).not.toContain("old=1");
+    expect(url).not.toContain("#frag");
+    expect(readState(new URL(url).search)?.model).toBe("islm");
+  });
+
+  it("rejects garbage and versions it does not understand", () => {
+    expect(decodeState(null)).toBeNull();
+    expect(decodeState("")).toBeNull();
+    expect(decodeState("not base64 !!")).toBeNull();
+    expect(decodeState(btoa(JSON.stringify({ v: 99, e: base })))).toBeNull();
+  });
+
+  it("fills anything missing from the defaults", () => {
+    const back = decodeState(btoa(JSON.stringify({ v: 1, e: { alpha: 0.5 } })));
+    expect(back?.economy.alpha).toBe(0.5);
+    expect(back?.economy.L).toBe(base.L);
+    expect(back?.compare).toBe("current");
+    expect(back?.model).toBe(DEFAULT_MODEL);
+    expect(back?.ai).toEqual(DEFAULT_AI);
+    expect(back?.shocks).toEqual([]);
+  });
+
+  it("drops wrongly typed fields but leaves range checking to validateEconomy", () => {
+    const token = btoa(
+      JSON.stringify({ v: 1, e: { alpha: "big", hR: null, openness: "sideways", name: 5, L: -3 } }),
+    );
+    const back = decodeState(token);
+    expect(back?.economy.alpha).toBe(base.alpha);
+    expect(back?.economy.hR).toBe(base.hR);
+    expect(back?.economy.openness).toBe(base.openness);
+    expect(back?.economy.name).toBe(base.name);
+    // A number of the right type is left alone; the warning banner is what
+    // catches it, so the two guards stay in their lanes.
+    expect(back?.economy.L).toBe(-3);
+    expect(validateEconomy(back!.economy).length).toBeGreaterThan(0);
+  });
+
+  it("keeps only shocks it can actually apply", () => {
+    const token = btoa(
+      JSON.stringify({
+        v: 1,
+        e: base,
+        m: "no-such-model",
+        c: "sideways",
+        h: 1e9,
+        a: { substitutionPct: 500, capitalIntensity: "lots" },
+        k: [
+          { kind: "preset", id: "nope" },
+          { kind: "custom", key: "G", mode: "sideways", amount: 1 },
+          { kind: "custom", key: "G", mode: "percent", amount: 5 },
+          { kind: "custom", key: "notAField", mode: "percent", amount: 5 },
+        ],
+      }),
+    );
+    const back = decodeState(token);
+    expect(back?.model).toBe(DEFAULT_MODEL);
+    expect(back?.compare).toBe("current");
+    expect(back?.horizon).toBe(200);
+    expect(back?.ai.substitutionPct).toBe(95);
+    expect(back?.ai.capitalIntensity).toBe(DEFAULT_AI.capitalIntensity);
+    expect(back?.shocks).toHaveLength(1);
+    expect(back?.shocks[0]).toMatchObject({ kind: "custom", key: "G", mode: "percent", amount: 5 });
   });
 });
 

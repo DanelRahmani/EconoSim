@@ -22,6 +22,8 @@ export interface RunOptions {
 export const DEFAULT_HORIZON = 50;
 /** Preset windows — a couple of clicks rather than a fiddly slider. */
 export const HORIZON_PRESETS = [10, 25, 50, 100, 120];
+/** The model the simulator opens on. */
+export const DEFAULT_MODEL = "solow";
 export const DEFAULT_AI: AiOptions = { substitutionPct: 30, capitalIntensity: 1, capitalProductivity: 1 };
 export const DEFAULT_OPTIONS: RunOptions = { horizon: DEFAULT_HORIZON, ai: DEFAULT_AI };
 
