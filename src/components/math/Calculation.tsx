@@ -12,33 +12,36 @@ export function Calculation({ steps }: { steps: CalcStep[] }) {
   if (!steps.length) return null;
   const rendered = steps.map(renderStep);
   return (
-    <details className="group mt-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/40">
-      <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 marker:content-none">
-        <span className="inline-flex items-center gap-2">
-          <span className="transition-transform group-open:rotate-90">▶</span>
-          Show the calculation
-          <span className="text-xs font-normal text-neutral-500">({steps.length} steps)</span>
+    <details className="group mt-4 rounded-xl border border-hairline bg-surface2/50">
+      <summary className="flex cursor-pointer select-none list-none items-center gap-2 px-3 py-2.5 text-sm font-medium text-ink marker:content-none">
+        <span aria-hidden className="text-accent transition-transform duration-300 group-open:rotate-90">
+          ▶
         </span>
+        Show the calculation
+        <span className="font-mono text-[0.6875rem] font-normal text-muted">{steps.length} steps</span>
       </summary>
-      <ol className="px-3 pb-3 pt-1 space-y-3">
+      <ol className="space-y-3 px-3 pb-3 pt-1">
         {rendered.map((s, i) => (
-          <li key={i} className="text-sm border-l-2 border-neutral-300 dark:border-neutral-700 pl-3">
-            <div className="font-medium text-neutral-800 dark:text-neutral-200">{s.label}</div>
+          <li key={i} className="border-l-2 border-accent/30 pl-3">
+            <div className="flex items-baseline gap-2">
+              <span className="font-mono text-[0.625rem] text-accent">{String(i + 1).padStart(2, "0")}</span>
+              <span className="text-sm font-medium text-ink">{s.label}</span>
+            </div>
             {s.symbolic && (
-              <div className="my-1 text-neutral-700 dark:text-neutral-300 overflow-x-auto">
+              <div className="my-1 overflow-x-auto text-ink/90">
                 <MathBlock latex={s.symbolic} />
               </div>
             )}
             {s.substituted && s.substituted !== s.symbolic && (
-              <div className="my-1 text-neutral-600 dark:text-neutral-400 overflow-x-auto">
-                <span className="text-xs mr-1">=</span>
+              <div className="my-1 overflow-x-auto text-muted">
+                <span className="mr-1 text-xs">=</span>
                 <MathBlock latex={s.substituted} />
               </div>
             )}
-            <div className="mt-0.5 font-mono text-xs text-emerald-700 dark:text-emerald-400">
+            <div className="mt-1 inline-flex rounded-md bg-gain/10 px-2 py-0.5 font-mono text-xs text-gain">
               = {fmtNum(s.value, 4)}
             </div>
-            {s.note && <div className="mt-0.5 text-xs text-neutral-500">{s.note}</div>}
+            {s.note && <div className="mt-1 text-xs text-muted">{s.note}</div>}
           </li>
         ))}
       </ol>

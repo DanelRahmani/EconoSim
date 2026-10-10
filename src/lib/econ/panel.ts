@@ -41,6 +41,8 @@ export interface Scalar {
   value: number;
   unit?: string;
   hint?: string;
+  /** The same figure under the pinned baseline, when comparing. */
+  previous?: number;
 }
 
 /**

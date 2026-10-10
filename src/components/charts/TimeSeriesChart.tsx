@@ -13,6 +13,8 @@ import {
 import type { TimeSeriesSpec } from "@/lib/econ/panel";
 import { SERIES_COLORS } from "./CurveChart";
 
+const AXIS_TICK = { fontSize: 11, fill: "var(--muted)" } as const;
+
 /** Recharts-based time-series plot (used for trajectory/path panels). */
 export function TimeSeriesChart({ spec, height = 300 }: { spec: TimeSeriesSpec; height?: number }) {
   // Merge the series into rows keyed on x so Recharts can plot them together.
@@ -30,17 +32,32 @@ export function TimeSeriesChart({ spec, height = 300 }: { spec: TimeSeriesSpec; 
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 16, bottom: 24, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.18} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--hairline)" />
         <XAxis
           dataKey="x"
           type="number"
           domain={["dataMin", "dataMax"]}
-          tick={{ fontSize: 11 }}
-          label={{ value: spec.xLabel, position: "insideBottom", offset: -12, fontSize: 11 }}
+          tick={AXIS_TICK}
+          stroke="var(--hairline)"
+          label={{ value: spec.xLabel, position: "insideBottom", offset: -12, fontSize: 11, fill: "var(--muted)" }}
         />
-        <YAxis tick={{ fontSize: 11 }} width={56} label={{ value: spec.yLabel, angle: -90, position: "insideLeft", fontSize: 11 }} />
-        <Tooltip contentStyle={{ fontSize: 12 }} />
-        <RLegend wrapperStyle={{ fontSize: 12 }} />
+        <YAxis
+          tick={AXIS_TICK}
+          stroke="var(--hairline)"
+          width={58}
+          label={{ value: spec.yLabel, angle: -90, position: "insideLeft", fontSize: 11, fill: "var(--muted)" }}
+        />
+        <Tooltip
+          contentStyle={{
+            fontSize: 12,
+            background: "var(--surface)",
+            border: "1px solid var(--hairline)",
+            borderRadius: 10,
+            color: "var(--ink)",
+          }}
+          labelStyle={{ color: "var(--muted)" }}
+        />
+        <RLegend wrapperStyle={{ fontSize: 12, color: "var(--muted)" }} />
         {spec.series.map((s, i) => (
           <Line
             key={s.label}
@@ -50,7 +67,9 @@ export function TimeSeriesChart({ spec, height = 300 }: { spec: TimeSeriesSpec; 
             dot={false}
             strokeWidth={2}
             stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
-            isAnimationActive={false}
+            isAnimationActive
+            animationDuration={400}
+            animationEasing="ease-out"
             connectNulls
           />
         ))}

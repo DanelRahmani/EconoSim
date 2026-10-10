@@ -3,7 +3,8 @@
 import type { ChartSpec, Point } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
 
-export const SERIES_COLORS = ["#2563eb", "#dc2626", "#059669", "#d97706", "#7c3aed", "#0891b2"];
+/** Series palette tuned to read on both the cool-white and near-black grounds. */
+export const SERIES_COLORS = ["#F43F5E", "#14B8A6", "#8B5CF6", "#F59E0B", "#06B6D4", "#EC4899"];
 
 const W = 560;
 
@@ -45,19 +46,19 @@ export function CurveChart({ spec, height = 300 }: { spec: ChartSpec; height?: n
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`${spec.yLabel} versus ${spec.xLabel}`}>
-      <rect x={pad.l} y={pad.t} width={iw} height={ih} fill="none" stroke="currentColor" strokeOpacity={0.2} />
+      <rect x={pad.l} y={pad.t} width={iw} height={ih} fill="none" stroke="var(--hairline)" />
       {ticks(x0, x1).map((t, i) => (
         <g key={`x${i}`}>
-          <line x1={sx(t)} y1={pad.t} x2={sx(t)} y2={pad.t + ih} stroke="currentColor" strokeOpacity={0.08} />
-          <text x={sx(t)} y={H - pad.b + 16} textAnchor="middle" fontSize={10} fill="currentColor" fillOpacity={0.6}>
+          <line x1={sx(t)} y1={pad.t} x2={sx(t)} y2={pad.t + ih} stroke="var(--hairline)" />
+          <text x={sx(t)} y={H - pad.b + 16} textAnchor="middle" fontSize={10} fill="var(--muted)">
             {fmtNum(t, 1)}
           </text>
         </g>
       ))}
       {ticks(y0, y1).map((t, i) => (
         <g key={`y${i}`}>
-          <line x1={pad.l} y1={sy(t)} x2={pad.l + iw} y2={sy(t)} stroke="currentColor" strokeOpacity={0.08} />
-          <text x={pad.l - 8} y={sy(t) + 3} textAnchor="end" fontSize={10} fill="currentColor" fillOpacity={0.6}>
+          <line x1={pad.l} y1={sy(t)} x2={pad.l + iw} y2={sy(t)} stroke="var(--hairline)" />
+          <text x={pad.l - 8} y={sy(t) + 3} textAnchor="end" fontSize={10} fill="var(--muted)">
             {fmtNum(t, 1)}
           </text>
         </g>
@@ -71,9 +72,13 @@ export function CurveChart({ spec, height = 300 }: { spec: ChartSpec; height?: n
           <path
             key={s.label}
             d={d}
+            pathLength={s.dashed ? undefined : 1}
+            className={s.dashed ? "pop-in" : "chart-line"}
+            style={{ animationDelay: `${i * 90}ms`, opacity: s.dashed ? 0.7 : undefined }}
             fill="none"
             stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
             strokeWidth={2}
+            strokeLinecap="round"
             strokeDasharray={s.dashed ? "6 5" : undefined}
             vectorEffect="non-scaling-stroke"
           />
@@ -83,18 +88,25 @@ export function CurveChart({ spec, height = 300 }: { spec: ChartSpec; height?: n
       {(spec.markers ?? []).map((m) =>
         Number.isFinite(m.x) && Number.isFinite(m.y) ? (
           <g key={m.label + m.x}>
-            <circle cx={sx(m.x)} cy={sy(m.y)} r={4.5} fill="#111827" stroke="#fff" strokeWidth={1.5} />
-            <text x={sx(m.x) + 8} y={sy(m.y) - 6} fontSize={11} fontWeight={600} fill="currentColor">
+            <circle cx={sx(m.x)} cy={sy(m.y)} r={4.5} fill="var(--accent)" stroke="var(--surface)" strokeWidth={1.5} />
+            <text x={sx(m.x) + 8} y={sy(m.y) - 6} fontSize={11} fontWeight={600} fill="var(--ink)">
               {m.label}
             </text>
           </g>
         ) : null,
       )}
 
-      <text x={pad.l + iw / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="currentColor" fillOpacity={0.75}>
+      <text x={pad.l + iw / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="var(--muted)">
         {spec.xLabel}
       </text>
-      <text x={14} y={pad.t + ih / 2} textAnchor="middle" fontSize={11} fill="currentColor" fillOpacity={0.75} transform={`rotate(-90 14 ${pad.t + ih / 2})`}>
+      <text
+        x={14}
+        y={pad.t + ih / 2}
+        textAnchor="middle"
+        fontSize={11}
+        fill="var(--muted)"
+        transform={`rotate(-90 14 ${pad.t + ih / 2})`}
+      >
         {spec.yLabel}
       </text>
     </svg>
@@ -103,10 +115,10 @@ export function CurveChart({ spec, height = 300 }: { spec: ChartSpec; height?: n
 
 export function Legend({ labels }: { labels: { label: string; color: string }[] }) {
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-600 dark:text-neutral-400">
+    <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[0.75rem] text-muted">
       {labels.map((l) => (
         <span key={l.label} className="inline-flex items-center gap-1.5">
-          <span className="inline-block w-4 h-0.5 rounded" style={{ background: l.color }} />
+          <span className="inline-block h-2 w-2 rounded-full" style={{ background: l.color }} />
           {l.label}
         </span>
       ))}

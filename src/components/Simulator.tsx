@@ -1,16 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Economy } from "@/lib/econ/types";
+import type { CountrySize, Economy, ExchangeRegime, Openness, ShockEvent } from "@/lib/econ/types";
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
 import { MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
 import { baselineVsScenario } from "@/lib/econ/scenario";
-import type { ShockEvent } from "@/lib/econ/types";
+import { mergePanels } from "@/lib/econ/compare";
+import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
 import { PanelCard } from "./PanelCard";
 import { ParamControl, Segmented } from "./ParamControl";
 import { TimeSeriesChart } from "./charts/TimeSeriesChart";
+import { ThemeToggle } from "./theme/ThemeToggle";
+
+type CompareMode = "current" | "baseline" | "both";
 
 interface ParamDef {
   key: keyof Economy;
@@ -57,20 +61,25 @@ const PARAMS: ParamDef[] = [
   { key: "theta", label: "Expectations speed θ", min: 0.05, max: 1, step: 0.05, group: "Adjustment" },
 ];
 
-const GROUP_ORDER = [
-  "Production",
-  "Growth (long run)",
-  "Fiscal & money",
-  "Behaviour",
-  "Open economy",
-  "Adjustment",
-];
+const GROUP_ORDER = ["Production", "Growth (long run)", "Fiscal & money", "Behaviour", "Open economy", "Adjustment"];
 
 const SHOCK_LABELS = [
   { id: "monetary", label: "Monetary expansion (M +10%) at t=20" },
   { id: "fiscal", label: "Fiscal expansion (G +10) at t=35" },
   { id: "oil", label: "Oil shock (P* +20%) at t=50" },
 ];
+
+function LogoMark() {
+  return (
+    <span
+      aria-hidden
+      className="grid h-8 w-8 place-items-center rounded-[10px] font-mono text-sm font-bold text-accentink accent-glow"
+      style={{ background: "linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--gain) 65%, var(--accent)))" }}
+    >
+      Σ
+    </span>
+  );
+}
 
 function ShocksView({ economy }: { economy: Economy }) {
   const [on, setOn] = useState<Record<string, boolean>>({ monetary: true, fiscal: true, oil: false });
@@ -86,25 +95,31 @@ function ShocksView({ economy }: { economy: Economy }) {
   const cmp = useMemo(() => baselineVsScenario(scenario), [scenario]);
 
   return (
-    <section className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-4 shadow-sm">
-      <h3 className="text-base font-semibold">Shock lab</h3>
-      <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-        Turn shocks on at dated moments and watch output respond, then settle back toward potential.
+    <section className="card card-hover reveal p-5">
+      <h3 className="text-base font-semibold tracking-tight text-ink">Shock lab</h3>
+      <p className="mt-1 text-sm text-muted">
+        Switch shocks on at dated moments and watch output respond, then settle back toward potential.
       </p>
-      <div className="mt-3 flex flex-col gap-1.5">
+      <div className="mt-4 flex flex-col gap-2">
         {SHOCK_LABELS.map((s) => (
-          <label key={s.id} className="inline-flex items-center gap-2 text-sm">
+          <label
+            key={s.id}
+            className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+              on[s.id] ? "border-accent/50 bg-accent/5 text-ink" : "border-hairline text-muted hover:text-ink"
+            }`}
+          >
             <input
               type="checkbox"
               checked={!!on[s.id]}
               onChange={(e) => setOn((prev) => ({ ...prev, [s.id]: e.target.checked }))}
-              className="accent-blue-600"
+              className="accent-[var(--accent)]"
+              style={{ accentColor: "var(--accent)" }}
             />
             {s.label}
           </label>
         ))}
       </div>
-      <div className="mt-4">
+      <div className="mt-5">
         <TimeSeriesChart
           spec={{
             xLabel: "Time",
@@ -122,52 +137,95 @@ function ShocksView({ economy }: { economy: Economy }) {
 
 export function Simulator() {
   const [economy, setEconomy] = useState<Economy>(() => defaultEconomy());
+  const [baseline, setBaseline] = useState<Economy>(() => defaultEconomy());
   const [model, setModel] = useState("solow");
   const [expert, setExpert] = useState(false);
+  const [compare, setCompare] = useState<CompareMode>("current");
 
   const update = (patch: Partial<Economy>) => setEconomy((e) => ({ ...e, ...patch }));
-
   const issues = useMemo(() => validateEconomy(economy), [economy]);
+
+  // Ease the economy so curves and figures morph instead of jumping.
+  const tweened = useTweenedEconomy(economy);
+  const shownEconomy = compare === "baseline" ? baseline : tweened;
 
   const panels = useMemo(() => {
     if (model === "shocks") return [];
     try {
-      return runModel(model, economy);
+      const current = runModel(model, shownEconomy);
+      if (compare !== "both") return current;
+      return mergePanels(current, runModel(model, baseline));
     } catch {
       return null;
     }
-  }, [model, economy]);
+  }, [model, shownEconomy, baseline, compare]);
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-black text-neutral-900 dark:text-neutral-100">
-      <header className="sticky top-0 z-10 border-b border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-950/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-baseline gap-3">
-            <span className="text-lg font-bold tracking-tight">EconoSim</span>
-            <span className="text-sm text-neutral-500">economics simulator</span>
-          </div>
+    <div className="relative min-h-screen">
+      {/* Ambient background */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div
+          className="aurora absolute -left-40 -top-48 h-[28rem] w-[28rem] rounded-full blur-[130px]"
+          style={{ background: "color-mix(in oklab, var(--accent) 20%, transparent)" }}
+        />
+        <div
+          className="aurora absolute -top-24 right-0 h-80 w-80 rounded-full blur-[130px]"
+          style={{ background: "color-mix(in oklab, var(--gain) 16%, transparent)", animationDelay: "3s" }}
+        />
+      </div>
+
+      <header className="sticky top-0 z-20 border-b border-hairline bg-bg/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1520px] flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline text-xs text-neutral-500">{economy.name}</span>
-            <div role="group" aria-label="Detail level" className="inline-flex rounded-lg border border-neutral-300 dark:border-neutral-700 overflow-hidden">
-              {[
-                { v: false, l: "Simple" },
-                { v: true, l: "Expert" },
-              ].map((o) => (
-                <button
-                  key={o.l}
-                  type="button"
-                  aria-pressed={expert === o.v}
-                  onClick={() => setExpert(o.v)}
-                  className={`px-3 py-1 text-xs ${expert === o.v ? "bg-blue-600 text-white" : "bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300"}`}
-                >
-                  {o.l}
-                </button>
-              ))}
+            <LogoMark />
+            <div className="leading-tight">
+              <div className="text-base font-bold tracking-tight text-ink">EconoSim</div>
+              <div className="font-mono text-[0.625rem] uppercase tracking-wider text-muted">{economy.name}</div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <ThemeToggle />
+            <div className="w-56">
+              <Segmented<CompareMode>
+                value={compare}
+                options={[
+                  { value: "current", label: "Current" },
+                  { value: "baseline", label: "Baseline" },
+                  { value: "both", label: "Compare" },
+                ]}
+                onChange={setCompare}
+              />
+            </div>
+            <div className="w-40">
+              <Segmented
+                value={expert ? "expert" : "simple"}
+                options={[
+                  { value: "simple", label: "Simple" },
+                  { value: "expert", label: "Expert" },
+                ]}
+                onChange={(v) => setExpert(v === "expert")}
+              />
             </div>
             <button
               type="button"
-              onClick={() => setEconomy(defaultEconomy())}
-              className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              onClick={() => {
+                const snap = { ...economy };
+                setBaseline(snap);
+                setCompare("both");
+              }}
+              title="Pin the current economy as the comparison baseline"
+              className="rounded-full border border-hairline bg-surface px-3.5 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent"
+            >
+              Pin baseline
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEconomy(defaultEconomy());
+                setBaseline(defaultEconomy());
+                setCompare("current");
+              }}
+              className="rounded-full border border-hairline bg-surface px-3.5 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent"
             >
               Reset
             </button>
@@ -175,63 +233,85 @@ export function Simulator() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1500px] gap-4 p-4 lg:grid-cols-[220px_minmax(0,1fr)_300px]">
-        {/* Left: presets + model navigation */}
+      <div className="relative z-10 mx-auto grid max-w-[1520px] gap-4 p-4 lg:grid-cols-[230px_minmax(0,1fr)_300px]">
+        {/* Left: presets + models */}
         <aside className="space-y-4">
-          <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-2">Country presets</h2>
+          <div className="card reveal p-4">
+            <h2 className="mb-2.5 font-mono text-[0.625rem] uppercase tracking-wider text-muted">Country presets</h2>
             <div className="flex flex-wrap gap-1.5">
-              {COUNTRIES.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  title={`${c.note} — ${c.source}`}
-                  onClick={() => setEconomy(withDefaults({ ...c.params, name: c.name }))}
-                  className={`rounded-md border px-2 py-1 text-xs ${
-                    economy.name === c.name
-                      ? "border-blue-600 bg-blue-600 text-white"
-                      : "border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
+              {COUNTRIES.map((c) => {
+                const active = economy.name === c.name;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    title={`${c.note} — ${c.source}`}
+                    onClick={() => {
+                      const next = withDefaults({ ...c.params, name: c.name });
+                      setEconomy(next);
+                      setBaseline(next);
+                    }}
+                    className={`rounded-full border px-2.5 py-1 text-xs transition-all duration-200 ${
+                      active
+                        ? "border-accent bg-accent text-accentink accent-glow"
+                        : "border-hairline text-muted hover:-translate-y-px hover:border-accent/50 hover:text-ink"
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                );
+              })}
             </div>
-            <p className="mt-2 text-[10px] leading-snug text-neutral-400">
+            <p className="mt-2.5 text-[0.625rem] leading-snug text-muted/80">
               Stylised approximations (World Bank / PWT / AMECO), editable. Real-side parameters only.
             </p>
           </div>
 
-          <nav className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-2">Models</h2>
+          <nav className="card reveal p-4" style={{ animationDelay: "70ms" }}>
+            <h2 className="mb-2.5 font-mono text-[0.625rem] uppercase tracking-wider text-muted">Models</h2>
             {MODEL_GROUPS.map((g) => (
-              <div key={g} className="mb-2">
-                <div className="text-[10px] uppercase tracking-wide text-neutral-400 mb-0.5">{g}</div>
-                <div className="flex flex-col">
-                  {MODELS.filter((m) => m.group === g).map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      title={m.blurb}
-                      onClick={() => setModel(m.id)}
-                      className={`rounded-md px-2 py-1 text-left text-xs ${
-                        model === m.id ? "bg-blue-600 text-white" : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                      }`}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
+              <div key={g} className="mb-3 last:mb-0">
+                <div className="mb-1 font-mono text-[0.5625rem] uppercase tracking-wider text-muted/70">{g}</div>
+                <div className="flex flex-col gap-0.5">
+                  {MODELS.filter((m) => m.group === g).map((m) => {
+                    const active = model === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        title={m.blurb}
+                        onClick={() => setModel(m.id)}
+                        className={`relative rounded-md py-1.5 pl-3 pr-2 text-left text-xs transition-all duration-200 ${
+                          active ? "bg-accent/10 font-medium text-accent" : "text-muted hover:bg-surface2 hover:text-ink"
+                        }`}
+                      >
+                        <span
+                          aria-hidden
+                          className={`absolute left-0 top-1/2 w-0.5 -translate-y-1/2 rounded-full bg-accent transition-all duration-300 ${
+                            active ? "h-4 opacity-100" : "h-0 opacity-0"
+                          }`}
+                        />
+                        {m.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))}
-            <div className="mt-1 border-t border-neutral-200 dark:border-neutral-800 pt-2">
+            <div className="mt-1 border-t border-hairline pt-3">
               <button
                 type="button"
                 onClick={() => setModel("shocks")}
-                className={`w-full rounded-md px-2 py-1 text-left text-xs ${
-                  model === "shocks" ? "bg-blue-600 text-white" : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                className={`relative w-full rounded-md py-1.5 pl-3 pr-2 text-left text-xs transition-all duration-200 ${
+                  model === "shocks" ? "bg-accent/10 font-medium text-accent" : "text-muted hover:bg-surface2 hover:text-ink"
                 }`}
               >
+                <span
+                  aria-hidden
+                  className={`absolute left-0 top-1/2 w-0.5 -translate-y-1/2 rounded-full bg-accent transition-all duration-300 ${
+                    model === "shocks" ? "h-4 opacity-100" : "h-0 opacity-0"
+                  }`}
+                />
                 Shock lab
               </button>
             </div>
@@ -239,75 +319,94 @@ export function Simulator() {
         </aside>
 
         {/* Center: output */}
-        <main className="space-y-4 min-w-0">
+        <main key={model} className="min-w-0 space-y-4">
+          {compare !== "current" && model !== "shocks" && (
+            <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-2 text-xs text-muted">
+              <span>
+                {compare === "both"
+                  ? "Comparing against the pinned baseline — baseline curves are dashed and each figure shows its change."
+                  : "Showing the pinned baseline economy."}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCompare("current")}
+                className="shrink-0 rounded-full border border-hairline px-2.5 py-0.5 transition-colors hover:border-accent/50 hover:text-accent"
+              >
+                Show current
+              </button>
+            </div>
+          )}
           {issues.length > 0 && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+            <div className="card border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-ink">
               Some parameters are out of range: {issues.map((i) => i.message).join("; ")}
             </div>
           )}
           {model === "shocks" ? (
             <ShocksView economy={economy} />
           ) : panels && panels.length > 0 ? (
-            panels.map((p) => <PanelCard key={p.id} panel={p} />)
+            panels.map((p, i) => <PanelCard key={p.id} panel={p} index={i} />)
           ) : (
-            <div className="rounded-lg border border-rose-300 bg-rose-50 dark:bg-rose-950/40 px-3 py-2 text-sm text-rose-800 dark:text-rose-200">
-              This model could not be computed with the current parameters. Adjust the sliders to bring the economy back into range.
+            <div className="card border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-ink">
+              This model could not be computed with the current parameters. Adjust the sliders to bring the economy
+              back into range.
             </div>
           )}
         </main>
 
         {/* Right: parameters */}
-        <aside className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3 lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-1">Parameters</h2>
+        <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+          <div className="card reveal p-4">
+            <h2 className="mb-1 font-mono text-[0.625rem] uppercase tracking-wider text-muted">Parameters</h2>
 
-          <Segmented
-            label="Openness"
-            value={economy.openness}
-            options={[
-              { value: "closed", label: "Closed" },
-              { value: "open", label: "Open" },
-            ]}
-            onChange={(v) => update({ openness: v })}
-          />
-          <Segmented
-            label="Country size"
-            value={economy.size}
-            options={[
-              { value: "small", label: "Small" },
-              { value: "large", label: "Large" },
-            ]}
-            onChange={(v) => update({ size: v })}
-          />
-          <Segmented
-            label="Exchange rate"
-            value={economy.regime}
-            options={[
-              { value: "floating", label: "Floating" },
-              { value: "fixed", label: "Fixed" },
-            ]}
-            onChange={(v) => update({ regime: v })}
-          />
+            <Segmented<Openness>
+              label="Openness"
+              value={economy.openness}
+              options={[
+                { value: "closed", label: "Closed" },
+                { value: "open", label: "Open" },
+              ]}
+              onChange={(v) => update({ openness: v })}
+            />
+            <Segmented<CountrySize>
+              label="Country size"
+              value={economy.size}
+              options={[
+                { value: "small", label: "Small" },
+                { value: "large", label: "Large" },
+              ]}
+              onChange={(v) => update({ size: v })}
+            />
+            <Segmented<ExchangeRegime>
+              label="Exchange rate"
+              value={economy.regime}
+              options={[
+                { value: "floating", label: "Floating" },
+                { value: "fixed", label: "Fixed" },
+              ]}
+              onChange={(v) => update({ regime: v })}
+            />
 
-          {GROUP_ORDER.map((g) => {
-            const defs = PARAMS.filter((p) => p.group === g && (expert || p.simple));
-            if (!defs.length) return null;
-            return (
-              <div key={g} className="mt-3 border-t border-neutral-200 dark:border-neutral-800 pt-2">
-                <div className="text-[10px] uppercase tracking-wide text-neutral-400 mb-1">{g}</div>
-                {defs.map((p) => (
-                  <ParamControl
-                    key={p.key}
-                    label={p.label}
-                    value={economy[p.key] as number}
-                    min={p.min}
-                    max={p.max}
-                    step={p.step}
-                    onChange={(v) => update({ [p.key]: v } as Partial<Economy>)}
-                  />
-                ))}
-              </div>
-            );
-          })}
+            {GROUP_ORDER.map((g) => {
+              const defs = PARAMS.filter((p) => p.group === g && (expert || p.simple));
+              if (!defs.length) return null;
+              return (
+                <div key={g} className="mt-3 border-t border-hairline pt-3">
+                  <div className="mb-1 font-mono text-[0.5625rem] uppercase tracking-wider text-muted/70">{g}</div>
+                  {defs.map((p) => (
+                    <ParamControl
+                      key={p.key}
+                      label={p.label}
+                      value={economy[p.key] as number}
+                      min={p.min}
+                      max={p.max}
+                      step={p.step}
+                      onChange={(v) => update({ [p.key]: v } as Partial<Economy>)}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
         </aside>
       </div>
     </div>
