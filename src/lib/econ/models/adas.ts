@@ -51,7 +51,7 @@ export function adasPath(e: Economy, Yn: number, horizon = 60, steps = 300): Ada
   return out;
 }
 
-export function adas(e: Economy): Panel[] {
+export function adas(e: Economy, horizon = 60): Panel[] {
   const t = new Tracer();
   const Yn = naturalOutput(e);
   const core = solowCore(e);
@@ -66,7 +66,7 @@ export function adas(e: Economy): Panel[] {
     ),
     { c0: e.c0, c1: e.c1, I0: e.I0, G: e.G, T: e.T, M: e.M, P: eq.P, b: e.b, hR: e.hR, kY: e.kY },
   );
-  const path = adasPath(e, Yn);
+  const path = adasPath(e, Yn, horizon, Math.max(120, Math.min(1200, Math.round(horizon * 5))));
 
   const yMax = Math.max(Yn * 1.4, eq.Y * 1.2, 100);
   const ys = linspace(1, yMax, 120);
@@ -105,7 +105,7 @@ export function adas(e: Economy): Panel[] {
     },
     {
       id: "adas-dynamics",
-      title: "Adjustment to the long run",
+      title: `Adjustment to the long run — next ${horizon} periods`,
       description: "With sticky expectations, output and prices converge over time to the LRAS level (dP^e/dt = θ·(P − P^e)).",
       timeseries: {
         xLabel: "Time",

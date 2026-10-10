@@ -28,8 +28,9 @@ export function debtSteadyState(r: number, g: number, primaryBalance: number): n
   return r > g ? primaryBalance / (r - g) : Infinity;
 }
 
-export function externalBalance(e: Economy): Panel[] {
+export function externalBalance(e: Economy, horizon = 60): Panel[] {
   const t = new Tracer();
+  const periods = Math.max(10, Math.min(300, Math.round(horizon)));
   const core = e.openness === "open" ? mfCore(e) : { Y: islmCore(e).Y, r: islmCore(e).r };
   const Y = core.Y;
   const r = core.r;
@@ -47,7 +48,7 @@ export function externalBalance(e: Economy): Panel[] {
   const hasDebtSteadyState = Number.isFinite(dStar);
   const debt: { t: number; d: number }[] = [];
   let d = d0;
-  for (let i = 0; i <= 100; i++) {
+  for (let i = 0; i <= periods; i++) {
     debt.push({ t: i, d });
     d = debtNext(d, r, g, pb);
     if (!Number.isFinite(d)) break;
@@ -56,7 +57,7 @@ export function externalBalance(e: Economy): Panel[] {
   // Net foreign asset position from cumulated current accounts.
   const nfa: { t: number; v: number }[] = [];
   let v = 0;
-  for (let i = 0; i <= 60; i++) {
+  for (let i = 0; i <= periods; i++) {
     nfa.push({ t: i, v });
     v += CA;
   }
@@ -73,7 +74,7 @@ export function externalBalance(e: Economy): Panel[] {
   return [
     {
       id: "external-balance",
-      title: "External balance and the net foreign asset position",
+      title: `External balance — next ${periods} periods`,
       description:
         "The current account is the gap between national saving and investment. Persistent surpluses build foreign assets; deficits build debt.",
       timeseries: {

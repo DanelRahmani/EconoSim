@@ -5,7 +5,7 @@ import type { CountrySize, Economy, ExchangeRegime, Openness } from "@/lib/econ/
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
+import { DEFAULT_HORIZON, HORIZON_BOUNDS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
 import { applyShocks } from "@/lib/econ/shocks";
 import { mergePanels } from "@/lib/econ/compare";
 import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
@@ -85,6 +85,7 @@ export function Simulator() {
   const [model, setModel] = useState("solow");
   const [expert, setExpert] = useState(false);
   const [compare, setCompare] = useState<CompareMode>("current");
+  const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
 
   const update = (patch: Partial<Economy>) => setEconomy((e) => ({ ...e, ...patch }));
   const issues = useMemo(() => validateEconomy(economy), [economy]);
@@ -103,13 +104,14 @@ export function Simulator() {
   const panels = useMemo(() => {
     if (model === "glossary") return [];
     try {
-      const current = runModel(model, shownEconomy);
+      const opts = { horizon };
+      const current = runModel(model, shownEconomy, opts);
       if (compare !== "both") return current;
-      return mergePanels(current, runModel(model, reference));
+      return mergePanels(current, runModel(model, reference, opts));
     } catch {
       return null;
     }
-  }, [model, shownEconomy, reference, compare]);
+  }, [model, shownEconomy, reference, compare, horizon]);
 
   const loadEconomy = (e: Economy) => {
     setEconomy(e);
@@ -324,7 +326,25 @@ export function Simulator() {
         </main>
 
         <aside className="lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
+          <div className="space-y-4">
           <div className="card reveal p-4">
+            <h2 className="mb-1 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Time window</h2>
+            <ParamControl
+              label="Periods shown"
+              help="How far forward the time-path charts look. Short windows keep the first years readable; longer windows show the full convergence to the steady state."
+              value={horizon}
+              min={HORIZON_BOUNDS.min}
+              max={HORIZON_BOUNDS.max}
+              step={HORIZON_BOUNDS.step}
+              onChange={setHorizon}
+            />
+            <p className="mt-1 text-[0.6875rem] leading-snug text-muted/80">
+              Applies to the Solow transition path, the AD-AS adjustment, Dornbusch overshooting and external balance. The
+              static models (IS-LM, parity, Taylor rule) ignore it.
+            </p>
+          </div>
+
+          <div className="card reveal p-4" style={{ animationDelay: "60ms" }}>
             <h2 className="mb-1 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Parameters</h2>
 
             <Segmented<Openness>
@@ -379,6 +399,7 @@ export function Simulator() {
                 </div>
               );
             })}
+          </div>
           </div>
         </aside>
       </div>

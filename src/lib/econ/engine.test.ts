@@ -278,3 +278,24 @@ describe("glossary", () => {
     }
   });
 });
+
+describe("time window", () => {
+  const maxX = (id: string, horizon: number) => {
+    const panels = runModel(id, defaultEconomy(), { horizon });
+    const xs = panels.flatMap((p) => (p.timeseries?.series ?? []).flatMap((s) => s.points.map((pt) => pt.x)));
+    return xs.length ? Math.max(...xs) : NaN;
+  };
+
+  it("is honoured by every time-path model", () => {
+    for (const id of ["solow", "adas", "dornbusch", "external-balance"]) {
+      const m = maxX(id, 10);
+      expect(Number.isFinite(m), `${id} should have a time series`).toBe(true);
+      expect(m, `${id} should respect a 10-period window`).toBeLessThanOrEqual(10 + 1e-6);
+    }
+  });
+
+  it("widens the window when asked", () => {
+    expect(maxX("solow", 100)).toBeGreaterThan(maxX("solow", 10));
+    expect(maxX("adas", 100)).toBeGreaterThan(maxX("adas", 10));
+  });
+});

@@ -11,33 +11,48 @@ import { externalBalance } from "./models/externalBalance";
 import { tradeFlows } from "./models/tradeFlows";
 import { policyRule } from "./models/policyRule";
 
+/** How far forward the time-path charts should look, in periods. */
+export interface RunOptions {
+  horizon: number;
+}
+
+export const DEFAULT_HORIZON = 60;
+export const HORIZON_BOUNDS = { min: 5, max: 120, step: 5 };
+export const DEFAULT_OPTIONS: RunOptions = { horizon: DEFAULT_HORIZON };
+
 export interface ModelDef {
   id: string;
   label: string;
   group: string;
   blurb: string;
-  run: (e: Economy) => Panel[];
+  /** Models that plot a path over time honour `o.horizon`; the rest ignore it. */
+  run: (e: Economy, o: RunOptions) => Panel[];
 }
 
 export const MODELS: ModelDef[] = [
-  { id: "cobb-douglas", label: "Cobb-Douglas", group: "Foundations", blurb: "The production function everything else builds on.", run: cobbDouglas },
-  { id: "solow", label: "Solow-Swan", group: "Long run", blurb: "Capital accumulation, the steady state and the golden rule.", run: solow },
-  { id: "islm", label: "IS-LM", group: "Short run", blurb: "Goods and money markets set output and the interest rate.", run: islm },
-  { id: "adas", label: "AD-AS", group: "Short run", blurb: "Aggregate demand and supply, and the path back to potential output.", run: adas },
-  { id: "mf", label: "Mundell-Fleming", group: "Open economy", blurb: "IS-LM-BP: policy under fixed vs. floating rates.", run: mundellFleming },
-  { id: "parity", label: "Parity conditions", group: "International macro", blurb: "UIP, CIP, PPP, the real exchange rate and the trilemma.", run: parity },
-  { id: "dornbusch", label: "Dornbusch overshooting", group: "International macro", blurb: "Why the exchange rate overshoots after a money shock.", run: dornbuschPanel },
-  { id: "external-balance", label: "External balance", group: "International macro", blurb: "Current account, net foreign assets and debt dynamics.", run: externalBalance },
-  { id: "trade-flows", label: "Trade flows", group: "International macro", blurb: "Marshall-Lerner, the J-curve and Dutch disease.", run: tradeFlows },
-  { id: "policy-rule", label: "Policy rule", group: "International macro", blurb: "The Taylor rule and the policy stance.", run: policyRule },
+  { id: "cobb-douglas", label: "Cobb-Douglas", group: "Foundations", blurb: "The production function everything else builds on.", run: (e) => cobbDouglas(e) },
+  { id: "solow", label: "Solow-Swan", group: "Long run", blurb: "Capital accumulation, the steady state and the golden rule.", run: (e, o) => solow(e, o.horizon) },
+  { id: "islm", label: "IS-LM", group: "Short run", blurb: "Goods and money markets set output and the interest rate.", run: (e) => islm(e) },
+  { id: "adas", label: "AD-AS", group: "Short run", blurb: "Aggregate demand and supply, and the path back to potential output.", run: (e, o) => adas(e, o.horizon) },
+  { id: "mf", label: "Mundell-Fleming", group: "Open economy", blurb: "IS-LM-BP: policy under fixed vs. floating rates.", run: (e) => mundellFleming(e) },
+  { id: "parity", label: "Parity conditions", group: "International macro", blurb: "UIP, CIP, PPP, the real exchange rate and the trilemma.", run: (e) => parity(e) },
+  { id: "dornbusch", label: "Dornbusch overshooting", group: "International macro", blurb: "Why the exchange rate overshoots after a money shock.", run: (e, o) => dornbuschPanel(e, 10, o.horizon) },
+  { id: "external-balance", label: "External balance", group: "International macro", blurb: "Current account, net foreign assets and debt dynamics.", run: (e, o) => externalBalance(e, o.horizon) },
+  { id: "trade-flows", label: "Trade flows", group: "International macro", blurb: "Marshall-Lerner, the J-curve and Dutch disease.", run: (e) => tradeFlows(e) },
+  { id: "policy-rule", label: "Policy rule", group: "International macro", blurb: "The Taylor rule and the policy stance.", run: (e) => policyRule(e) },
 ];
 
 export function getModel(id: string): ModelDef {
   return MODELS.find((m) => m.id === id) ?? MODELS[0];
 }
 
-export function runModel(id: string, e: Economy): Panel[] {
-  return getModel(id).run(e);
+export function runModel(id: string, e: Economy, o: RunOptions = DEFAULT_OPTIONS): Panel[] {
+  return getModel(id).run(e, o);
 }
 
 export const MODEL_GROUPS: string[] = Array.from(new Set(MODELS.map((m) => m.group)));
+
+/** Step count that keeps a path smooth for a given horizon. */
+export function stepsFor(horizon: number, perPeriod: number, min = 90, max = 1500): number {
+  return Math.max(min, Math.min(max, Math.round(horizon * perPeriod)));
+}

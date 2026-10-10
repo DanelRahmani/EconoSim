@@ -67,10 +67,11 @@ export function solowCore(e: Economy): SolowCore {
 }
 
 /** Simulate the transition path dk/dt = s k^α - (n+g+δ) k. */
-export function solowPath(e: Economy, horizon = 120, steps = 400): { t: number; k: number; y: number; c: number; i: number; be: number }[] {
+export function solowPath(e: Economy, horizon = 120, steps?: number): { t: number; k: number; y: number; c: number; i: number; be: number }[] {
   const be = e.n + e.g + e.delta;
   const k0 = e.K0 / (e.A * e.L);
-  const raw = rk4((_, k) => e.s * Math.pow(Math.max(k, 1e-6), e.alpha) - be * k, k0, 0, horizon, steps);
+  const n = steps ?? Math.max(120, Math.min(1500, Math.round(horizon * 4)));
+  const raw = rk4((_, k) => e.s * Math.pow(Math.max(k, 1e-6), e.alpha) - be * k, k0, 0, horizon, n);
   return raw.map((p) => {
     const y = Math.pow(p.y, e.alpha);
     return { t: p.t, k: p.y, y, c: (1 - e.s) * y, i: e.s * y, be: be * p.y };
@@ -120,7 +121,7 @@ export function solow(e: Economy, horizon = 120): Panel[] {
     },
     {
       id: "solow-path",
-      title: "Transition path",
+      title: `Transition path — next ${horizon} periods`,
       description: "Starting from the current capital stock, the economy converges to its steady state (RK4 integration of the Solow ODE).",
       timeseries: {
         xLabel: "Time",

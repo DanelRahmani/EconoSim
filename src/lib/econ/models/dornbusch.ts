@@ -60,13 +60,13 @@ export function dornbusch(e: Economy, dm: number, horizon = 40, steps = 200): Do
   return { sLongRun: sBar, pLongRun: pBar, s0, p0, sOld, lambda, overshootRatio, series, trace: t.steps };
 }
 
-export function dornbuschPanel(e: Economy, dmPct = 10): Panel[] {
+export function dornbuschPanel(e: Economy, dmPct = 10, horizon = 40): Panel[] {
   const dm = Math.log(1 + dmPct / 100);
-  const r = dornbusch(e, dm);
+  const r = dornbusch(e, dm, horizon, Math.max(60, Math.min(1200, Math.round(horizon * 5))));
   return [
     {
       id: "dornbusch",
-      title: `Dornbusch overshooting (${dmPct}% money expansion)`,
+      title: `Dornbusch overshooting (${dmPct}% shock, ${horizon} periods)`,
       description:
         "Prices are sticky in the short run, so a monetary expansion depresses the interest rate and the exchange rate depreciates beyond its long-run level before appreciating back — overshooting.",
       timeseries: {
