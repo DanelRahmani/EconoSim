@@ -62,9 +62,10 @@ src/lib/econ/            the engine — pure, no React
   permalink.ts           encode/decode the whole view into ?s=
   comparativeStatics.ts  sweepPanel() — the "G↑ ⇒ Y↑, r↑, I↓" grid, built from a model's
                          own scalars so it cannot disagree with the panels above it
+  export.ts              panelToCsv / panelsToCsv — the figures *and* the working as a CSV
   glossary.ts            symbol reference shown in the Glossary tab
   models/*.ts            one file per model — 21 of them
-  engine.test.ts         the whole suite (114 tests)
+  engine.test.ts         the whole suite (121 tests)
 src/components/          PanelCard renders any Panel; CurveChart (SVG), TimeSeriesChart (Recharts)
 src/app/                 landing page + /simulator
 docs/models.md           equations and sign conventions (STALE — see gaps below)
@@ -193,8 +194,6 @@ Nothing else is known broken. The next work is new capability, not repair.
 - **Parameter sweeps as an axis.** Chart a parameter on the x-axis instead of time or a state
   variable, to answer questions like "which saving rate maximises steady-state consumption?".
   Needs a small generalisation of the chart spec.
-- **Export.** CSV of every panel and PNG/SVG of a chart. The ethos is "show the exact
-  calculation" — students need to hand the working in.
 - **A data-table view behind every chart.** Serves two masters: accessibility (the SVG paths
   currently have no text alternative) and credibility.
 
@@ -218,6 +217,12 @@ the exact-arithmetic promise the trace panels make.
 
 Work in this session, newest first:
 
+- This session — **export.** `export.ts` turns a panel, or a whole view, into a CSV: figures,
+  series, tables *and* the trace, quoted, at full precision and with a byte-order mark so
+  Excel reads the Greek. Any chart also downloads as a standalone SVG. That needed one
+  trick: the charts colour themselves with the theme's CSS custom properties, which do not
+  resolve in a detached file, so the export pastes the *resolved* tokens into a style block
+  — the file is then self-contained and matches the theme it was taken in. 114 → 121 tests.
 - This session — **comparative statics.** A new `RunOptions.sweep` dial appends a panel that
   re-runs the current model 1% either side of one parameter and tabulates every figure the
   model reports against its base, with the direction it moves — the classic

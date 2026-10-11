@@ -27,6 +27,7 @@ import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
 import { PanelCard } from "./PanelCard";
 import { ParamControl, Segmented } from "./ParamControl";
 import { ShareLink } from "./ShareLink";
+import { ExportAllCsv } from "./Export";
 import { ShockControls } from "./ShockControls";
 import { GlossaryPanel } from "./GlossaryPanel";
 import { PresetManager } from "./PresetManager";
@@ -605,10 +606,14 @@ export function Simulator() {
             <button
               type="button"
               onClick={() => loadEconomy(defaultEconomy())}
+              title="Back to the internally consistent baseline economy"
               className="rounded-full border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent"
             >
               Reset
             </button>
+            {panels && panels.length > 0 && (
+              <ExportAllCsv panels={panels} name={`econosim-${getModel(model).label}-${economy.name}`} />
+            )}
           </div>
         </div>
       </header>
@@ -742,6 +747,7 @@ export function Simulator() {
                   key={p.id}
                   panel={p}
                   index={i}
+                  exportName={`econosim-${getModel(model).label}-${economy.name}`}
                   chartControls={
                     scenario || i === 0 || p.timeseries ? (
                       <>

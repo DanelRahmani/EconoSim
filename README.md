@@ -48,6 +48,9 @@ explained in plain language; hover any label for the short version.
 - **Comparative statics** — pick any parameter and the model is re-run 1% either side of it,
   tabulating every figure it reports against the base and the direction it moves. The classic
   *“G↑ ⇒ Y↑, r↑, I↓”* grid, read off real runs rather than hand-written.
+- **Export** — the whole view, or any single panel, as a CSV: the figures, the series, the
+  tables *and* the calculation steps, at full precision, ready to hand in. Any chart also
+  downloads as a standalone SVG in the theme you are reading it in.
 
 ## Getting started
 

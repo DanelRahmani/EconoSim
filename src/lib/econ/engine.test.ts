@@ -31,6 +31,7 @@ import { SHOCK_PRESETS, applyMode, resolveShocks, type ShockSpec } from "@/lib/e
 import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
 import { decodeState, encodeState, readState, shareUrl, type SimState } from "@/lib/econ/permalink";
 import { SWEEPABLE, sweepPanel } from "@/lib/econ/comparativeStatics";
+import { exportName, panelToCsv, panelsToCsv } from "@/lib/econ/export";
 import type { Panel } from "@/lib/econ/panel";
 import type { SweepParam } from "@/lib/econ/types";
 import { phillipsCore, phillipsPath } from "@/lib/econ/models/phillips";
@@ -922,6 +923,66 @@ describe("comparative statics", () => {
     expect(SWEEPABLE).not.toContain("openness");
     expect(sweep("islm", "none")).toBeNull();
     expect(sweep("islm", "name")).toBeNull();
+  });
+});
+
+describe("export", () => {
+  const panel: Panel = {
+    id: "p",
+    title: "A panel",
+    scalars: [
+      { label: 'Output, "gross"', value: 0.1 + 0.2 },
+      { label: "Broken", value: NaN },
+    ],
+    table: {
+      columns: ["\u2212\u03b5", "+\u03b5"],
+      rows: [{ label: "k\u0302*", cells: [{ text: "1" }, { text: "2", emphasis: true }] }],
+    },
+    trace: [{ label: "Sum", value: 3 }],
+  };
+
+  it("quotes and escapes so a comma or a quote in a label cannot split a row", () => {
+    const csv = panelToCsv(panel);
+    expect(csv).toContain('"Output, ""gross""","0.3"');
+  });
+
+  it("writes full precision without float noise, and never a NaN", () => {
+    const csv = panelToCsv(panel);
+    expect(csv).toContain('"Output, ""gross""","0.3"');
+    expect(csv).toContain('"Broken",""');
+    expect(csv).not.toMatch(/NaN|Infinity/);
+  });
+
+  it("starts with a byte-order mark so Excel reads the Greek labels, and ends rows in CRLF", () => {
+    const csv = panelToCsv(panel);
+    expect(csv.startsWith("\uFEFF")).toBe(true);
+    expect(csv).toContain("\r\n");
+    expect(csv).toContain('"\u2212\u03b5","+\u03b5"');
+  });
+
+  it("includes the calculation steps, which are the point of the export", () => {
+    expect(panelToCsv(panel)).toContain('"Sum","3"');
+  });
+
+  it("puts every panel of a view in one file, in order", () => {
+    const csv = panelsToCsv([panel, { ...panel, id: "q", title: "B panel" }]);
+    expect(csv.startsWith("\uFEFF\"A panel\"")).toBe(true);
+    expect(csv.indexOf("A panel")).toBeLessThan(csv.indexOf("B panel"));
+    // One byte-order mark, not one per panel.
+    expect(csv.split("\uFEFF")).toHaveLength(2);
+  });
+
+  it("makes a file name that is safe on disk", () => {
+    expect(exportName("IS-LM", "Caf\u00e9 growth")).toBe("is-lm-cafe-growth");
+    expect(exportName("../../etc/passwd")).toBe("etc-passwd");
+    expect(exportName("\u03b1\u03b2\u03b3")).toBe("econosim");
+  });
+
+  it("exports every model without a non-finite figure", () => {
+    for (const m of MODELS) {
+      const csv = panelsToCsv(runModel(m.id, e, DEFAULT_OPTIONS));
+      expect(csv, `${m.id} exported a non-finite figure`).not.toMatch(/NaN|Infinity|undefined/);
+    }
   });
 });
 

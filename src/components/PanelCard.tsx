@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Panel, TableSpec } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
 import { CurveChart, Legend, SERIES_COLORS } from "./charts/CurveChart";
 import { TimeSeriesChart } from "./charts/TimeSeriesChart";
 import { Calculation } from "./math/Calculation";
+import { PanelExport } from "./Export";
 import { AnimatedNumber } from "./ui/AnimatedNumber";
 import { InfoNote } from "./ui/InfoNote";
 
@@ -79,14 +80,18 @@ export function PanelCard({
   panel,
   index = 0,
   chartControls,
+  exportName,
 }: {
   panel: Panel;
   index?: number;
   /** Rendered directly above the chart — e.g. the time-window control. */
   chartControls?: React.ReactNode;
+  /** Stem for this panel's exported files, e.g. "solow-phase-diagram". */
+  exportName?: string;
 }) {
   // Lines can be switched off from the legend.
   const [hidden, setHidden] = useState<string[]>([]);
+  const chartRef = useRef<HTMLDivElement>(null);
   const toggle = (label: string) =>
     setHidden((prev) => (prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]));
 
@@ -110,14 +115,9 @@ export function PanelCard({
 
       {chartControls && <div className="mt-3">{chartControls}</div>}
 
-      {chart && (
-        <div className="mt-3">
-          <CurveChart spec={chart} colors={colors} />
-        </div>
-      )}
-      {!chart && timeseries && (
-        <div className="mt-3">
-          <TimeSeriesChart spec={timeseries} colors={colors} />
+      {(chart || timeseries) && (
+        <div className="mt-3" ref={chartRef}>
+          {chart ? <CurveChart spec={chart} colors={colors} /> : timeseries && <TimeSeriesChart spec={timeseries} colors={colors} />}
         </div>
       )}
 
@@ -166,6 +166,8 @@ export function PanelCard({
       )}
 
       <Calculation steps={panel.trace} />
+
+      {exportName && <PanelExport panel={panel} name={exportName} chartRef={chartRef} />}
     </section>
   );
 }
