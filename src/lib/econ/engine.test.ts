@@ -1067,6 +1067,16 @@ describe("chart zoom", () => {
     expect(zoomWindow(full, full, 1000)).toEqual(full);
   });
 
+  it("stops zooming in at the limit instead of jumping back out", () => {
+    let win: Window = full;
+    for (let press = 0; press < 20; press++) win = zoomWindow(win, full, 0.5);
+    expect(win).not.toEqual(full);
+    expect(win[1] - win[0]).toBeGreaterThan(0);
+    expect(win[1] - win[0]).toBeLessThan(1);
+    // One more press changes nothing, rather than resetting the view.
+    expect(zoomWindow(win, full, 0.5)).toEqual(win);
+  });
+
   it("keeps the nearest point either side, so a zoomed line still reaches the frame", () => {
     const points = [0, 1, 2, 3, 4].map((x) => ({ x, y: x }));
     expect(pointsInWindow(points, [1.5, 2.5]).map((p) => p.x)).toEqual([1, 2, 3]);

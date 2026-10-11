@@ -68,11 +68,17 @@ export function clampWindow(win: Window, full: Window): Window | null {
   return [lo, hi];
 }
 
-/** Zoom a window about its centre: a factor below 1 zooms in, above 1 zooms out. */
+/**
+ * Zoom a window about its centre: a factor below 1 zooms in, above 1 zooms out.
+ *
+ * Zooming out past the data gives back the whole range. Zooming in past the
+ * minimum keeps the current window rather than falling back to the full range,
+ * which would make a tenth press of "+" jump all the way back out.
+ */
 export function zoomWindow(win: Window, full: Window, factor: number): Window {
   const centre = (win[0] + win[1]) / 2;
   const half = ((win[1] - win[0]) * factor) / 2;
-  return clampWindow([centre - half, centre + half], full) ?? full;
+  return clampWindow([centre - half, centre + half], full) ?? win;
 }
 
 /**
