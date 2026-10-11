@@ -51,6 +51,8 @@ explained in plain language; hover any label for the short version.
 - **Export** — the whole view, or any single panel, as a CSV: the figures, the series, the
   tables *and* the calculation steps, at full precision, ready to hand in. Any chart also
   downloads as a standalone SVG in the theme you are reading it in.
+- **Every chart has a data table** — the plotted series as text, so the numbers can be read
+  outright and the picture is not the only way in.
 
 ## Getting started
 

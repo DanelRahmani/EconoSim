@@ -1,3 +1,4 @@
+import { fmtNum } from "../format";
 import type { CalcStep } from "./trace";
 
 export interface Point {
@@ -80,4 +81,48 @@ export interface Panel {
   scalars?: Scalar[];
   notes?: string[];
   trace: CalcStep[];
+}
+
+/**
+ * A chart's series as a table — the text alternative to the picture.
+ *
+ * When every series shares one x grid (the usual case: the models build their
+ * curves with a shared `linspace`), the x values become the row labels and each
+ * series a column. When they do not, the long form is used instead rather than
+ * aligning points that were never meant to line up.
+ */
+export function seriesToTable(spec: ChartSpec | TimeSeriesSpec): TableSpec | undefined {
+  const series = spec.series;
+  if (!series.length) return undefined;
+  const xLabel = spec.xLabel;
+  const yLabel = "yLabel" in spec ? spec.yLabel : "";
+
+  const first = series[0].points;
+  const sharesGrid = series.every(
+    (line) =>
+      line.points.length === first.length &&
+      line.points.every((point, i) => Math.abs(point.x - first[i].x) <= 1e-9),
+  );
+
+  if (sharesGrid) {
+    return {
+      columns: series.map((line) => line.label),
+      rows: first.map((point, i) => ({
+        label: fmtNum(point.x, 4),
+        cells: series.map((line) => ({ text: fmtNum(line.points[i].y, 4) })),
+      })),
+      caption: `${yLabel} against ${xLabel}, as plotted.`,
+    };
+  }
+
+  return {
+    columns: [xLabel, yLabel],
+    rows: series.flatMap((line) =>
+      line.points.map((point) => ({
+        label: line.label,
+        cells: [{ text: fmtNum(point.x, 4) }, { text: fmtNum(point.y, 4) }],
+      })),
+    ),
+    caption: `Every point of every series, as plotted.`,
+  };
 }

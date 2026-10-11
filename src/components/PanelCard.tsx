@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { Panel, TableSpec } from "@/lib/econ/panel";
+import { seriesToTable, type Panel, type TableSpec } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
 import { CurveChart, Legend, SERIES_COLORS } from "./charts/CurveChart";
 import { TimeSeriesChart } from "./charts/TimeSeriesChart";
@@ -107,6 +107,9 @@ export function PanelCard({
 
   const chart = panel.chart ? { ...panel.chart, series: visible(panel.chart.series) } : undefined;
   const timeseries = panel.timeseries ? { ...panel.timeseries, series: visible(panel.timeseries.series) } : undefined;
+  // The text alternative keeps every series, including any hidden from the legend:
+  // hiding a line is a reading choice, not a reason to drop it from the data.
+  const dataTable = panel.chart || panel.timeseries ? seriesToTable(panel.chart ?? panel.timeseries!) : undefined;
 
   return (
     <section className="card card-hover reveal p-5" style={index ? { animationDelay: `${index * 80}ms` } : undefined}>
@@ -122,6 +125,15 @@ export function PanelCard({
       )}
 
       {panel.table && <DataTable spec={panel.table} />}
+
+      {dataTable && (
+        <details className="mt-3">
+          <summary className="cursor-pointer font-mono text-[0.6875rem] uppercase tracking-wider text-muted transition-colors hover:text-ink">
+            Data table
+          </summary>
+          <DataTable spec={dataTable} />
+        </details>
+      )}
 
       {legend.length > 0 && (
         <div className="mt-3">

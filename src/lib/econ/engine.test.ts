@@ -33,6 +33,7 @@ import { decodeState, encodeState, readState, shareUrl, type SimState } from "@/
 import { SWEEPABLE, sweepPanel } from "@/lib/econ/comparativeStatics";
 import { exportName, panelToCsv, panelsToCsv } from "@/lib/econ/export";
 import type { Panel } from "@/lib/econ/panel";
+import { seriesToTable } from "@/lib/econ/panel";
 import type { SweepParam } from "@/lib/econ/types";
 import { phillipsCore, phillipsPath } from "@/lib/econ/models/phillips";
 import { naturalUnemployment } from "@/lib/econ/models/labourMarket";
@@ -983,6 +984,58 @@ describe("export", () => {
       const csv = panelsToCsv(runModel(m.id, e, DEFAULT_OPTIONS));
       expect(csv, `${m.id} exported a non-finite figure`).not.toMatch(/NaN|Infinity|undefined/);
     }
+  });
+});
+
+describe("data table behind a chart", () => {
+  it("uses a shared x grid as the row labels", () => {
+    const table = seriesToTable({
+      xLabel: "k",
+      yLabel: "y",
+      series: [
+        { label: "a", points: [{ x: 0, y: 1 }, { x: 1, y: 2 }] },
+        { label: "b", points: [{ x: 0, y: 3 }, { x: 1, y: 4 }] },
+      ],
+    });
+    expect(table?.columns).toEqual(["a", "b"]);
+    expect(table?.rows.map((r) => r.label)).toEqual(["0", "1"]);
+    expect(table?.rows[1].cells.map((c) => c.text)).toEqual(["2", "4"]);
+  });
+
+  it("falls back to one row per point when the series do not line up", () => {
+    const table = seriesToTable({
+      xLabel: "t",
+      yLabel: "y",
+      series: [
+        { label: "a", points: [{ x: 0, y: 1 }] },
+        { label: "b", points: [{ x: 0, y: 1 }, { x: 1, y: 2 }] },
+      ],
+    });
+    expect(table?.columns).toEqual(["t", "y"]);
+    expect(table?.rows).toHaveLength(3);
+    expect(table?.rows.map((r) => r.label)).toEqual(["a", "b", "b"]);
+  });
+
+  it("gives every model's chart a text alternative, with no non-finite cell", () => {
+    for (const m of MODELS) {
+      for (const panel of runModel(m.id, e, DEFAULT_OPTIONS)) {
+        const spec = panel.chart ?? panel.timeseries;
+        if (!spec) continue;
+        const table = seriesToTable(spec);
+        expect(table, `${m.id}/${panel.id} has a chart but no table`).toBeDefined();
+        expect(table!.columns.length, `${m.id}/${panel.id} columns`).toBeGreaterThan(0);
+        for (const row of table!.rows) {
+          expect(row.cells, `${m.id}/${panel.id} · ${row.label}`).toHaveLength(table!.columns.length);
+          for (const c of row.cells) {
+            expect(c.text, `${m.id}/${panel.id} · ${row.label}`).not.toMatch(/NaN|Infinity|undefined/);
+          }
+        }
+      }
+    }
+  });
+
+  it("returns nothing for a chart with no series", () => {
+    expect(seriesToTable({ xLabel: "x", yLabel: "y", series: [] })).toBeUndefined();
   });
 });
 

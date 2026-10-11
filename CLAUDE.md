@@ -56,7 +56,8 @@ src/lib/econ/            the engine — pure, no React
   expr.ts                expression AST: evaluates numerically AND emits LaTeX
   trace.ts               Tracer / CalcStep — records the arithmetic as it runs
   math.ts                solveLinear, rk4, bisection, linspace, clamp, round
-  panel.ts               the output types: Panel, ChartSpec, TimeSeriesSpec, TableSpec, Scalar
+  panel.ts               the output types: Panel, ChartSpec, TimeSeriesSpec, TableSpec, Scalar,
+                         plus seriesToTable() — the text alternative behind every chart
   registry.ts            RunOptions, DEFAULT_* constants, the MODELS array
   shocks.ts              preset shocks + the user-defined shock builder
   permalink.ts           encode/decode the whole view into ?s=
@@ -65,7 +66,7 @@ src/lib/econ/            the engine — pure, no React
   export.ts              panelToCsv / panelsToCsv — the figures *and* the working as a CSV
   glossary.ts            symbol reference shown in the Glossary tab
   models/*.ts            one file per model — 21 of them
-  engine.test.ts         the whole suite (121 tests)
+  engine.test.ts         the whole suite (125 tests)
 src/components/          PanelCard renders any Panel; CurveChart (SVG), TimeSeriesChart (Recharts)
 src/app/                 landing page + /simulator
 docs/models.md           equations and sign conventions (STALE — see gaps below)
@@ -194,8 +195,6 @@ Nothing else is known broken. The next work is new capability, not repair.
 - **Parameter sweeps as an axis.** Chart a parameter on the x-axis instead of time or a state
   variable, to answer questions like "which saving rate maximises steady-state consumption?".
   Needs a small generalisation of the chart spec.
-- **A data-table view behind every chart.** Serves two masters: accessibility (the SVG paths
-  currently have no text alternative) and credibility.
 
 **Tier 2 — turns a sandbox into a course companion**
 - **Teaching scenario library:** named one-click setups (oil shock 1973, Volcker disinflation,
@@ -217,6 +216,14 @@ the exact-arithmetic promise the trace panels make.
 
 Work in this session, newest first:
 
+- This session — **a data table behind every chart.** `seriesToTable()` in `panel.ts` turns
+  a chart's series into the same `TableSpec` the game matrix already uses, so the picture is
+  no longer the only way into the numbers and the SVG paths have a text alternative. When
+  the series share an x grid — the usual case, since the models build curves with one
+  `linspace` — the x values become the row labels; when they do not, it falls back to one
+  row per point rather than aligning points that were never meant to line up. Hidden series
+  stay in the table: hiding a line is a reading choice, not a reason to drop the data.
+  121 → 125 tests.
 - This session — **export.** `export.ts` turns a panel, or a whole view, into a CSV: figures,
   series, tables *and* the trace, quoted, at full precision and with a byte-order mark so
   Excel reads the Greek. Any chart also downloads as a standalone SVG. That needed one
