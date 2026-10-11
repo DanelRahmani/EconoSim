@@ -14,6 +14,7 @@
 
 import { fmtNum } from "../format";
 import { defaultEconomy } from "./defaults";
+import { linspace } from "./math";
 import type { Panel, TableCell, TableSpec } from "./panel";
 import { runModel, type RunOptions } from "./registry";
 import { Tracer } from "./trace";
@@ -188,6 +189,130 @@ function safeRun(modelId: string, economy: Economy, options: RunOptions): Panel[
   } catch {
     return undefined;
   }
+}
+
+/** Every figure a model reports, by name. The first panel to report a name wins. */
+function figuresOf(panels: Panel[] | undefined): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const panel of panels ?? []) {
+    for (const scalar of panel.scalars ?? []) if (!out.has(scalar.label)) out.set(scalar.label, scalar.value);
+  }
+  return out;
+}
+
+export interface SweepAxisArgs {
+  modelId: string;
+  /** Model name for the prose, e.g. "Solow-Swan". */
+  modelLabel: string;
+  economy: Economy;
+  options: RunOptions;
+  param: SweepParam;
+  /** Parameter name for the axis label and the prose. */
+  paramLabel?: string;
+  /** The slider's own range, so the sweep covers what the UI can reach. */
+  range: [number, number];
+  /** Which figure to plot; the model's first reported figure when absent or unknown. */
+  figure?: string;
+  /** How many values to sample. Odd, so the current value is usually on the grid. */
+  samples?: number;
+}
+
+/**
+ * A figure plotted against one parameter, sampled across that parameter's range.
+ *
+ * This is the "which saving rate maximises steady-state consumption" question:
+ * one endogenous variable on the y-axis, a parameter on the x-axis, and the
+ * turning point marked. It complements the comparative-statics table, which
+ * gives the *direction* of every figure at ±ε; this gives the *shape* of one.
+ *
+ * The sweep only samples a grid, so the marked high point is the highest
+ * *sampled* value and the note says so rather than implying an exact optimum.
+ */
+export function sweepAxisPanel(args: SweepAxisArgs): Panel | null {
+  const { modelId, modelLabel, economy, options, param } = args;
+  if (param === "none") return null;
+  const baseValue = economy[param];
+  if (typeof baseValue !== "number" || !Number.isFinite(baseValue)) return null;
+
+  const [lo, hi] = args.range;
+  if (!(hi > lo)) return null;
+
+  const name = args.paramLabel ?? String(param);
+  const baseIssues = new Set(validateEconomy(economy).map((issue) => issue.message));
+  const baseFigures = figuresOf(safeRun(modelId, economy, options));
+  if (baseFigures.size === 0) return null;
+
+  const figure = args.figure && baseFigures.has(args.figure) ? args.figure : [...baseFigures.keys()][0];
+  const samples = Math.max(5, args.samples ?? 41);
+
+  const points: { x: number; y: number }[] = [];
+  let skipped = 0;
+  for (const value of linspace(lo, hi, samples)) {
+    const candidate = { ...economy, [param]: value } as Economy;
+    const fresh = validateEconomy(candidate)
+      .map((issue) => issue.message)
+      .filter((message) => !baseIssues.has(message));
+    const reported = fresh.length ? undefined : figuresOf(safeRun(modelId, candidate, options)).get(figure);
+    if (reported === undefined || !Number.isFinite(reported)) {
+      skipped += 1;
+      continue;
+    }
+    points.push({ x: value, y: reported });
+  }
+  if (points.length < 2) return null;
+
+  const ends = [points[0].y, points[points.length - 1].y];
+  const highest = points.reduce((best, point) => (point.y > best.y ? point : best));
+  const turning = highest.x > points[0].x && highest.x < points[points.length - 1].x && highest.y > Math.max(...ends);
+  const current = baseFigures.get(figure);
+
+  const markers = [
+    ...(current === undefined ? [] : [{ x: baseValue, y: current, label: "current" }]),
+    ...(turning ? [{ x: highest.x, y: highest.y, label: "highest" }] : []),
+  ];
+
+  const tracer = new Tracer();
+  tracer.step(`${name} sampled from`, lo, undefined, undefined, "The lower end of this parameter's slider");
+  tracer.step(`${name} sampled to`, hi, undefined, undefined, "The upper end of the slider");
+  if (skipped) {
+    tracer.step("Values not computable", skipped, undefined, undefined, "Left out rather than drawn as a gap");
+  }
+  tracer.step(`Highest ${figure} in the sweep`, highest.y);
+  if (turning) {
+    tracer.step(
+      `${name} at that high point`,
+      highest.x,
+      undefined,
+      undefined,
+      `The answer to "which ${name} gives the most ${figure}" — to the nearest sampled value`,
+    );
+  }
+
+  return {
+    id: `sweep-axis-${String(param)}`,
+    title: `${figure} against ${name}`,
+    description:
+      `One figure of ${modelLabel}, re-run across the whole range of ${name} with everything else held fixed. ` +
+      (turning
+        ? `The curve turns: it peaks inside the range, which is the answer to "which ${name} gives the most ${figure}".`
+        : `The curve is monotone over this range, so no interior turning point exists here.`),
+    chart: {
+      xLabel: name,
+      yLabel: figure,
+      series: [{ label: figure, points }],
+      markers: markers.length ? markers : undefined,
+    },
+    scalars: [
+      { label: `Highest ${figure}`, value: highest.y },
+      ...(turning ? [{ label: `${name} there`, value: highest.x, hint: "The nearest sampled value, not an exact optimum" }] : []),
+      ...(current === undefined ? [] : [{ label: `At the current ${name}`, value: current }]),
+    ],
+    notes: [
+      "Everything except this parameter is held fixed, so this is the shape of the model's own response rather than a forecast.",
+      `Sampled at ${samples} values, so read the turning point as the nearest sample${skipped ? `, and note ${skipped} left out as not computable` : ""}.`,
+    ],
+    trace: tracer.steps,
+  };
 }
 
 /** A cell showing a figure, or a dash when the model does not report it. */

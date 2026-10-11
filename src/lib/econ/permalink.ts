@@ -28,6 +28,8 @@ import {
   DEFAULT_MICRO,
   DEFAULT_MODEL,
   DEFAULT_SWEEP,
+  DEFAULT_SWEEP_AXIS,
+  DEFAULT_SWEEP_FIGURE,
   DEFAULT_ZLB,
   MODELS,
 } from "./registry";
@@ -62,6 +64,8 @@ export interface SimState {
   game: GameOptions;
   zlb: ZlbOptions;
   sweep: SweepParam;
+  sweepAxis: SweepParam;
+  sweepFigure: string;
   shocks: ShockSpec[];
 }
 
@@ -69,6 +73,7 @@ export interface SimState {
 export const PERMALINK_PARAM = "s";
 const VERSION = 1;
 const MAX_SHOCKS = 20;
+const MAX_FIGURE_CHARS = 60;
 
 /** Only the pseudo-model is not in the registry. */
 const MODEL_IDS = [...MODELS.map((m) => m.id), "glossary"];
@@ -110,6 +115,8 @@ export function encodeState(s: SimState): string {
       g: s.game,
       z: s.zlb,
       sw: s.sweep,
+      sa: s.sweepAxis,
+      sf: s.sweepFigure,
       k: s.shocks,
     }),
   );
@@ -264,6 +271,12 @@ export function decodeState(token: string | null | undefined): SimState | null {
       game: sanitiseGame(raw.g),
       zlb: sanitiseZlb(raw.z),
       sweep: SWEEPABLE.includes(raw.sw as keyof Economy) ? (raw.sw as SweepParam) : DEFAULT_SWEEP,
+      sweepAxis: SWEEPABLE.includes(raw.sa as keyof Economy) ? (raw.sa as SweepParam) : DEFAULT_SWEEP_AXIS,
+      // A figure name is only ever used to look a label up in the model's own
+      // output, so an unrecognised one falls back to the first figure rather
+      // than needing to be checked against anything.
+      sweepFigure:
+        typeof raw.sf === "string" && raw.sf.length <= MAX_FIGURE_CHARS ? raw.sf : DEFAULT_SWEEP_FIGURE,
       shocks: sanitiseShocks(raw.k),
     };
   } catch {

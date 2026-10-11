@@ -18,11 +18,12 @@ import type {
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_SWEEP, DEFAULT_ZLB, HORIZON_PRESETS, MODELS, MODEL_GROUPS, getModel, runModel } from "@/lib/econ/registry";
+import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_SWEEP, DEFAULT_SWEEP_AXIS, DEFAULT_SWEEP_FIGURE, DEFAULT_ZLB, HORIZON_PRESETS, MODELS, MODEL_GROUPS, getModel, runModel } from "@/lib/econ/registry";
 import { readState, shareUrl, type CompareMode } from "@/lib/econ/permalink";
 import { resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { mergePanels } from "@/lib/econ/compare";
-import { sweepPanel } from "@/lib/econ/comparativeStatics";
+import { sweepAxisPanel, sweepPanel } from "@/lib/econ/comparativeStatics";
+import type { Panel } from "@/lib/econ/panel";
 import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
 import { PanelCard } from "./PanelCard";
 import { ParamControl, Segmented } from "./ParamControl";
@@ -99,6 +100,22 @@ const GROUP_ORDER = ["Production", "Growth (long run)", "Fiscal & money", "Behav
 const PARAM_LABEL: Partial<Record<keyof Economy, string>> = Object.fromEntries(
   PARAMS.map((p) => [p.key, p.label]),
 );
+
+/** The slider range of each parameter, so a sweep can cover what the UI can reach. */
+const PARAM_RANGE: Partial<Record<keyof Economy, [number, number]>> = Object.fromEntries(
+  PARAMS.map((p) => [p.key, [p.min, p.max] as [number, number]]),
+);
+
+/** The parameter list as grouped `<option>`s, shared by both sweep pickers. */
+const PARAM_GROUPS = GROUP_ORDER.map((g) => (
+  <optgroup key={g} label={g}>
+    {PARAMS.filter((p) => p.group === g).map((p) => (
+      <option key={p.key} value={p.key}>
+        {p.label}
+      </option>
+    ))}
+  </optgroup>
+));
 
 /** Scenario controls for the AI boom model. */
 function AiControls({ value, onChange }: { value: AiOptions; onChange: (v: AiOptions) => void }) {
@@ -335,34 +352,77 @@ function GameControls({ value, onChange }: { value: GameOptions; onChange: (v: G
   );
 }
 
-/** Pick which parameter the comparative-statics panel nudges. */
-function SweepControl({ value, onChange }: { value: SweepParam; onChange: (v: SweepParam) => void }) {
+/** Pick which parameter a comparative-statics table nudges, and which parameter/figure the sweep curve plots. */
+function SweepControl({
+  value,
+  onChange,
+  axis,
+  onAxisChange,
+  figure,
+  onFigureChange,
+  figures,
+}: {
+  value: SweepParam;
+  onChange: (v: SweepParam) => void;
+  axis: SweepParam;
+  onAxisChange: (v: SweepParam) => void;
+  figure: string;
+  onFigureChange: (v: string) => void;
+  figures: string[];
+}) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <label htmlFor="sweep-param" className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
-        Comparative statics
-      </label>
-      <select
-        id="sweep-param"
-        value={value}
-        onChange={(e) => onChange(e.target.value as SweepParam)}
-        className="max-w-[16rem] rounded-md border border-hairline bg-surface px-2 py-1 font-mono text-[0.6875rem] text-ink"
-      >
-        <option value="none">Off</option>
-        {GROUP_ORDER.map((g) => (
-          <optgroup key={g} label={g}>
-            {PARAMS.filter((p) => p.group === g).map((p) => (
-              <option key={p.key} value={p.key}>
-                {p.label}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-      <InfoNote
-        label="comparative statics"
-        help="Re-runs this model twice, with the chosen parameter nudged 1% down and 1% up, and tabulates every figure the model reports against its base value. That is the classic 'G up ⇒ Y up, r up, I down' grid, read off real runs instead of hand-written."
-      />
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="sweep-param" className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
+          Comparative statics
+        </label>
+        <select
+          id="sweep-param"
+          value={value}
+          onChange={(e) => onChange(e.target.value as SweepParam)}
+          className="max-w-[16rem] rounded-md border border-hairline bg-surface px-2 py-1 font-mono text-[0.6875rem] text-ink"
+        >
+          <option value="none">Off</option>
+          {PARAM_GROUPS}
+        </select>
+        <InfoNote
+          label="comparative statics"
+          help="Re-runs this model twice, with the chosen parameter nudged 1% down and 1% up, and tabulates every figure the model reports against its base value. That is the classic 'G up ⇒ Y up, r up, I down' grid, read off real runs instead of hand-written."
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="sweep-axis" className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
+          Sweep the curve
+        </label>
+        <select
+          id="sweep-axis"
+          value={axis}
+          onChange={(e) => onAxisChange(e.target.value as SweepParam)}
+          className="max-w-[16rem] rounded-md border border-hairline bg-surface px-2 py-1 font-mono text-[0.6875rem] text-ink"
+        >
+          <option value="none">Off</option>
+          {PARAM_GROUPS}
+        </select>
+        <select
+          id="sweep-figure"
+          value={figure}
+          disabled={axis === "none"}
+          onChange={(e) => onFigureChange(e.target.value)}
+          className="max-w-[16rem] rounded-md border border-hairline bg-surface px-2 py-1 font-mono text-[0.6875rem] text-ink disabled:opacity-40"
+        >
+          <option value="">First figure</option>
+          {figures.map((f) => (
+            <option key={f} value={f}>
+              {f}
+            </option>
+          ))}
+        </select>
+        <InfoNote
+          label="sweep the curve"
+          help="Re-runs this model across the whole range of one parameter, holding everything else fixed, and plots a single figure against it. This is the 'which saving rate maximises steady-state consumption' question — a curve that turns has its high point marked, because that high point is the answer."
+        />
+      </div>
     </div>
   );
 }
@@ -423,10 +483,12 @@ export function Simulator() {
   const [game, setGame] = useState<GameOptions>(DEFAULT_GAME);
   const [zlb, setZlb] = useState<ZlbOptions>(DEFAULT_ZLB);
   const [sweep, setSweep] = useState<SweepParam>(DEFAULT_SWEEP);
+  const [sweepAxis, setSweepAxis] = useState<SweepParam>(DEFAULT_SWEEP_AXIS);
+  const [sweepFigure, setSweepFigure] = useState(DEFAULT_SWEEP_FIGURE);
 
   const options = useMemo(
-    () => ({ horizon, ai, expectations, micro, market, externality, game, zlb, sweep }),
-    [horizon, ai, expectations, micro, market, externality, game, zlb, sweep],
+    () => ({ horizon, ai, expectations, micro, market, externality, game, zlb, sweep, sweepAxis, sweepFigure }),
+    [horizon, ai, expectations, micro, market, externality, game, zlb, sweep, sweepAxis, sweepFigure],
   );
 
   // A shared link carries the whole view. The server has no URL to read, so the
@@ -450,6 +512,8 @@ export function Simulator() {
       setGame(shared.game);
       setZlb(shared.zlb);
       setSweep(shared.sweep);
+      setSweepAxis(shared.sweepAxis);
+      setSweepFigure(shared.sweepFigure);
     });
     return () => cancelAnimationFrame(raf);
   }, []);
@@ -468,27 +532,54 @@ export function Simulator() {
   const reference = hasShocks ? economy : baseline;
   const shownEconomy = compare === "baseline" ? reference : tweened;
 
-  const panels = useMemo(() => {
+  const modelPanels = useMemo(() => {
     if (model === "glossary") return [];
     try {
       const current = runModel(model, shownEconomy, options);
-      const shown =
-        compare === "both" ? mergePanels(current, runModel(model, reference, options)) : current;
-      // The sweep interrogates the settled economy, not the tweened one: it
-      // would otherwise re-run three models on every animation frame.
-      const swept = sweepPanel({
-        modelId: model,
-        modelLabel: getModel(model).label,
-        economy: shockedEconomy,
-        options,
-        param: sweep,
-        paramLabel: sweep === "none" ? undefined : PARAM_LABEL[sweep],
-      });
-      return swept ? [...shown, swept] : shown;
+      return compare === "both" ? mergePanels(current, runModel(model, reference, options)) : current;
     } catch {
       return null;
     }
-  }, [model, shownEconomy, reference, compare, options, sweep, shockedEconomy]);
+  }, [model, shownEconomy, reference, compare, options]);
+
+  // The sweep panels interrogate the settled economy rather than the tweened one:
+  // each re-runs the model many times, and once per animation frame would be waste.
+  const sweepPanels = useMemo(() => {
+    if (model === "glossary") return [];
+    const extras: Panel[] = [];
+    const directions = sweepPanel({
+      modelId: model,
+      modelLabel: getModel(model).label,
+      economy: shockedEconomy,
+      options,
+      param: sweep,
+      paramLabel: sweep === "none" ? undefined : PARAM_LABEL[sweep],
+    });
+    if (directions) extras.push(directions);
+    const curve = sweepAxisPanel({
+      modelId: model,
+      modelLabel: getModel(model).label,
+      economy: shockedEconomy,
+      options,
+      param: sweepAxis,
+      paramLabel: sweepAxis === "none" ? undefined : PARAM_LABEL[sweepAxis],
+      range: sweepAxis === "none" ? [0, 1] : (PARAM_RANGE[sweepAxis] ?? [0, 1]),
+      figure: sweepFigure,
+    });
+    if (curve) extras.push(curve);
+    return extras;
+  }, [model, shockedEconomy, options, sweep, sweepAxis, sweepFigure]);
+
+  const panels = useMemo(
+    () => (modelPanels ? [...modelPanels, ...sweepPanels] : null),
+    [modelPanels, sweepPanels],
+  );
+
+  /** Figures of the current model, for the sweep's figure picker. */
+  const figureOptions = useMemo(
+    () => [...new Set((modelPanels ?? []).flatMap((p) => (p.scalars ?? []).map((s) => s.label)))],
+    [modelPanels],
+  );
 
   const loadEconomy = (e: Economy) => {
     setEconomy(e);
@@ -566,7 +657,7 @@ export function Simulator() {
             <ShareLink
               build={() =>
                 shareUrl(
-                  { economy, model, compare, horizon, ai, expectations, micro, market, externality, game, zlb, sweep, shocks },
+                  { economy, model, compare, horizon, ai, expectations, micro, market, externality, game, zlb, sweep, sweepAxis, sweepFigure, shocks },
                   window.location.href,
                 )
               }
@@ -752,7 +843,17 @@ export function Simulator() {
                     scenario || i === 0 || p.timeseries ? (
                       <>
                         {scenario}
-                        {i === 0 && <SweepControl value={sweep} onChange={setSweep} />}
+                        {i === 0 && (
+                          <SweepControl
+                            value={sweep}
+                            onChange={setSweep}
+                            axis={sweepAxis}
+                            onAxisChange={setSweepAxis}
+                            figure={sweepFigure}
+                            onFigureChange={setSweepFigure}
+                            figures={figureOptions}
+                          />
+                        )}
                         {p.timeseries && <HorizonControl value={horizon} onChange={setHorizon} />}
                       </>
                     ) : undefined

@@ -62,11 +62,12 @@ src/lib/econ/            the engine — pure, no React
   shocks.ts              preset shocks + the user-defined shock builder
   permalink.ts           encode/decode the whole view into ?s=
   comparativeStatics.ts  sweepPanel() — the "G↑ ⇒ Y↑, r↑, I↓" grid, built from a model's
-                         own scalars so it cannot disagree with the panels above it
+                         own scalars so it cannot disagree with the panels above it; and
+                         sweepAxisPanel() — one figure plotted against one parameter
   export.ts              panelToCsv / panelsToCsv — the figures *and* the working as a CSV
   glossary.ts            symbol reference shown in the Glossary tab
   models/*.ts            one file per model — 21 of them
-  engine.test.ts         the whole suite (136 tests)
+  engine.test.ts         the whole suite (141 tests)
 src/lib/scale.ts         axisDomain() — the axis rule, plus the zoom-window maths
 src/components/          PanelCard renders any Panel; CurveChart (SVG), TimeSeriesChart (Recharts)
 src/app/                 landing page + /simulator
@@ -207,12 +208,7 @@ Nothing else is known broken. The next work is new capability, not repair.
 
 ## Suggested next work, in priority order
 
-**Tier 1 — the best teaching payload per line of code**
-- **Parameter sweeps as an axis.** Chart a parameter on the x-axis instead of time or a state
-  variable, to answer questions like "which saving rate maximises steady-state consumption?".
-  Needs a small generalisation of the chart spec.
-
-**Tier 2 — turns a sandbox into a course companion**
+**Tier 1 — turns a sandbox into a course companion**
 - **Teaching scenario library:** named one-click setups (oil shock 1973, Volcker disinflation,
   ERM 1992, the 2008 lower bound, Japan's 1990s). Mostly configuration and prose now that the
   models exist.
@@ -232,6 +228,16 @@ the exact-arithmetic promise the trace panels make.
 
 Work in this session, newest first:
 
+- This session — **a parameter swept onto the x-axis.** The last Tier-1 item: two new dials
+  (`sweepAxis`, `sweepFigure`) append a panel plotting one figure against the whole range of
+  one parameter, sampled at 41 values with everything else held fixed. It answers the question
+  the comparative-statics table cannot — where a curve *turns* rather than which way it moves —
+  and the test that proves it is the golden rule: sweeping the Solow saving rate finds the peak
+  of steady-state consumption within 0.02 of α, and nothing in the model knows the golden rule.
+  A figure dial was needed because levels do not share an axis (Y ≈ 770 beside r ≈ 0.03); it
+  falls back to the model's first reported figure when unset or unknown, which is what makes a
+  free-form string safe to carry in a permalink. The panels memo was also split, so the sweep's
+  41 model runs happen on the settled economy rather than once per tween frame. 137 → 141 tests.
 - This session — **zoom, and the per-worker curve made legible.** `CurveChart` gained a zoom:
   drag across it, or use the −/+/Reset toolbar, and the y-axis rescales to the points in view.
   That is the reason it matters — the per-worker panel plots y = k^α over k = 1…800 while the

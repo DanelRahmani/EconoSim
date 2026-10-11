@@ -52,6 +52,10 @@ export interface RunOptions {
   zlb: ZlbOptions;
   /** Which parameter the comparative-statics panel nudges, or "none". */
   sweep: SweepParam;
+  /** Which parameter the sweep curve puts on its x-axis, or "none". */
+  sweepAxis: SweepParam;
+  /** Which figure that curve plots. Empty means the model's first reported one. */
+  sweepFigure: string;
 }
 
 export const DEFAULT_HORIZON = 50;
@@ -69,6 +73,9 @@ export const DEFAULT_ZLB: ZlbOptions = { demandShock: 0.12 };
 export const DEFAULT_EXPECTATIONS: Expectations = "adaptive";
 /** Comparative statics starts off: it is a question you ask, not a default view. */
 export const DEFAULT_SWEEP: SweepParam = "none";
+/** So does the sweep curve. */
+export const DEFAULT_SWEEP_AXIS: SweepParam = "none";
+export const DEFAULT_SWEEP_FIGURE = "";
 
 export const DEFAULT_OPTIONS: RunOptions = {
   horizon: DEFAULT_HORIZON,
@@ -80,6 +87,8 @@ export const DEFAULT_OPTIONS: RunOptions = {
   game: DEFAULT_GAME,
   zlb: DEFAULT_ZLB,
   sweep: DEFAULT_SWEEP,
+  sweepAxis: DEFAULT_SWEEP_AXIS,
+  sweepFigure: DEFAULT_SWEEP_FIGURE,
 };
 
 export interface ModelDef {

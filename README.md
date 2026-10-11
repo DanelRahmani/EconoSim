@@ -48,6 +48,10 @@ explained in plain language; hover any label for the short version.
 - **Comparative statics** — pick any parameter and the model is re-run 1% either side of it,
   tabulating every figure it reports against the base and the direction it moves. The classic
   *“G↑ ⇒ Y↑, r↑, I↓”* grid, read off real runs rather than hand-written.
+- **Sweep a parameter onto the x-axis** — put one parameter across the bottom and plot one
+  figure against it, everything else held fixed, with the turning point marked. This is the
+  *“which saving rate maximises steady-state consumption?”* question, and the marked peak is
+  the answer: the sweep finds *s* = α without being told the golden rule.
 - **Export** — the whole view, or any single panel, as a CSV: the figures, the series, the
   tables *and* the calculation steps, at full precision, ready to hand in. Any chart also
   downloads as a standalone SVG in the theme you are reading it in.

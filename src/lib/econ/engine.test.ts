@@ -12,6 +12,8 @@ import {
   DEFAULT_MODEL,
   DEFAULT_OPTIONS,
   DEFAULT_SWEEP,
+  DEFAULT_SWEEP_AXIS,
+  DEFAULT_SWEEP_FIGURE,
   DEFAULT_ZLB,
   MODELS,
   runModel,
@@ -30,7 +32,11 @@ import { uipDeviation, cipDeviation, trilemmaCount } from "@/lib/econ/models/par
 import { SHOCK_PRESETS, applyMode, resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
 import { decodeState, encodeState, readState, shareUrl, type SimState } from "@/lib/econ/permalink";
-import { SWEEPABLE, sweepPanel } from "@/lib/econ/comparativeStatics";
+import {
+  SWEEPABLE,
+  sweepAxisPanel,
+  sweepPanel,
+} from "@/lib/econ/comparativeStatics";
 import { exportName, panelToCsv, panelsToCsv } from "@/lib/econ/export";
 import { axisDomain, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
 import type { Panel } from "@/lib/econ/panel";
@@ -353,6 +359,8 @@ describe("permalink", () => {
     game: { game: "chicken", temptation: 8 },
     zlb: { demandShock: 0.35 },
     sweep: "G",
+    sweepAxis: "s",
+    sweepFigure: "Steady-state ĉ*",
     shocks: [
       { kind: "preset", id: "fiscal" },
       { kind: "custom", id: "c1", label: "Tax cut", key: "T", mode: "percent", amount: -10 },
@@ -376,6 +384,8 @@ describe("permalink", () => {
     expect(back?.game).toEqual(state.game);
     expect(back?.zlb).toEqual(state.zlb);
     expect(back?.sweep).toBe("G");
+    expect(back?.sweepAxis).toBe("s");
+    expect(back?.sweepFigure).toBe("Steady-state ĉ*");
     expect(back?.shocks).toEqual(state.shocks);
   });
 
@@ -407,6 +417,8 @@ describe("permalink", () => {
     expect(back?.game).toEqual(DEFAULT_GAME);
     expect(back?.zlb).toEqual(DEFAULT_ZLB);
     expect(back?.sweep).toBe(DEFAULT_SWEEP);
+    expect(back?.sweepAxis).toBe(DEFAULT_SWEEP_AXIS);
+    expect(back?.sweepFigure).toBe(DEFAULT_SWEEP_FIGURE);
     expect(back?.shocks).toEqual([]);
   });
 
@@ -422,6 +434,8 @@ describe("permalink", () => {
         g: { game: "solitaire", temptation: 2 },
         z: { demandShock: 5 },
         sw: "notAParameter",
+        sa: "alsoNotOne",
+        sf: "x".repeat(200),
       }),
     );
     const back = decodeState(token);
@@ -435,6 +449,8 @@ describe("permalink", () => {
     expect(back?.game.temptation).toBe(4);
     expect(back?.zlb.demandShock).toBeCloseTo(0.6, 10);
     expect(back?.sweep).toBe(DEFAULT_SWEEP);
+    expect(back?.sweepAxis).toBe(DEFAULT_SWEEP_AXIS);
+    expect(back?.sweepFigure).toBe(DEFAULT_SWEEP_FIGURE);
   });
 
   it("drops wrongly typed fields but leaves range checking to validateEconomy", () => {
@@ -925,6 +941,56 @@ describe("comparative statics", () => {
     expect(SWEEPABLE).not.toContain("openness");
     expect(sweep("islm", "none")).toBeNull();
     expect(sweep("islm", "name")).toBeNull();
+  });
+});
+
+describe("sweep curve", () => {
+  const curve = (modelId: string, param: SweepParam, range: [number, number], figure?: string) =>
+    sweepAxisPanel({ modelId, modelLabel: modelId, economy: e, options: DEFAULT_OPTIONS, param, range, figure });
+
+  const highPoint = (panel: Panel | null) => panel?.chart?.markers?.find((m) => m.label === "highest");
+
+  it("finds the golden rule: the saving rate that maximises steady-state consumption", () => {
+    const panel = curve("solow", "s", [0.05, 0.5], "Steady-state ĉ*");
+    const peak = highPoint(panel);
+    expect(peak, "the sweep found no turning point").toBeDefined();
+    // The model is never told about the golden rule: it is read off the curve.
+    expect(Math.abs(peak!.x - e.alpha)).toBeLessThan(0.02);
+    expect(panel?.chart?.markers?.some((m) => m.label === "current")).toBe(true);
+    expect(panel?.chart?.yLabel).toBe("Steady-state ĉ*");
+  });
+
+  it("does not invent a turning point on a monotone curve", () => {
+    const panel = curve("islm", "G", [0, 100], "Output (Y*)");
+    expect(highPoint(panel)).toBeUndefined();
+    const points = panel?.chart?.series[0].points ?? [];
+    expect(points.length).toBeGreaterThan(10);
+    for (let i = 1; i < points.length; i++) {
+      expect(points[i].y, `not monotone at G=${points[i].x}`).toBeGreaterThan(points[i - 1].y);
+    }
+    expect(panel?.description).toContain("monotone");
+  });
+
+  it("falls back to the model's first figure, and off means off", () => {
+    expect(curve("solow", "none", [0.05, 0.5])).toBeNull();
+    const first = runModel("solow", e, DEFAULT_OPTIONS).find((p) => p.scalars?.length)!.scalars![0].label;
+    expect(curve("solow", "s", [0.05, 0.5], "not a figure")?.chart?.yLabel).toBe(first);
+  });
+
+  it("samples the range, stays inside it, and never reports a non-finite figure", () => {
+    for (const m of MODELS) {
+      const panel = curve(m.id, "G", [0, 100]);
+      if (!panel) continue;
+      const points = panel.chart?.series[0].points ?? [];
+      expect(points.length, `${m.id} produced no points`).toBeGreaterThan(1);
+      for (const point of points) {
+        expect(point.x, `${m.id} sampled outside the range`).toBeGreaterThanOrEqual(0);
+        expect(point.x, `${m.id} sampled outside the range`).toBeLessThanOrEqual(100);
+        expect(Number.isFinite(point.y), `${m.id} at G=${point.x}`).toBe(true);
+      }
+      for (const step of panel.trace) expect(Number.isFinite(step.value)).toBe(true);
+      for (const scalar of panel.scalars ?? []) expect(Number.isFinite(scalar.value)).toBe(true);
+    }
   });
 });
 

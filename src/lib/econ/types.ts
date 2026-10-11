@@ -153,7 +153,6 @@ export interface ZlbOptions {
  * about the economy — it only asks a different question of the same model.
  */
 export type SweepParam = keyof Economy | "none";
-
 export interface ValidationIssue {
   field: keyof Economy | "regime";
   message: string;
