@@ -7,15 +7,26 @@ theory and the **exact step-by-step calculation** the engine ran.
 
 Everything is computed in the browser — no backend, no database, no external APIs.
 
+Live at <https://econosim.danelrahmani.com>.
+
 ## Models
 
 | Group | Models |
 | --- | --- |
 | Foundations | Cobb-Douglas production |
-| Long run | Solow-Swan (steady state, golden rule, transition path) |
-| Short run | IS-LM, AD-AS (with expectations adjustment) |
+| Long run | Solow-Swan (steady state, golden rule, transition path), AK endogenous growth |
+| Short run | IS-LM, AD-AS (with expectations adjustment), Zero lower bound |
+| Inflation & unemployment | Phillips curve (adaptive vs credible expectations), WS-PS labour market |
+| Fiscal & debt | Debt dynamics (the r − g drift), Currency crisis |
 | Open economy | Mundell-Fleming (small/large × floating/fixed) |
 | International macro | Parity conditions (UIP, CIP, PPP, real rate, trilemma), Dornbusch overshooting, external balance (S−I, NFA, debt dynamics), trade flows (Marshall-Lerner, J-curve, Dutch disease), Taylor rule |
+| Micro | Consumer choice, competition vs monopoly, externalities and the Pigouvian tax |
+| Strategic interaction | Game theory (2×2: prisoner's dilemma, coordination, chicken, matching pennies) |
+| Applied scenarios | AI boom (labour substituted by capital) |
+
+Several models carry their own **scenario dials** above the first chart — the expectations
+regime, the size of the zero-lower-bound shock, the micro and market dials, the externality
+and tax, which game is played. All of them travel in the share link.
 
 Add **shocks** to any economy: apply one or more named shocks (monetary, fiscal, technology boom, oil, risk premium, devaluation…) and every model then shows the economy *with* the shock and — in Compare — the same economy *without* it, with the difference called out on every figure.
 

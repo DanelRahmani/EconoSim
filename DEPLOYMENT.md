@@ -3,6 +3,9 @@
 EconoSim is a standard Next.js app with **no backend, no database and no environment
 variables**, so deployment needs no extra configuration.
 
+**Live at <https://econosim.danelrahmani.com>** — the steps below are kept as the record of
+how that deploy is set up, and as the recipe for standing it up again from scratch.
+
 ## 1. Push to GitHub
 
 Already done for `DanelRahmani/EconoSim`:

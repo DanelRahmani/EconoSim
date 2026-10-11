@@ -402,6 +402,12 @@ export function Simulator() {
       setCompare(shared.compare);
       setHorizon(shared.horizon);
       setAi(shared.ai);
+      setExpectations(shared.expectations);
+      setMicro(shared.micro);
+      setMarket(shared.market);
+      setExternality(shared.externality);
+      setGame(shared.game);
+      setZlb(shared.zlb);
     });
     return () => cancelAnimationFrame(raf);
   }, []);
@@ -504,7 +510,14 @@ export function Simulator() {
 
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
-            <ShareLink build={() => shareUrl({ economy, model, compare, horizon, ai, shocks }, window.location.href)} />            <div className="w-[13rem]">
+            <ShareLink
+              build={() =>
+                shareUrl(
+                  { economy, model, compare, horizon, ai, expectations, micro, market, externality, game, zlb, shocks },
+                  window.location.href,
+                )
+              }
+            />            <div className="w-[13rem]">
               <Segmented<CompareMode>
                 value={compare}
                 options={[

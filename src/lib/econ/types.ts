@@ -99,6 +99,9 @@ export interface AiOptions {
  */
 export type Expectations = "adaptive" | "credible";
 
+/** The same union as a runtime list, so guards stay in step with it. */
+export const EXPECTATION_MODES: Expectations[] = ["adaptive", "credible"];
+
 /** Textbook micro dials. They describe a single market, not the whole economy. */
 export interface MicroOptions {
   /** Price of good x. */

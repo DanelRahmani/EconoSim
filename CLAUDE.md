@@ -1,6 +1,7 @@
 # EconoSim — working notes for the next session
 
-_Last updated 2026-10-11 · `master` @ `7592ea5` · 21 models · 108 tests · all pushed_
+_Last updated 2026-10-11 · 21 models · 109 tests · live at <https://econosim.danelrahmani.com>_
+_(the session log below carries the commit hashes; `git log` is the truth for HEAD)_
 
 This file is the handoff note: what exists, how to extend it without breaking it, what is
 known to be missing, and what to do next. Read the "Conventions that bite" section before
@@ -150,37 +151,32 @@ dev-server start, and removing it just recreates the uncommitted change.
 
 ## Known gaps — concrete next actions
 
-1. **The permalink does not carry the six new scenario dials.** `SimState` in `permalink.ts`
-   still holds only `economy, model, compare, horizon, ai, shocks`. Section A added
-   `expectations`, `micro`, `market`, `externality`, `game` and `zlb` to `RunOptions`, so a
-   shared link preserves the model and economy but *not* the game choice, the ZLB shock size,
-   the expectations regime, or the micro dials. Extend `SimState`, `encodeState`/`decodeState`,
-   add sanitisers (bounded numbers, valid enum values), and extend the two permalink tests.
-   Small job, and it directly undermines the feature that was just shipped.
-2. **`glossary.ts` knows nothing about the new models.** There is no entry for π\*, uₙ, z, m,
-   γ, β, the sacrifice ratio, T\*, rₙ, the Lerner index, deadweight loss or MRS. The glossary
-   is the app's reference tab, so this is a visible hole.
-3. **`README.md` and `docs/models.md` list only the original model set.** The README table
-   stops at the International-macro group; `docs/models.md` has headings for Production,
-   Solow, IS-LM, AD-AS, MF, parity, external balance, trade flows and Dornbusch only. Both
-   need the ten additions, and `docs/models.md` should carry the closed-form results
-   (`1/(βθ)`, `(a−c)²/8b`, `x²/(2b)`, `−ln(1−R₀/M)/ln(1+μ)`, `(T−R)/(T−P)`).
-4. **Not deployed.** Vercel is still on the original to-do list. `npm run build` is green and
-   the app is fully static, so this should be a one-command job — worth doing before the next
-   feature round so there is a live link to share.
-5. **`docs/data-sources.md`** describes sourcing for a project that deliberately has no data
-   sources. Either rewrite it as "why there are no data feeds" or delete it.
+1. ~~**The permalink does not carry the six scenario dials.**~~ **Closed.** `SimState`
+   carries all six (`expectations`, `micro`, `market`, `externality`, `game`, `zlb`), and
+   each is clamped on the way in to the range its own slider offers — the decoder's
+   `bounded()` helper is shared by every dial, so a hand-edited link cannot reach a state
+   the UI cannot show. `GAME_IDS` is derived from `GAMES` in `gameTheory.ts` and
+   `EXPECTATION_MODES` sits beside the union in `types.ts`, so the guards cannot drift from
+   the types they check.
+2. ~~**`glossary.ts` knows nothing about the new models.**~~ **Closed.** π*, πᵉ, uₙ, β, θ,
+   z, m, γ, the sacrifice ratio, pb, r−g, b*, T*, μ, rₙ, MRS, the Lerner index, deadweight
+   loss and the Pigouvian tax are all in, in three new groups, plus the expectations and
+   game switches.
+3. ~~**`README.md` and `docs/models.md` list only the original model set.**~~ **Closed.**
+   Both cover all 21 models; `docs/models.md` carries the closed forms (`1/(βθ)`,
+   `(a−c)²/8b`, `x²/(2b)`, `(t−x)²/2b`, `−ln(1−R₀/M)/ln(1+μ)`, `(T−R)/(T−P)`).
+4. ~~**Not deployed.**~~ **Closed.** Live at <https://econosim.danelrahmani.com>.
+5. `docs/data-sources.md` is **provenance, not a roadmap**: it records where the country
+   presets' rounded figures come from and is titled to say so. Nothing to do unless the
+   presets are recalibrated, in which case cite the vintage there.
+
+Nothing else is known broken. The next work is new capability, not repair.
 
 ---
 
 ## Suggested next work, in priority order
 
-**Tier 1 — finish what was started (small, high value)**
-- Carry the six scenario dials through the permalink (gap 1).
-- Update the glossary, README and `docs/models.md` (gaps 2–3).
-- Deploy to Vercel (gap 4).
-
-**Tier 2 — the best teaching payload per line of code**
+**Tier 1 — the best teaching payload per line of code**
 - **Comparative-statics table.** Re-run each model at ±ε on a chosen parameter and tabulate
   the direction of every endogenous variable — the classic *"G↑ ⇒ Y↑, r↑, I↓"* grid. The
   engine already has `runModel`; this is mostly presentation, and the new `TableSpec` panel
@@ -193,7 +189,7 @@ dev-server start, and removing it just recreates the uncommitted change.
 - **A data-table view behind every chart.** Serves two masters: accessibility (the SVG paths
   currently have no text alternative) and credibility.
 
-**Tier 3 — turns a sandbox into a course companion**
+**Tier 2 — turns a sandbox into a course companion**
 - **Teaching scenario library:** named one-click setups (oil shock 1973, Volcker disinflation,
   ERM 1992, the 2008 lower bound, Japan's 1990s). Mostly configuration and prose now that the
   models exist.
@@ -213,6 +209,15 @@ the exact-arithmetic promise the trace panels make.
 
 Work in this session, newest first:
 
+- This session — **the four gaps the previous session left, closed.** The permalink now
+  carries all six scenario dials (each clamped to its slider's range, with the game list
+  derived from `GAMES` and the expectations modes sitting beside their union so the guards
+  cannot drift); the glossary gained three groups covering the ten new models; the README
+  table and `docs/models.md` were brought up to 21 models with their closed forms; and the
+  app was confirmed live at <https://econosim.danelrahmani.com>. Also corrected the
+  external-balance wording in `docs/models.md`, which still described `pb/(r−g)` as a
+  steady state. 108 → 109 tests.
+- `fdebd03` — the `CLAUDE.md` handoff note itself.
 - `7592ea5` — **Section A: the ten missing models.** Phillips curve with adaptive vs credible
   expectations (sacrifice ratio `1/(βθ)`, costless when believed), WS-PS labour market
   (derives uₙ, exact solution and linearisation side by side), debt dynamics (`r−g` drift, the

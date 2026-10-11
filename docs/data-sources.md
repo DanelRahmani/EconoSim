@@ -1,4 +1,9 @@
-# Country preset sources
+# Where the country presets come from
+
+**The app deliberately has no data feeds** — no APIs, no downloads, no live data. Every
+figure in a model is computed in the browser from the parameters you set. This page is
+here for one narrower reason: to record where the *preset* numbers came from, so nobody
+mistakes them for current data or has to guess their vintage.
 
 The presets are **stylised approximations, not precise calibrations**. They are starting
 points meant to be edited. Values are rounded from public macro datasets in the style of:

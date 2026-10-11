@@ -2,7 +2,19 @@ import { describe, expect, it } from "vitest";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { validateEconomy } from "@/lib/econ/types";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { DEFAULT_AI, DEFAULT_MODEL, DEFAULT_OPTIONS, MODELS, runModel } from "@/lib/econ/registry";
+import {
+  DEFAULT_AI,
+  DEFAULT_EXPECTATIONS,
+  DEFAULT_EXTERNALITY,
+  DEFAULT_GAME,
+  DEFAULT_MARKET,
+  DEFAULT_MICRO,
+  DEFAULT_MODEL,
+  DEFAULT_OPTIONS,
+  DEFAULT_ZLB,
+  MODELS,
+  runModel,
+} from "@/lib/econ/registry";
 import { solveLinear } from "@/lib/econ/math";
 import { vars, evaluate } from "@/lib/econ/expr";
 import { outputExpr, perWorkerExpr } from "@/lib/econ/models/cobbDouglas";
@@ -327,6 +339,12 @@ describe("permalink", () => {
     compare: "both",
     horizon: 100,
     ai: { substitutionPct: 45, capitalIntensity: 2, capitalProductivity: 1.5 },
+    expectations: "credible",
+    micro: { px: 3, py: 1.5, income: 60, weight: 0.7 },
+    market: { demandA: 30, demandB: 2, mc: 6, fixed: 20 },
+    externality: { external: 4, tax: 3 },
+    game: { game: "chicken", temptation: 8 },
+    zlb: { demandShock: 0.35 },
     shocks: [
       { kind: "preset", id: "fiscal" },
       { kind: "custom", id: "c1", label: "Tax cut", key: "T", mode: "percent", amount: -10 },
@@ -343,6 +361,12 @@ describe("permalink", () => {
     expect(back?.compare).toBe("both");
     expect(back?.horizon).toBe(100);
     expect(back?.ai).toEqual(state.ai);
+    expect(back?.expectations).toBe("credible");
+    expect(back?.micro).toEqual(state.micro);
+    expect(back?.market).toEqual(state.market);
+    expect(back?.externality).toEqual(state.externality);
+    expect(back?.game).toEqual(state.game);
+    expect(back?.zlb).toEqual(state.zlb);
     expect(back?.shocks).toEqual(state.shocks);
   });
 
@@ -367,7 +391,38 @@ describe("permalink", () => {
     expect(back?.compare).toBe("current");
     expect(back?.model).toBe(DEFAULT_MODEL);
     expect(back?.ai).toEqual(DEFAULT_AI);
+    expect(back?.expectations).toBe(DEFAULT_EXPECTATIONS);
+    expect(back?.micro).toEqual(DEFAULT_MICRO);
+    expect(back?.market).toEqual(DEFAULT_MARKET);
+    expect(back?.externality).toEqual(DEFAULT_EXTERNALITY);
+    expect(back?.game).toEqual(DEFAULT_GAME);
+    expect(back?.zlb).toEqual(DEFAULT_ZLB);
     expect(back?.shocks).toEqual([]);
+  });
+
+  it("clamps scenario dials to the range their sliders offer", () => {
+    const token = btoa(
+      JSON.stringify({
+        v: 1,
+        e: base,
+        x: "wishful",
+        mi: { px: 99, income: "lots" },
+        ma: { demandB: -4 },
+        ex: { external: 1e9 },
+        g: { game: "solitaire", temptation: 2 },
+        z: { demandShock: 5 },
+      }),
+    );
+    const back = decodeState(token);
+    expect(back?.expectations).toBe(DEFAULT_EXPECTATIONS);
+    expect(back?.micro.px).toBe(5);
+    expect(back?.micro.income).toBe(DEFAULT_MICRO.income);
+    expect(back?.market.demandB).toBe(0.2);
+    expect(back?.market.demandA).toBe(DEFAULT_MARKET.demandA);
+    expect(back?.externality.external).toBe(8);
+    expect(back?.game.game).toBe(DEFAULT_GAME.game);
+    expect(back?.game.temptation).toBe(4);
+    expect(back?.zlb.demandShock).toBeCloseTo(0.6, 10);
   });
 
   it("drops wrongly typed fields but leaves range checking to validateEconomy", () => {
