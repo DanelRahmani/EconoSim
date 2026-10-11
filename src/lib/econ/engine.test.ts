@@ -32,6 +32,7 @@ import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
 import { decodeState, encodeState, readState, shareUrl, type SimState } from "@/lib/econ/permalink";
 import { SWEEPABLE, sweepPanel } from "@/lib/econ/comparativeStatics";
 import { exportName, panelToCsv, panelsToCsv } from "@/lib/econ/export";
+import { axisDomain } from "@/lib/scale";
 import type { Panel } from "@/lib/econ/panel";
 import { seriesToTable } from "@/lib/econ/panel";
 import type { SweepParam } from "@/lib/econ/types";
@@ -1045,6 +1046,71 @@ describe("glossary", () => {
     for (const e of GLOSSARY_ENTRIES) {
       expect(e.name.length).toBeGreaterThan(0);
       expect(e.meaning.length).toBeGreaterThan(10);
+    }
+  });
+});
+
+describe("axis domain", () => {
+  it("does not open a non-negative axis below zero", () => {
+    // The regression: data running 1..800 used to give an x-axis starting at -63.
+    const [lo, hi] = axisDomain([1, 800]);
+    expect(lo).toBe(0);
+    expect(hi).toBeGreaterThan(800);
+  });
+
+  it("keeps a quantity axis at zero when the data starts there", () => {
+    expect(axisDomain([0, 11.5])[0]).toBe(0);
+  });
+
+  it("still pads data that genuinely crosses zero", () => {
+    const [lo, hi] = axisDomain([-0.02, 0.03]);
+    expect(lo).toBeLessThan(-0.02);
+    expect(hi).toBeGreaterThan(0.03);
+  });
+
+  it("keeps the zoom of a range far from the origin", () => {
+    const [lo, hi] = axisDomain([700, 900]);
+    expect(lo).toBeGreaterThan(650);
+    expect(lo).toBeLessThan(700);
+    expect(hi).toBeGreaterThan(900);
+  });
+
+  it("copes with one value, no values, and a flat zero series", () => {
+    const [lo, hi] = axisDomain([5]);
+    expect(lo).toBeGreaterThanOrEqual(0);
+    expect(lo).toBeLessThan(5);
+    expect(hi).toBeGreaterThan(5);
+    expect(axisDomain([])).toEqual([0, 1]);
+    // A flat zero line needs a window to sit in, conventionally symmetric.
+    const [flatLo, flatHi] = axisDomain([0, 0]);
+    expect(flatLo).toBeLessThan(0);
+    expect(flatHi).toBeGreaterThan(0);
+  });
+
+  it("covers the data of every chart in the app, and starts at zero where it can", () => {
+    // Mirrors what CurveChart does: one domain per axis, over every series and
+    // marker of the panel together.
+    for (const m of MODELS) {
+      for (const panel of runModel(m.id, e, DEFAULT_OPTIONS)) {
+        if (!panel.chart) continue;
+        const all = [
+          ...panel.chart.series.flatMap((s) => s.points),
+          ...(panel.chart.markers ?? []),
+        ].filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+        const xs = all.map((p) => p.x);
+        const ys = all.map((p) => p.y);
+        const [x0, x1] = axisDomain(xs);
+        const [y0, y1] = axisDomain(ys);
+        for (const x of xs) expect(x >= x0 - 1e-9 && x <= x1 + 1e-9, `${m.id} x=${x}`).toBe(true);
+        for (const y of ys) expect(y >= y0 - 1e-9 && y <= y1 + 1e-9, `${m.id} y=${y}`).toBe(true);
+        // Non-negative data that actually varies must not open below zero.
+        if (Math.max(...xs) > Math.min(...xs) && Math.min(...xs) >= 0) {
+          expect(x0, `${m.id}/${panel.id} opens its x-axis below zero`).toBeGreaterThanOrEqual(0);
+        }
+        if (Math.max(...ys) > Math.min(...ys) && Math.min(...ys) >= 0) {
+          expect(y0, `${m.id}/${panel.id} opens its y-axis below zero`).toBeGreaterThanOrEqual(0);
+        }
+      }
     }
   });
 });

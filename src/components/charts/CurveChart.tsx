@@ -2,6 +2,7 @@
 
 import type { ChartSpec, Point } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
+import { axisDomain } from "@/lib/scale";
 
 /** Series palette tuned to read on both the cool-white and near-black grounds. */
 export const SERIES_COLORS = ["#F43F5E", "#14B8A6", "#8B5CF6", "#F59E0B", "#06B6D4", "#EC4899"];
@@ -10,19 +11,6 @@ const W = 560;
 
 function finite(points: Point[]): Point[] {
   return points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
-}
-
-function domain(values: number[], pad = 0.08): [number, number] {
-  const v = values.filter(Number.isFinite);
-  if (!v.length) return [0, 1];
-  let lo = Math.min(...v);
-  let hi = Math.max(...v);
-  if (lo === hi) {
-    lo -= 1;
-    hi += 1;
-  }
-  const d = (hi - lo) * pad;
-  return [lo - d, hi + d];
 }
 
 /** A lightweight SVG chart for economic curve diagrams (curve shifts, phase diagrams, IS-LM). */
@@ -42,8 +30,8 @@ export function CurveChart({
   const ih = H - pad.t - pad.b;
 
   const all = [...spec.series.flatMap((s) => finite(s.points)), ...(spec.markers ?? [])];
-  const [x0, x1] = domain(all.map((p) => p.x));
-  const [y0, y1] = domain(all.map((p) => p.y));
+  const [x0, x1] = axisDomain(all.map((p) => p.x));
+  const [y0, y1] = axisDomain(all.map((p) => p.y));
   const sx = (x: number) => pad.l + ((x - x0) / (x1 - x0)) * iw;
   const sy = (y: number) => pad.t + ih - ((y - y0) / (y1 - y0)) * ih;
 

@@ -153,6 +153,14 @@ need `tickFormatter={formatTick}` or you get `10.000000000000002` on the axis. A
 tooltip must be in-flow, never absolutely positioned inside the scrolling parameter sidebar,
 or it gets clipped.
 
+**A chart axis never opens below zero for non-negative data.** `axisDomain()` in
+`src/lib/scale.ts` pads by 8% of the span but clamps at zero when the data is non-negative.
+Padding a quantity into negative space draws a region that cannot exist, and it is the first
+thing the eye lands on — the Cobb-Douglas chart was opening its x-axis at −63 because the data
+ran 1→800. Data that genuinely crosses zero is padded both ways, and a flat series keeps a
+symmetric window so that it is visible at all (the AK model's dashed *No growth* baseline is
+exactly that case). Any new chart axis goes through `axisDomain`, never a local `domain()`.
+
 **Default-economy calibration is interlocked.** `piE = 0.05` (so the Taylor rule gives a
 sensible nominal rate and the Phillips model opens on a *disinflation*), and `markup = 0.03`
 with `wagePush = 0.02` (so the WS-PS linearisation `(m+z)/γ` lands exactly on `un = 0.05`).
@@ -216,6 +224,14 @@ the exact-arithmetic promise the trace panels make.
 
 Work in this session, newest first:
 
+- This session — **the charts stop opening below zero.** `domain()` in `CurveChart` padded 8%
+  either side of its data, so a quantity running 1→800 drew an origin at −63 (and the phase
+  diagram at −0.9). The rule now lives in `axisDomain()` in `src/lib/scale.ts` — out of the
+  component so it can be tested — and clamps at zero for data that is non-negative, while
+  data that crosses zero is still padded both ways. The new property test over every chart of
+  every model caught the one case a hand-written test would have missed: the AK model's dashed
+  "No growth" baseline is flat at zero, and a flat series needs a symmetric window to be
+  visible at all, so that stays the deliberate exception. 125 → 131 tests.
 - This session — **a data table behind every chart.** `seriesToTable()` in `panel.ts` turns
   a chart's series into the same `TableSpec` the game matrix already uses, so the picture is
   no longer the only way into the numbers and the SVG paths have a text alternative. When
