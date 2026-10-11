@@ -11,6 +11,7 @@ import {
   DEFAULT_MICRO,
   DEFAULT_MODEL,
   DEFAULT_OPTIONS,
+  DEFAULT_SWEEP,
   DEFAULT_ZLB,
   MODELS,
   runModel,
@@ -29,6 +30,9 @@ import { uipDeviation, cipDeviation, trilemmaCount } from "@/lib/econ/models/par
 import { SHOCK_PRESETS, applyMode, resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
 import { decodeState, encodeState, readState, shareUrl, type SimState } from "@/lib/econ/permalink";
+import { SWEEPABLE, sweepPanel } from "@/lib/econ/comparativeStatics";
+import type { Panel } from "@/lib/econ/panel";
+import type { SweepParam } from "@/lib/econ/types";
 import { phillipsCore, phillipsPath } from "@/lib/econ/models/phillips";
 import { naturalUnemployment } from "@/lib/econ/models/labourMarket";
 import { debtCore } from "@/lib/econ/models/debtDynamics";
@@ -345,6 +349,7 @@ describe("permalink", () => {
     externality: { external: 4, tax: 3 },
     game: { game: "chicken", temptation: 8 },
     zlb: { demandShock: 0.35 },
+    sweep: "G",
     shocks: [
       { kind: "preset", id: "fiscal" },
       { kind: "custom", id: "c1", label: "Tax cut", key: "T", mode: "percent", amount: -10 },
@@ -367,6 +372,7 @@ describe("permalink", () => {
     expect(back?.externality).toEqual(state.externality);
     expect(back?.game).toEqual(state.game);
     expect(back?.zlb).toEqual(state.zlb);
+    expect(back?.sweep).toBe("G");
     expect(back?.shocks).toEqual(state.shocks);
   });
 
@@ -397,6 +403,7 @@ describe("permalink", () => {
     expect(back?.externality).toEqual(DEFAULT_EXTERNALITY);
     expect(back?.game).toEqual(DEFAULT_GAME);
     expect(back?.zlb).toEqual(DEFAULT_ZLB);
+    expect(back?.sweep).toBe(DEFAULT_SWEEP);
     expect(back?.shocks).toEqual([]);
   });
 
@@ -411,6 +418,7 @@ describe("permalink", () => {
         ex: { external: 1e9 },
         g: { game: "solitaire", temptation: 2 },
         z: { demandShock: 5 },
+        sw: "notAParameter",
       }),
     );
     const back = decodeState(token);
@@ -423,6 +431,7 @@ describe("permalink", () => {
     expect(back?.game.game).toBe(DEFAULT_GAME.game);
     expect(back?.game.temptation).toBe(4);
     expect(back?.zlb.demandShock).toBeCloseTo(0.6, 10);
+    expect(back?.sweep).toBe(DEFAULT_SWEEP);
   });
 
   it("drops wrongly typed fields but leaves range checking to validateEconomy", () => {
@@ -856,6 +865,63 @@ describe("AI boom scenario", () => {
     const large = aiOutcome(e, { ...likeForLike, substitutionPct: 60 });
     expect(large.breakEvenForShare).toBeGreaterThan(small.breakEvenForShare);
     expect(small.breakEvenForShare).toBeGreaterThan(small.breakEvenMarginal);
+  });
+});
+
+describe("comparative statics", () => {
+  const sweep = (modelId: string, param: SweepParam) =>
+    sweepPanel({ modelId, modelLabel: modelId, economy: e, options: DEFAULT_OPTIONS, param });
+
+  /** The direction cell of the row with this figure name. */
+  const direction = (panel: Panel | null, label: string) => {
+    const row = panel?.table?.rows.find((r) => r.label === label);
+    expect(row, `no table row labelled ${label}`).toBeDefined();
+    return row!.cells[3].text;
+  };
+
+  it("IS-LM: G up => output up, rate up, investment down", () => {
+    const panel = sweep("islm", "G");
+    expect(direction(panel, "Output (Y*)")).toBe("▲");
+    expect(direction(panel, "Interest rate (r*)")).toBe("▲");
+    expect(direction(panel, "Investment I")).toBe("▼");
+  });
+
+  it("Solow: a higher saving rate raises the steady state", () => {
+    const panel = sweep("solow", "s");
+    expect(direction(panel, "Steady-state k̂*")).toBe("▲");
+    expect(direction(panel, "Steady-state ŷ*")).toBe("▲");
+  });
+
+  it("a parameter the model does not read moves nothing", () => {
+    const panel = sweep("islm", "reservesShare");
+    expect(panel?.table?.rows.length).toBeGreaterThan(0);
+    for (const row of panel?.table?.rows ?? []) {
+      expect(row.cells[3].text, `${row.label} moved for an unused parameter`).toBe("=");
+    }
+  });
+
+  it("never reports a non-finite figure, and always says which way", () => {
+    for (const m of MODELS) {
+      const panel = sweep(m.id, "G");
+      if (!panel) continue;
+      expect(panel.table?.columns, `${m.id} columns`).toHaveLength(4);
+      for (const row of panel.table?.rows ?? []) {
+        expect(row.cells, `${m.id} · ${row.label}`).toHaveLength(4);
+        for (const c of row.cells) {
+          expect(c.text, `${m.id} · ${row.label}`).not.toMatch(/NaN|Infinity|undefined/);
+        }
+        expect(["▲", "▼", "=", "—"]).toContain(row.cells[3].text);
+      }
+      for (const step of panel.trace) expect(Number.isFinite(step.value)).toBe(true);
+    }
+  });
+
+  it("sweeps only the numeric parameters, and only when asked", () => {
+    expect(SWEEPABLE).toContain("G");
+    expect(SWEEPABLE).not.toContain("name");
+    expect(SWEEPABLE).not.toContain("openness");
+    expect(sweep("islm", "none")).toBeNull();
+    expect(sweep("islm", "name")).toBeNull();
   });
 });
 

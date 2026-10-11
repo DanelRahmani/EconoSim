@@ -27,10 +27,12 @@ import {
   DEFAULT_MARKET,
   DEFAULT_MICRO,
   DEFAULT_MODEL,
+  DEFAULT_SWEEP,
   DEFAULT_ZLB,
   MODELS,
 } from "./registry";
 import { CUSTOM_FIELDS, SHOCK_PRESETS, type ShockMode, type ShockSpec } from "./shocks";
+import { SWEEPABLE } from "./comparativeStatics";
 import { GAMES } from "./models/gameTheory";
 import { EXPECTATION_MODES } from "./types";
 import type {
@@ -41,6 +43,7 @@ import type {
   GameOptions,
   MarketOptions,
   MicroOptions,
+  SweepParam,
   ZlbOptions,
 } from "./types";
 
@@ -58,6 +61,7 @@ export interface SimState {
   externality: ExternalityOptions;
   game: GameOptions;
   zlb: ZlbOptions;
+  sweep: SweepParam;
   shocks: ShockSpec[];
 }
 
@@ -105,6 +109,7 @@ export function encodeState(s: SimState): string {
       ex: s.externality,
       g: s.game,
       z: s.zlb,
+      sw: s.sweep,
       k: s.shocks,
     }),
   );
@@ -258,6 +263,7 @@ export function decodeState(token: string | null | undefined): SimState | null {
       externality: sanitiseExternality(raw.ex),
       game: sanitiseGame(raw.g),
       zlb: sanitiseZlb(raw.z),
+      sweep: SWEEPABLE.includes(raw.sw as keyof Economy) ? (raw.sw as SweepParam) : DEFAULT_SWEEP,
       shocks: sanitiseShocks(raw.k),
     };
   } catch {

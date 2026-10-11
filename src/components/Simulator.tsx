@@ -12,15 +12,17 @@ import type {
   MarketOptions,
   MicroOptions,
   Openness,
+  SweepParam,
   ZlbOptions,
 } from "@/lib/econ/types";
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_ZLB, HORIZON_PRESETS, MODELS, MODEL_GROUPS, runModel } from "@/lib/econ/registry";
+import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_SWEEP, DEFAULT_ZLB, HORIZON_PRESETS, MODELS, MODEL_GROUPS, getModel, runModel } from "@/lib/econ/registry";
 import { readState, shareUrl, type CompareMode } from "@/lib/econ/permalink";
 import { resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { mergePanels } from "@/lib/econ/compare";
+import { sweepPanel } from "@/lib/econ/comparativeStatics";
 import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
 import { PanelCard } from "./PanelCard";
 import { ParamControl, Segmented } from "./ParamControl";
@@ -91,6 +93,11 @@ const PARAMS: ParamDef[] = [
 ];
 
 const GROUP_ORDER = ["Production", "Growth (long run)", "Fiscal & money", "Behaviour", "Open economy", "Adjustment", "Inflation & labour", "Debt & balance of payments"];
+
+/** Parameter labels by key, for prose outside the sidebar. */
+const PARAM_LABEL: Partial<Record<keyof Economy, string>> = Object.fromEntries(
+  PARAMS.map((p) => [p.key, p.label]),
+);
 
 /** Scenario controls for the AI boom model. */
 function AiControls({ value, onChange }: { value: AiOptions; onChange: (v: AiOptions) => void }) {
@@ -327,6 +334,38 @@ function GameControls({ value, onChange }: { value: GameOptions; onChange: (v: G
   );
 }
 
+/** Pick which parameter the comparative-statics panel nudges. */
+function SweepControl({ value, onChange }: { value: SweepParam; onChange: (v: SweepParam) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <label htmlFor="sweep-param" className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
+        Comparative statics
+      </label>
+      <select
+        id="sweep-param"
+        value={value}
+        onChange={(e) => onChange(e.target.value as SweepParam)}
+        className="max-w-[16rem] rounded-md border border-hairline bg-surface px-2 py-1 font-mono text-[0.6875rem] text-ink"
+      >
+        <option value="none">Off</option>
+        {GROUP_ORDER.map((g) => (
+          <optgroup key={g} label={g}>
+            {PARAMS.filter((p) => p.group === g).map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <InfoNote
+        label="comparative statics"
+        help="Re-runs this model twice, with the chosen parameter nudged 1% down and 1% up, and tabulates every figure the model reports against its base value. That is the classic 'G up ⇒ Y up, r up, I down' grid, read off real runs instead of hand-written."
+      />
+    </div>
+  );
+}
+
 /** Compact time-window picker, shown above a time-path chart. */function HorizonControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -382,10 +421,11 @@ export function Simulator() {
   const [externality, setExternality] = useState<ExternalityOptions>(DEFAULT_EXTERNALITY);
   const [game, setGame] = useState<GameOptions>(DEFAULT_GAME);
   const [zlb, setZlb] = useState<ZlbOptions>(DEFAULT_ZLB);
+  const [sweep, setSweep] = useState<SweepParam>(DEFAULT_SWEEP);
 
   const options = useMemo(
-    () => ({ horizon, ai, expectations, micro, market, externality, game, zlb }),
-    [horizon, ai, expectations, micro, market, externality, game, zlb],
+    () => ({ horizon, ai, expectations, micro, market, externality, game, zlb, sweep }),
+    [horizon, ai, expectations, micro, market, externality, game, zlb, sweep],
   );
 
   // A shared link carries the whole view. The server has no URL to read, so the
@@ -408,6 +448,7 @@ export function Simulator() {
       setExternality(shared.externality);
       setGame(shared.game);
       setZlb(shared.zlb);
+      setSweep(shared.sweep);
     });
     return () => cancelAnimationFrame(raf);
   }, []);
@@ -430,12 +471,23 @@ export function Simulator() {
     if (model === "glossary") return [];
     try {
       const current = runModel(model, shownEconomy, options);
-      if (compare !== "both") return current;
-      return mergePanels(current, runModel(model, reference, options));
+      const shown =
+        compare === "both" ? mergePanels(current, runModel(model, reference, options)) : current;
+      // The sweep interrogates the settled economy, not the tweened one: it
+      // would otherwise re-run three models on every animation frame.
+      const swept = sweepPanel({
+        modelId: model,
+        modelLabel: getModel(model).label,
+        economy: shockedEconomy,
+        options,
+        param: sweep,
+        paramLabel: sweep === "none" ? undefined : PARAM_LABEL[sweep],
+      });
+      return swept ? [...shown, swept] : shown;
     } catch {
       return null;
     }
-  }, [model, shownEconomy, reference, compare, options]);
+  }, [model, shownEconomy, reference, compare, options, sweep, shockedEconomy]);
 
   const loadEconomy = (e: Economy) => {
     setEconomy(e);
@@ -513,7 +565,7 @@ export function Simulator() {
             <ShareLink
               build={() =>
                 shareUrl(
-                  { economy, model, compare, horizon, ai, expectations, micro, market, externality, game, zlb, shocks },
+                  { economy, model, compare, horizon, ai, expectations, micro, market, externality, game, zlb, sweep, shocks },
                   window.location.href,
                 )
               }
@@ -691,9 +743,10 @@ export function Simulator() {
                   panel={p}
                   index={i}
                   chartControls={
-                    scenario || p.timeseries ? (
+                    scenario || i === 0 || p.timeseries ? (
                       <>
                         {scenario}
+                        {i === 0 && <SweepControl value={sweep} onChange={setSweep} />}
                         {p.timeseries && <HorizonControl value={horizon} onChange={setHorizon} />}
                       </>
                     ) : undefined

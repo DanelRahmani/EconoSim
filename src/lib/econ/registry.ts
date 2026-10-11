@@ -6,6 +6,7 @@ import type {
   GameOptions,
   MarketOptions,
   MicroOptions,
+  SweepParam,
   ZlbOptions,
 } from "./types";
 import type { Panel } from "./panel";
@@ -49,6 +50,8 @@ export interface RunOptions {
   game: GameOptions;
   /** Size of the negative demand shock in the zero-lower-bound model. */
   zlb: ZlbOptions;
+  /** Which parameter the comparative-statics panel nudges, or "none". */
+  sweep: SweepParam;
 }
 
 export const DEFAULT_HORIZON = 50;
@@ -64,6 +67,8 @@ export const DEFAULT_GAME: GameOptions = { game: "prisoners", temptation: 5 };
 export const DEFAULT_ZLB: ZlbOptions = { demandShock: 0.12 };
 /** Slow expectations are the interesting case, so they are the default. */
 export const DEFAULT_EXPECTATIONS: Expectations = "adaptive";
+/** Comparative statics starts off: it is a question you ask, not a default view. */
+export const DEFAULT_SWEEP: SweepParam = "none";
 
 export const DEFAULT_OPTIONS: RunOptions = {
   horizon: DEFAULT_HORIZON,
@@ -74,6 +79,7 @@ export const DEFAULT_OPTIONS: RunOptions = {
   externality: DEFAULT_EXTERNALITY,
   game: DEFAULT_GAME,
   zlb: DEFAULT_ZLB,
+  sweep: DEFAULT_SWEEP,
 };
 
 export interface ModelDef {

@@ -147,6 +147,13 @@ export interface ZlbOptions {
   demandShock: number;
 }
 
+/**
+ * Which `Economy` parameter the comparative-statics panel nudges, or "none" to
+ * leave the panel off. It lives in `RunOptions` because it changes nothing
+ * about the economy — it only asks a different question of the same model.
+ */
+export type SweepParam = keyof Economy | "none";
+
 export interface ValidationIssue {
   field: keyof Economy | "regime";
   message: string;

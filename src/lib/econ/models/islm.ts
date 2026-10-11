@@ -7,6 +7,8 @@ import { linspace } from "../math";
 export interface IslmCore {
   Y: number;
   r: number;
+  /** I = I₀ − b·r: what the higher rate does to investment at the new equilibrium. */
+  I: number;
   fiscalMultiplier: number;
   monetaryMultiplier: number;
   denominator: number;
@@ -55,6 +57,14 @@ export function islmCore(e: Economy): IslmCore {
 
   const r = t.step("Equilibrium interest rate r*", (e.kY * Y - realMoney) / e.hR, div(sub(mul(v("kY"), v("Y")), div(v("M"), v("P"))), v("hR")), { ...env, Y });
 
+  const I = t.step(
+    "Investment at that rate I = I₀ − b·r",
+    e.I0 - e.b * r,
+    sub(v("I0"), mul(v("b"), v("r"))),
+    { ...env, r },
+    "The other side of a fiscal expansion: the higher rate is what crowds investment out",
+  );
+
   const fiscalMultiplier = t.step(
     "Fiscal multiplier dY/dG",
     1 / denominator,
@@ -68,7 +78,7 @@ export function islmCore(e: Economy): IslmCore {
     env,
   );
 
-  return { Y, r, fiscalMultiplier, monetaryMultiplier, denominator, trace: t.steps };
+  return { Y, r, I, fiscalMultiplier, monetaryMultiplier, denominator, trace: t.steps };
 }
 
 /** Points on the IS and LM curves for charting, over a sensible Y range. */
@@ -107,6 +117,7 @@ export function islm(e: Economy): Panel[] {
       scalars: [
         { label: "Output (Y*)", value: core.Y },
         { label: "Interest rate (r*)", value: core.r, unit: "×100%" },
+        { label: "Investment I", value: core.I, hint: "I₀ − b·r: what is left for investment once the rate has moved" },
         { label: "Fiscal multiplier dY/dG", value: core.fiscalMultiplier },
         { label: "Monetary multiplier dY/d(M/P)", value: core.monetaryMultiplier },
         { label: "IS intercept", value: isIntercept },

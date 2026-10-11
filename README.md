@@ -45,6 +45,9 @@ dashed baseline curves and ▲/▼ deltas on every figure. "Pin baseline" freeze
 explained in plain language; hover any label for the short version.
 - **Show the calculation** — each chart has an expandable block with the symbolic
   equations, your values substituted in, and the resulting numbers (rendered with KaTeX).
+- **Comparative statics** — pick any parameter and the model is re-run 1% either side of it,
+  tabulating every figure it reports against the base and the direction it moves. The classic
+  *“G↑ ⇒ Y↑, r↑, I↓”* grid, read off real runs rather than hand-written.
 
 ## Getting started
 

@@ -60,9 +60,11 @@ src/lib/econ/            the engine — pure, no React
   registry.ts            RunOptions, DEFAULT_* constants, the MODELS array
   shocks.ts              preset shocks + the user-defined shock builder
   permalink.ts           encode/decode the whole view into ?s=
+  comparativeStatics.ts  sweepPanel() — the "G↑ ⇒ Y↑, r↑, I↓" grid, built from a model's
+                         own scalars so it cannot disagree with the panels above it
   glossary.ts            symbol reference shown in the Glossary tab
   models/*.ts            one file per model — 21 of them
-  engine.test.ts         the whole suite (108 tests)
+  engine.test.ts         the whole suite (114 tests)
 src/components/          PanelCard renders any Panel; CurveChart (SVG), TimeSeriesChart (Recharts)
 src/app/                 landing page + /simulator
 docs/models.md           equations and sign conventions (STALE — see gaps below)
@@ -126,6 +128,17 @@ note. Displaying fake maths is worse than displaying none.
 The permalink decoder checks *types and enums* against the real defaults. Do not duplicate
 one in the other.
 
+**A new scenario dial is more than one edit.** Add it to `RunOptions` in `registry.ts` (plus
+a `DEFAULT_*` and `DEFAULT_OPTIONS`), to the five touch points in `Simulator.tsx` (the state,
+the `options` memo, the apply-on-load effect, the `shareUrl` call, and a control), and to
+`SimState` + `encodeState` + `decodeState` in `permalink.ts`. Miss the permalink trio and a
+shared link silently drops the dial; miss the control and the dial is unreachable.
+
+**Prefer a dial to a new model when the feature spans every model.** The comparative-statics
+panel is one `RunOptions.sweep` field and one appended panel, so it works on all 21 models
+with no per-model code. Making it a model in `MODELS` would have needed `registry.ts`
+imported from inside a model file — the cycle this codebase already avoids elsewhere.
+
 **Lint is strict about hooks.** `react-hooks/set-state-in-effect` and `react-hooks/refs` are
 errors. Established patterns: do all `setState` inside `requestAnimationFrame` callbacks (see
 `useAnimatedNumber`, `useTweenedEconomy`, and the permalink load in `Simulator`), and read
@@ -177,10 +190,6 @@ Nothing else is known broken. The next work is new capability, not repair.
 ## Suggested next work, in priority order
 
 **Tier 1 — the best teaching payload per line of code**
-- **Comparative-statics table.** Re-run each model at ±ε on a chosen parameter and tabulate
-  the direction of every endogenous variable — the classic *"G↑ ⇒ Y↑, r↑, I↓"* grid. The
-  engine already has `runModel`; this is mostly presentation, and the new `TableSpec` panel
-  type makes it nearly free.
 - **Parameter sweeps as an axis.** Chart a parameter on the x-axis instead of time or a state
   variable, to answer questions like "which saving rate maximises steady-state consumption?".
   Needs a small generalisation of the chart spec.
@@ -209,14 +218,22 @@ the exact-arithmetic promise the trace panels make.
 
 Work in this session, newest first:
 
-- This session — **the four gaps the previous session left, closed.** The permalink now
-  carries all six scenario dials (each clamped to its slider's range, with the game list
-  derived from `GAMES` and the expectations modes sitting beside their union so the guards
-  cannot drift); the glossary gained three groups covering the ten new models; the README
-  table and `docs/models.md` were brought up to 21 models with their closed forms; and the
-  app was confirmed live at <https://econosim.danelrahmani.com>. Also corrected the
-  external-balance wording in `docs/models.md`, which still described `pb/(r−g)` as a
-  steady state. 108 → 109 tests.
+- This session — **comparative statics.** A new `RunOptions.sweep` dial appends a panel that
+  re-runs the current model 1% either side of one parameter and tabulates every figure the
+  model reports against its base, with the direction it moves — the classic
+  *"G↑ ⇒ Y↑, r↑, I↓"* grid. It is a dial rather than a model so it works on all 21 models
+  with no per-model code and no import cycle. Rows are the model's own scalars, and a nudge
+  that would trip a range guard is dropped with a note instead of being clamped, so the
+  arrows only ever describe a step that really happened. IS-LM gained an *Investment I*
+  scalar — the crowding-out leg the panel was missing, and the one the classic grid needs.
+  109 → 114 tests.
+- `3009c70` — **the four handoff gaps closed.** The permalink carries all six scenario dials
+  (each clamped to its slider's range, with the game list derived from `GAMES` and the
+  expectations modes sitting beside their union); the glossary gained three groups covering
+  the ten new models; the README table and `docs/models.md` were brought up to 21 models with
+  their closed forms; and the app was confirmed live at <https://econosim.danelrahmani.com>.
+  Also corrected the external-balance wording in `docs/models.md`, which still described
+  `pb/(r−g)` as a steady state. 108 → 109 tests.
 - `fdebd03` — the `CLAUDE.md` handoff note itself.
 - `7592ea5` — **Section A: the ten missing models.** Phillips curve with adaptive vs credible
   expectations (sacrifice ratio `1/(βθ)`, costless when believed), WS-PS labour market
