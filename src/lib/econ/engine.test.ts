@@ -32,7 +32,7 @@ import { GLOSSARY_ENTRIES } from "@/lib/econ/glossary";
 import { decodeState, encodeState, readState, shareUrl, type SimState } from "@/lib/econ/permalink";
 import { SWEEPABLE, sweepPanel } from "@/lib/econ/comparativeStatics";
 import { exportName, panelToCsv, panelsToCsv } from "@/lib/econ/export";
-import { axisDomain } from "@/lib/scale";
+import { axisDomain, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
 import type { Panel } from "@/lib/econ/panel";
 import { seriesToTable } from "@/lib/econ/panel";
 import type { SweepParam } from "@/lib/econ/types";
@@ -1037,6 +1037,64 @@ describe("data table behind a chart", () => {
 
   it("returns nothing for a chart with no series", () => {
     expect(seriesToTable({ xLabel: "x", yLabel: "y", series: [] })).toBeUndefined();
+  });
+
+  it("mentions the chart's markers, which the rows cannot show", () => {
+    const table = seriesToTable({
+      xLabel: "k",
+      yLabel: "y",
+      series: [{ label: "a", points: [{ x: 0, y: 1 }, { x: 1, y: 2 }] }],
+      markers: [{ x: 1, y: 2, label: "current" }],
+    });
+    expect(table?.caption).toContain("current at (1, 2)");
+  });
+});
+
+describe("chart zoom", () => {
+  const full: Window = [0, 100];
+
+  it("zooms about the centre", () => {
+    expect(zoomWindow(full, full, 0.5)).toEqual([25, 75]);
+    expect(zoomWindow([25, 75], full, 2)).toEqual(full);
+  });
+
+  it("cannot leave the data, and refuses to collapse", () => {
+    expect(zoomWindow([80, 100], full, 2)).toEqual([70, 100]);
+    expect(clampWindow([-40, 50], full)).toEqual([0, 50]);
+    expect(clampWindow([50, 40], full)).toEqual([40, 50]);
+    expect(clampWindow([50, 50.01], full)).toBeNull();
+    // Zooming a long way out is not a collapse: it just gives back the whole range.
+    expect(zoomWindow(full, full, 1000)).toEqual(full);
+  });
+
+  it("keeps the nearest point either side, so a zoomed line still reaches the frame", () => {
+    const points = [0, 1, 2, 3, 4].map((x) => ({ x, y: x }));
+    expect(pointsInWindow(points, [1.5, 2.5]).map((p) => p.x)).toEqual([1, 2, 3]);
+    expect(pointsInWindow(points, [0, 4])).toHaveLength(5);
+    expect(pointsInWindow(points, [0.5, 3.5]).map((p) => p.x)).toEqual([0, 1, 2, 3, 4]);
+    expect(pointsInWindow(points, [10, 20])).toEqual([]);
+  });
+
+  it("returns to the full range on zoom out, for every chart in the app", () => {
+    for (const m of MODELS) {
+      for (const panel of runModel(m.id, e, DEFAULT_OPTIONS)) {
+        for (const line of panel.chart?.series ?? []) {
+          const domain = axisDomain(line.points.map((p) => p.x));
+          const zoomed = zoomWindow(domain, domain, 0.5);
+          expect(zoomed[0], `${m.id}/${line.label} did not zoom in`).toBeGreaterThan(domain[0] - 1e-9);
+          expect(zoomed[1], `${m.id}/${line.label} did not zoom in`).toBeLessThan(domain[1] + 1e-9);
+          const back = zoomWindow(zoomed, domain, 2);
+          expect(back[0], `${m.id}/${line.label} did not come back`).toBeCloseTo(domain[0], 9);
+          expect(back[1], `${m.id}/${line.label} did not come back`).toBeCloseTo(domain[1], 9);
+          // A zoomed window never loses a point that falls inside it. It need not
+          // contain any: a curve with points only at the ends can have an empty
+          // middle, which is a thin-data chart rather than a broken one.
+          const inside = line.points.filter((p) => p.x >= zoomed[0] && p.x <= zoomed[1]);
+          const kept = pointsInWindow(line.points, zoomed).map((p) => p.x);
+          for (const point of inside) expect(kept, `${m.id}/${line.label} dropped ${point.x}`).toContain(point.x);
+        }
+      }
+    }
   });
 });
 

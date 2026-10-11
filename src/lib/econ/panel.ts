@@ -97,6 +97,13 @@ export function seriesToTable(spec: ChartSpec | TimeSeriesSpec): TableSpec | und
   const xLabel = spec.xLabel;
   const yLabel = "yLabel" in spec ? spec.yLabel : "";
 
+  // Markers are information the picture carries and the plotted rows do not — the
+  // current position, a steady state, the golden rule — so they go in the caption.
+  const markers = "markers" in spec ? (spec.markers ?? []) : [];
+  const marked = markers.length
+    ? ` Marked: ${markers.map((m) => `${m.label} at (${fmtNum(m.x, 4)}, ${fmtNum(m.y, 4)})`).join("; ")}.`
+    : "";
+
   const first = series[0].points;
   const sharesGrid = series.every(
     (line) =>
@@ -111,7 +118,7 @@ export function seriesToTable(spec: ChartSpec | TimeSeriesSpec): TableSpec | und
         label: fmtNum(point.x, 4),
         cells: series.map((line) => ({ text: fmtNum(line.points[i].y, 4) })),
       })),
-      caption: `${yLabel} against ${xLabel}, as plotted.`,
+      caption: `${yLabel} against ${xLabel}, as plotted.${marked}`,
     };
   }
 
@@ -123,6 +130,6 @@ export function seriesToTable(spec: ChartSpec | TimeSeriesSpec): TableSpec | und
         cells: [{ text: fmtNum(point.x, 4) }, { text: fmtNum(point.y, 4) }],
       })),
     ),
-    caption: `Every point of every series, as plotted.`,
+    caption: `Every point of every series, as plotted.${marked}`,
   };
 }

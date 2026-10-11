@@ -53,6 +53,10 @@ explained in plain language; hover any label for the short version.
   downloads as a standalone SVG in the theme you are reading it in.
 - **Every chart has a data table** — the plotted series as text, so the numbers can be read
   outright and the picture is not the only way in.
+- **Zoom any curve diagram** — drag across a chart to zoom into a range, or use the toolbar.
+  The vertical axis rescales to what is in view, so a concave curve finally shows its
+  curvature: the per-worker production function opens on k = 1…800 with the economy sitting at
+  k = 3, which one drag fixes. Double-click to go back.
 
 ## Getting started
 

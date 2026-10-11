@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { ChartSpec, Point } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
-import { axisDomain } from "@/lib/scale";
+import { axisDomain, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
 
 /** Series palette tuned to read on both the cool-white and near-black grounds. */
 export const SERIES_COLORS = ["#F43F5E", "#14B8A6", "#8B5CF6", "#F59E0B", "#06B6D4", "#EC4899"];
@@ -29,11 +30,29 @@ export function CurveChart({
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
 
+  const [zoom, setZoom] = useState<Window | null>(null);
+  const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
+
   const all = [...spec.series.flatMap((s) => finite(s.points)), ...(spec.markers ?? [])];
-  const [x0, x1] = axisDomain(all.map((p) => p.x));
-  const [y0, y1] = axisDomain(all.map((p) => p.y));
+  const full: Window = axisDomain(all.map((p) => p.x));
+  // A zoom left over from another parameter is clamped, and dropped if the data
+  // has since moved out from under it.
+  const view = zoom ? clampWindow(zoom, full) : null;
+  const [x0, x1] = view ?? full;
+
+  const inWindow = all.filter((p) => p.x >= x0 && p.x <= x1);
+  // The y-axis rescales to what is actually in view, which is the whole point of
+  // zooming: a concave curve only shows its curvature when the frame is tight.
+  const [y0, y1] = axisDomain((inWindow.length ? inWindow : all).map((p) => p.y));
   const sx = (x: number) => pad.l + ((x - x0) / (x1 - x0)) * iw;
   const sy = (y: number) => pad.t + ih - ((y - y0) / (y1 - y0)) * ih;
+
+  /** Where a pointer sits along the x-axis, in data units. */
+  const dataX = (event: React.PointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const units = ((event.clientX - rect.left) * W) / rect.width;
+    return x0 + ((units - pad.l) / iw) * (x1 - x0);
+  };
 
   const ticks = (lo: number, hi: number, n = 5) => {
     const out: number[] = [];
@@ -42,7 +61,41 @@ export function CurveChart({
   };
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={`${spec.yLabel} versus ${spec.xLabel}`}>
+    <div>
+      <div className="mb-1.5 flex items-center justify-end gap-1.5">
+        <span className="mr-auto font-mono text-[0.625rem] uppercase tracking-wider text-muted/70">
+          {view ? `zoomed ${x0.toFixed(2)} – ${x1.toFixed(2)} (${spec.xLabel})` : "drag across the chart to zoom"}
+        </span>
+        <ZoomButton label="+" title="Zoom in" onClick={() => setZoom(zoomWindow([x0, x1], full, 0.5))} />
+        <ZoomButton label="−" title="Zoom out" onClick={() => setZoom(zoomWindow([x0, x1], full, 2))} />
+        <ZoomButton
+          label="Reset"
+          title="Show the full range"
+          disabled={!view}
+          onClick={() => setZoom(null)}
+        />
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full h-auto touch-pan-y"
+        role="img"
+        aria-label={`${spec.yLabel} versus ${spec.xLabel}${view ? ", zoomed" : ""}`}
+        onPointerDown={(e) => {
+          const at = dataX(e);
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setDrag({ from: at, to: at });
+        }}
+        onPointerMove={(e) => drag && setDrag({ ...drag, to: dataX(e) })}
+        onPointerUp={() => {
+          if (drag) {
+            const picked = clampWindow([drag.from, drag.to], full);
+            if (picked) setZoom(picked);
+          }
+          setDrag(null);
+        }}
+        onPointerCancel={() => setDrag(null)}
+        onDoubleClick={() => setZoom(null)}
+      >
       <rect x={pad.l} y={pad.t} width={iw} height={ih} fill="none" stroke="var(--hairline)" />
       {ticks(x0, x1).map((t, i) => (
         <g key={`x${i}`}>
@@ -62,7 +115,7 @@ export function CurveChart({
       ))}
 
       {spec.series.map((s, i) => {
-        const pts = finite(s.points);
+        const pts = finite(pointsInWindow(s.points, [x0, x1]));
         if (pts.length < 2) return null;
         const d = pts.map((p, j) => `${j === 0 ? "M" : "L"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ");
         return (
@@ -93,6 +146,18 @@ export function CurveChart({
         ) : null,
       )}
 
+      {drag && Math.abs(sx(drag.to) - sx(drag.from)) > 2 && (
+        <rect
+          aria-hidden
+          x={Math.min(sx(drag.from), sx(drag.to))}
+          y={pad.t}
+          width={Math.abs(sx(drag.to) - sx(drag.from))}
+          height={ih}
+          fill="var(--accent)"
+          opacity={0.12}
+        />
+      )}
+
       <text x={pad.l + iw / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="var(--muted)">
         {spec.xLabel}
       </text>
@@ -107,6 +172,32 @@ export function CurveChart({
         {spec.yLabel}
       </text>
     </svg>
+    </div>
+  );
+}
+
+/** A small control in a chart's zoom toolbar. */
+function ZoomButton({
+  label,
+  title,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  title: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded-full border border-hairline bg-surface px-2 py-0.5 font-mono text-[0.6875rem] text-muted transition-colors hover:border-accent/50 hover:text-accent disabled:opacity-40 disabled:hover:border-hairline disabled:hover:text-muted"
+    >
+      {label}
+    </button>
   );
 }
 

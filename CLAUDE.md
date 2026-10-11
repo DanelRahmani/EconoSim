@@ -66,7 +66,8 @@ src/lib/econ/            the engine — pure, no React
   export.ts              panelToCsv / panelsToCsv — the figures *and* the working as a CSV
   glossary.ts            symbol reference shown in the Glossary tab
   models/*.ts            one file per model — 21 of them
-  engine.test.ts         the whole suite (125 tests)
+  engine.test.ts         the whole suite (136 tests)
+src/lib/scale.ts         axisDomain() — the axis rule, plus the zoom-window maths
 src/components/          PanelCard renders any Panel; CurveChart (SVG), TimeSeriesChart (Recharts)
 src/app/                 landing page + /simulator
 docs/models.md           equations and sign conventions (STALE — see gaps below)
@@ -161,6 +162,13 @@ ran 1→800. Data that genuinely crosses zero is padded both ways, and a flat se
 symmetric window so that it is visible at all (the AK model's dashed *No growth* baseline is
 exactly that case). Any new chart axis goes through `axisDomain`, never a local `domain()`.
 
+**Zooming lives in `CurveChart`, with its maths in `scale.ts`.** Drag across the chart or use
+the toolbar; the y-axis rescales to the points in view, which is what makes the zoom worth
+having. `clampWindow` returns null for a collapsed window and `zoomWindow` falls back to the
+full range, so a zoom left over from another parameter can never leave an empty frame. Touch
+keeps `touch-pan-y`, so a mobile reader can still scroll past a chart — the buttons are the
+keyboard-accessible path, and the drag is a convenience on top.
+
 **Default-economy calibration is interlocked.** `piE = 0.05` (so the Taylor rule gives a
 sensible nominal rate and the Phillips model opens on a *disinflation*), and `markup = 0.03`
 with `wagePush = 0.02` (so the WS-PS linearisation `(m+z)/γ` lands exactly on `un = 0.05`).
@@ -224,6 +232,15 @@ the exact-arithmetic promise the trace panels make.
 
 Work in this session, newest first:
 
+- This session — **zoom, and the per-worker curve made legible.** `CurveChart` gained a zoom:
+  drag across it, or use the −/+/Reset toolbar, and the y-axis rescales to the points in view.
+  That is the reason it matters — the per-worker panel plots y = k^α over k = 1…800 while the
+  economy sits at k = 3, so the marker was pinned to the y-axis and the curvature squeezed into
+  a fraction of a percent of the width. The window maths (`clampWindow`, `zoomWindow`,
+  `pointsInWindow`) went into `scale.ts` beside `axisDomain` so it is testable outside React;
+  a collapsed window yields the full range rather than an empty frame. The data table also
+  stopped hiding the chart's markers, which the picture showed and the rows did not. 131 → 136
+  tests.
 - This session — **the charts stop opening below zero.** `domain()` in `CurveChart` padded 8%
   either side of its data, so a quantity running 1→800 drew an origin at −63 (and the phase
   diagram at −0.9). The rule now lives in `axisDomain()` in `src/lib/scale.ts` — out of the
