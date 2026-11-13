@@ -4,6 +4,7 @@ import Script from "next/script";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,26 +16,23 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const TITLE = "EconoSim: Economics Simulator";
-const DESCRIPTION =
-  "Build an economy and explore IS-LM, AD-AS, Solow-Swan, Mundell-Fleming and international macro models with live curves, time paths and full step-by-step workings.";
-
 export const metadata: Metadata = {
-  // Makes the generated og:image URL absolute, which link previews require.
-  metadataBase: new URL("https://econosim.danelrahmani.com"),
-  title: TITLE,
-  description: DESCRIPTION,
+  // Makes every generated URL (og:image, canonical) absolute, which link previews require.
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    siteName: "EconoSim",
+    siteName: SITE_NAME,
     url: "/",
-    title: TITLE,
-    description: DESCRIPTION,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: TITLE,
-    description: DESCRIPTION,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
 };
 
