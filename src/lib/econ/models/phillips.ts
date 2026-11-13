@@ -188,7 +188,7 @@ export function phillips(e: Economy, mode: Expectations, horizon = 40): Panel[] 
       id: "phillips-curve",
       title: "The Phillips curve and the disinflation",
       description: adaptive
-        ? "The short-run curve is drawn at the old expectation (dashed) and at the target. With adaptive expectations the economy slides down the old curve — unemployment must rise — and only then does the curve shift down."
+        ? "The short-run curve is drawn at the old expectation (dashed) and at the target. With adaptive expectations the economy slides down the old curve (unemployment must rise), and only then does the curve shift down."
         : "A credible announcement shifts the short-run curve straight down: the economy moves from the old curve to the target curve at the natural rate, with no rise in unemployment.",
       chart: {
         xLabel: "Unemployment (%)",
@@ -236,7 +236,7 @@ export function phillips(e: Economy, mode: Expectations, horizon = 40): Panel[] 
         ? [
             `Expectations are slow (θ = ${e.theta}), so the bank has to hold inflation below what people expect. Unemployment peaks at ${pct(core.impactU)} and the economy gives up about ${(core.outputCost * 100).toFixed(1)}% of a year's output.`,
             `The sacrifice ratio 1/(βθ) = ${core.sacrificeRatio.toFixed(2)}. Make expectations adapt faster (raise θ) or make the curve steeper (raise β) and the same disinflation costs less.`,
-            "This is the Lucas critique in one picture: the cost depends on a behavioural parameter — how people form expectations — not on the policy announcement itself.",
+            "This is the Lucas critique in one picture: the cost depends on a behavioural parameter (how people form expectations), not on the policy announcement itself.",
           ]
         : [
             "A credible announcement moves expectations immediately, so the short-run curve shifts down without the economy sliding along it: inflation falls and unemployment never leaves uₙ.",
@@ -247,7 +247,7 @@ export function phillips(e: Economy, mode: Expectations, horizon = 40): Panel[] 
     },
     {
       id: "phillips-dynamics",
-      title: `Inflation, expectations and unemployment — next ${horizon} periods`,
+      title: `Inflation, expectations and unemployment: next ${horizon} periods`,
       description: adaptive
         ? "Inflation drops to the target at once, but expected inflation only catches up gradually (dπᵉ/dt = θ(π − πᵉ)), so unemployment stays above the natural rate for a while."
         : "With credible expectations all three lines are flat: inflation is at target and unemployment at its natural rate from period zero.",

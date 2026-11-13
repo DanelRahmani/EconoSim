@@ -65,7 +65,7 @@ export function ShareLink({ build }: { build: () => string }) {
             {copied ? "Copied" : "Copy"}
           </button>
           <span className="basis-full text-[0.6875rem] leading-snug text-muted">
-            Everything is encoded in the link — no account, no server. Anyone opening it sees this economy, model,
+            Everything is encoded in the link: no account, no server. Anyone opening it sees this economy, model,
             window and shocks.
           </span>
         </div>

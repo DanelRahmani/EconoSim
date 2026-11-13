@@ -77,7 +77,7 @@ export function zlbCore(e: Economy, horizon = 40, opts: ZlbOptions): ZlbCore {
     evaluate(naturalRateExpr, { A0, c1: e.c1, Yn, b: e.b }),
     naturalRateExpr,
     { A0, c1: e.c1, Yn, b: e.b },
-    "The rate that would hold output at potential — negative means the bound will bind",
+    "The rate that would hold output at potential; negative means the bound will bind",
   );
 
   const policyRate = Math.max(0, naturalRate);
@@ -147,7 +147,7 @@ export function zlb(e: Economy, horizon = 40, opts: ZlbOptions = { demandShock: 
       id: "zlb-diagram",
       title: "IS-LM when the policy rate cannot go below zero",
       description:
-        "The IS curve falls and the LM curve rises, but the LM stops at zero — the central bank cannot set a negative rate. If the two would have met below the line, the economy is stuck on the flat segment and output is determined by the IS curve alone.",
+        "The IS curve falls and the LM curve rises, but the LM stops at zero: the central bank cannot set a negative rate. If the two would have met below the line, the economy is stuck on the flat segment and output is determined by the IS curve alone.",
       chart: {
         xLabel: "Output (Y)",
         yLabel: "Interest rate (r)",
@@ -199,7 +199,7 @@ export function zlb(e: Economy, horizon = 40, opts: ZlbOptions = { demandShock: 
     },
     {
       id: "zlb-path",
-      title: `A recession at the bound — next ${horizon} periods`,
+      title: `A recession at the bound: next ${horizon} periods`,
       description:
         "The demand shock decays, so the natural rate climbs back towards positive. While it is negative, output sits below potential; once it crosses zero the central bank regains control and the gap closes.",
       timeseries: {

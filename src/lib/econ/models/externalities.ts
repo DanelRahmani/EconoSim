@@ -169,20 +169,20 @@ export function externalities(_e: Economy, xo: ExternalityOptions, m: MarketOpti
         {
           label: "Residual distortion",
           value: core.residualLoss,
-          hint: "(t − x)²/2b — zero at the Pigouvian tax, positive either side",
+          hint: "(t − x)²/2b: zero at the Pigouvian tax, positive either side",
         },
         { label: "Government revenue", value: core.taxRevenue },
       ],
       notes: [
         benefit
-          ? `A tax on a good with external benefits would make things worse. The optimum needs a subsidy of ${money(Math.abs(external))} per unit — a negative t in this model.`
-          : `A tax of ${money(external)} per unit — exactly the external cost, no more — moves production to the social optimum. Nothing above that adds anything except distortion.`,
+          ? `A tax on a good with external benefits would make things worse. The optimum needs a subsidy of ${money(Math.abs(external))} per unit, a negative t in this model.`
+          : `A tax of ${money(external)} per unit (exactly the external cost, no more) moves production to the social optimum. Nothing above that adds anything except distortion.`,
         Math.abs(xo.tax - external) < 1e-9
           ? "The tax is exactly Pigouvian: the residual distortion is zero and the harm is fully internalised."
           : xo.tax < external
             ? `The tax is too small by ${money(external - xo.tax)} per unit, so ${money(core.residualLoss)} of harm still falls on the people bearing the externality.`
             : `The tax overshoots by ${money(xo.tax - external)} per unit. The harm is gone, but ${money(core.residualLoss)} of surplus is destroyed by discouraging units that were worth producing.`,
-        "The honest caveat: the regulator has to know the size of the external cost. Get it wrong and the chart below shows the cost of the error — which is symmetric, so over-taxing is exactly as damaging as under-taxing for the same-sized mistake.",
+        "The honest caveat: the regulator has to know the size of the external cost. Get it wrong and the chart below shows the cost of the error, which is symmetric, so over-taxing is exactly as damaging as under-taxing for the same-sized mistake.",
       ],
       trace: core.trace,
     },
@@ -190,7 +190,7 @@ export function externalities(_e: Economy, xo: ExternalityOptions, m: MarketOpti
       id: "externality-tax",
       title: "Both kinds of mistake cost something",
       description:
-        "The residual distortion as a function of the tax. It is a parabola: zero at the Pigouvian tax, and rising on both sides — the cost of taxing too little is the harm not prevented, and the cost of taxing too much is the surplus destroyed. Both are the same size for the same-sized error.",
+        "The residual distortion as a function of the tax. It is a parabola: zero at the Pigouvian tax, and rising on both sides: the cost of taxing too little is the harm not prevented, and the cost of taxing too much is the surplus destroyed. Both are the same size for the same-sized error.",
       chart: {
         xLabel: "Tax per unit",
         yLabel: "Deadweight loss remaining",
@@ -212,12 +212,12 @@ export function externalities(_e: Economy, xo: ExternalityOptions, m: MarketOpti
         {
           label: "Best achievable",
           value: 0,
-          hint: "Pigouvian taxation removes the distortion entirely — in this model, exactly",
+          hint: "Pigouvian taxation removes the distortion entirely, in this model exactly",
         },
       ],
       notes: [
         "The parabola is symmetric about the Pigouvian tax, so the regulator's error costs the same in either direction. Taxes are not safer when they are too small.",
-        "Unlike the tax wedge on a good with no externality, this tax improves welfare at its optimum — it moves the market towards the social optimum rather than away from it.",
+        "Unlike the tax wedge on a good with no externality, this tax improves welfare at its optimum: it moves the market towards the social optimum rather than away from it.",
       ],
       trace: [],
     },

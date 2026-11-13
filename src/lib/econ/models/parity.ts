@@ -75,7 +75,7 @@ export function parity(e: Economy): Panel[] {
       notes: [
         count > 2
           ? "The trilemma is violated: a fixed rate, free capital mobility and independent monetary policy cannot all hold."
-          : `Trilemma: ${count} of 3 corners chosen — a consistent configuration (at most two can hold).`,
+          : `Trilemma: ${count} of 3 corners chosen: a consistent configuration (at most two can hold).`,
         "With static exchange-rate expectations, UIP holds when the domestic rate equals the world rate plus the risk premium.",
       ],
       trace: t.steps,

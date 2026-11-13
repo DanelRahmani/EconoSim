@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { HeroChart } from "@/components/HeroChart";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const FEATURES = [
   {
     title: "Build an economy",
-    body: "Set technology, capital and labour, saving and growth, fiscal and monetary policy, and how open the economy is — or start from a real-country preset.",
+    body: "Set technology, capital and labour, saving and growth, fiscal and monetary policy, and how open the economy is. Or start from a real-country preset.",
   },
   {
     title: "Short and long run",
@@ -90,7 +91,11 @@ export default function Home() {
           </span>
         </div>
 
-        <dl className="mt-20 grid gap-4 sm:grid-cols-2">
+        <div className="reveal mt-14 max-w-3xl" style={{ animationDelay: "220ms" }}>
+          <HeroChart />
+        </div>
+
+        <dl className="mt-16 grid gap-4 sm:grid-cols-2">
           {FEATURES.map((f, i) => (
             <div
               key={f.title}
@@ -103,10 +108,29 @@ export default function Home() {
           ))}
         </dl>
 
-        <p className="reveal mt-16 font-mono text-[0.6875rem] text-muted" style={{ animationDelay: "540ms" }}>
-          No backend, no database, no accounts — the models are computed in the browser.
-        </p>
       </main>
+
+      <footer className="relative z-10 border-t border-hairline">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-mono text-[0.6875rem] text-muted">
+            No backend, no database, no accounts. The models are computed in the browser.
+          </p>
+          <nav aria-label="Elsewhere" className="flex items-center gap-5 text-sm">
+            <a
+              href="https://danelrahmani.com"
+              className="text-muted transition-colors hover:text-accent"
+            >
+              danelrahmani.com
+            </a>
+            <a
+              href="https://github.com/DanelRahmani/EconoSim"
+              className="text-muted transition-colors hover:text-accent"
+            >
+              Source on GitHub
+            </a>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -60,7 +60,7 @@ export const GAMES: GameDef[] = [
   {
     id: "coordination",
     label: "Coordination",
-    blurb: "Two firms choose a standard. Both prefer to match, and both prefer the same standard — so there are two equilibria.",
+    blurb: "Two firms choose a standard. Both prefer to match, and both prefer the same standard, so there are two equilibria.",
     rows: ["Standard A", "Standard B"],
     cols: ["Standard A", "Standard B"],
     payoff: () => [
@@ -306,12 +306,12 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
           ? `${def.cols[core.colDominant]} is dominant for the column player.`
           : `Neither column choice is dominant.`,
         core.nashCount === 1
-          ? "One Nash equilibrium. Play it and neither player has a reason to move — which is exactly what makes it self-enforcing, and also why it can be the bad outcome."
+          ? "One Nash equilibrium. Play it and neither player has a reason to move, which is exactly what makes it self-enforcing, and also why it can be the bad outcome."
           : core.nashCount === 2
             ? "Two pure equilibria. Both are stable, so this game has an equilibrium-selection problem: conventions, history and expectations decide which one a market lands on. A one-shot payoff matrix cannot say which."
             : "No pure equilibrium. Any predictable choice can be exploited, so the only equilibrium is to randomise.",
         core.cooperationThreshold !== null
-          ? `Backward induction says defect in a single play, and cooperation is therefore unreachable in the one-shot game. But if the game repeats and players are patient enough — a discount factor of at least ${core.cooperationThreshold.toFixed(3)} here — cooperation becomes an equilibrium: the threat of future punishment is worth more than today's temptation.`
+          ? `Backward induction says defect in a single play, and cooperation is therefore unreachable in the one-shot game. But if the game repeats and players are patient enough (a discount factor of at least ${core.cooperationThreshold.toFixed(3)} here), cooperation becomes an equilibrium: the threat of future punishment is worth more than today's temptation.`
           : "The honest caveat: Nash equilibrium is a solution concept, not a prediction. It says nothing about how players get there, and in games with two equilibria it does not say which one a market chooses.",
       ],
       trace: core.trace,
@@ -319,7 +319,7 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
     {
       id: "game-best-response",
       title: `The row player's payoff against the column player's mixing`,
-      description: `What the row player earns from each of their strategies, as the column player becomes more likely to play "${def.cols[0]}". Where the two lines cross, the row player is indifferent — the point that pins down the column player's equilibrium mixing probability.`,
+      description: `What the row player earns from each of their strategies, as the column player becomes more likely to play "${def.cols[0]}". Where the two lines cross, the row player is indifferent: the point that pins down the column player's equilibrium mixing probability.`,
       chart: {
         xLabel: `Probability the column player plays "${def.cols[0]}" (%)`,
         yLabel: "Row player's expected payoff",
@@ -342,7 +342,7 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
               {
                 label: "Lines cross at",
                 value: core.mixed.q,
-                hint: "Where the row player is indifferent — the column player's equilibrium mix",
+                hint: "Where the row player is indifferent: the column player's equilibrium mix",
               },
               { label: "Payoff at the crossing", value: core.mixed.payoffs[0] },
             ]
@@ -357,7 +357,7 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
       notes: [
         core.mixed
           ? `The lines cross at ${pct(core.mixed.q)}. That is the column player's equilibrium mixture: any more or less of "${def.cols[0]}" and the row player would switch, and the column player's own payoff would fall.`
-          : "The lines never cross: one strategy dominates, which is why a dominant-strategy game has no mixed equilibrium — there is nothing to mix about.",
+          : "The lines never cross: one strategy dominates, which is why a dominant-strategy game has no mixed equilibrium. There is nothing to mix about.",
       ],
       trace: [],
     },

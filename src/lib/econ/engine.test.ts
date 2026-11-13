@@ -929,7 +929,7 @@ describe("comparative statics", () => {
         for (const c of row.cells) {
           expect(c.text, `${m.id} · ${row.label}`).not.toMatch(/NaN|Infinity|undefined/);
         }
-        expect(["▲", "▼", "=", "—"]).toContain(row.cells[3].text);
+        expect(["▲", "▼", "=", "n/a"]).toContain(row.cells[3].text);
       }
       for (const step of panel.trace) expect(Number.isFinite(step.value)).toBe(true);
     }

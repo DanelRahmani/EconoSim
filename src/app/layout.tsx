@@ -15,10 +15,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const TITLE = "EconoSim: Economics Simulator";
+const DESCRIPTION =
+  "Build an economy and explore IS-LM, AD-AS, Solow-Swan, Mundell-Fleming and international macro models with live curves, time paths and full step-by-step workings.";
+
 export const metadata: Metadata = {
-  title: "EconoSim — Economics Simulator",
-  description:
-    "Build an economy and explore IS-LM, AD-AS, Solow-Swan, Mundell-Fleming and international macro models with live curves, time paths and full step-by-step workings.",
+  // Makes the generated og:image URL absolute, which link previews require.
+  metadataBase: new URL("https://econosim.danelrahmani.com"),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: "EconoSim",
+    url: "/",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 /**

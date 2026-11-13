@@ -123,7 +123,7 @@ export function marketStructure(_e: Economy, m: MarketOptions): Panel[] {
       id: "market-structure",
       title: "Competition against monopoly",
       description:
-        "A competitive market produces where price equals marginal cost. A monopolist produces where marginal revenue equals marginal cost and then charges what the demand curve will bear — fewer units, a higher price, and the surplus on the missing units is lost to nobody.",
+        "A competitive market produces where price equals marginal cost. A monopolist produces where marginal revenue equals marginal cost and then charges what the demand curve will bear: fewer units, a higher price, and the surplus on the missing units is lost to nobody.",
       chart: {
         xLabel: "Quantity Q",
         yLabel: "Price P",
@@ -148,7 +148,7 @@ export function marketStructure(_e: Economy, m: MarketOptions): Panel[] {
       notes: [
         `The monopolist withholds ${money(core.qc - core.qm)} units and charges ${money(core.priceM - core.priceC)} more. Consumers lose ${money(core.csC - core.csM)} of surplus; ${money(core.deadweightLoss)} of it is destroyed outright rather than transferred to the firm.`,
         "The deadweight loss is the triangle between demand and marginal cost over the units that are not produced. It is a triangle because both curves are straight here.",
-        "The honest caveat: this is the textbook case with no entry, no product differentiation, no price discrimination and no innovation. Real monopolists may be large precisely because fixed costs are large — which is why the fixed cost appears in the table below rather than being ignored.",
+        "The honest caveat: this is the textbook case with no entry, no product differentiation, no price discrimination and no innovation. Real monopolists may be large precisely because fixed costs are large, which is why the fixed cost appears in the table below rather than being ignored.",
       ],
       trace: core.trace,
     },
@@ -195,7 +195,7 @@ export function marketStructure(_e: Economy, m: MarketOptions): Panel[] {
         core.psM > fixed
           ? `The monopolist covers its fixed cost of ${money(fixed)} with ${money(core.psM)} of operating profit, so it stays in business.`
           : `Operating profit of ${money(core.psM)} does not cover the fixed cost of ${money(fixed)}: the monopolist would exit, and the market would not be served at all. This is the natural-monopoly case for regulation rather than competition.`,
-        "Raise the fixed cost and the case for tolerating market power gets stronger — that tension is the whole of competition policy in one slider.",
+        "Raise the fixed cost and the case for tolerating market power gets stronger. That tension is the whole of competition policy in one slider.",
       ],
       trace: [],
     },

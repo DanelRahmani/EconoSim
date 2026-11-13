@@ -74,7 +74,7 @@ export function externalBalance(e: Economy, horizon = 60): Panel[] {
   return [
     {
       id: "external-balance",
-      title: `External balance — next ${periods} periods`,
+      title: `External balance: next ${periods} periods`,
       description:
         "The current account is the gap between national saving and investment. Persistent surpluses build foreign assets; deficits build debt.",
       timeseries: {
@@ -94,7 +94,7 @@ export function externalBalance(e: Economy, horizon = 60): Panel[] {
       notes: [
         hasDebtSteadyState
           ? "With r > g, pb/(r−g) is the debt ratio that stands still: holding a positive debt ratio constant needs a primary surplus of (r−g)·b, and any other ratio drifts away from this one."
-          : "With r ≤ g there is no positive debt ratio that stands still — growth keeps pace with or outruns the interest burden, so debt falls on its own.",
+          : "With r ≤ g there is no positive debt ratio that stands still: growth keeps pace with or outruns the interest burden, so debt falls on its own.",
       ],
       trace: t.steps,
     },

@@ -130,7 +130,7 @@ export function aiBoom(e: Economy, ai: AiOptions): Panel[] {
       id: "ai-boom",
       title: "AI boom: capital substituting for labour",
       description:
-        "AI performs a share of labour tasks, and the work is funded by installing capital instead. Output rises only if that AI capital is productive enough — a like-for-like swap destroys output when capital's share is below one half.",
+        "AI performs a share of labour tasks, and the work is funded by installing capital instead. Output rises only if that AI capital is productive enough: a like-for-like swap destroys output when capital's share is below one half.",
       chart: {
         xLabel: "Share of labour replaced by AI (%)",
         yLabel: "Output (Y)",
@@ -160,7 +160,7 @@ export function aiBoom(e: Economy, ai: AiOptions): Panel[] {
         core.change >= 0
           ? "You are above break-even: the AI boom raises output."
           : "You are below break-even: capital is not productive enough to replace the labour it displaces, so output falls.",
-        "Cobb-Douglas has constant factor shares, so this is a story about levels — output, employment and capital — not about the split of income.",
+        "Cobb-Douglas has constant factor shares, so this is a story about levels (output, employment and capital), not about the split of income.",
       ],
       trace: core.trace,
     },

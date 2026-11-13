@@ -110,7 +110,7 @@ export function labourMarket(e: Economy): Panel[] {
       id: "ws-ps",
       title: "Wage setting, price setting and the natural rate",
       description:
-        "Workers' wage-setting curve slopes down: the tighter the labour market, the higher the real wage they can win. Firms' price-setting line is flat — their mark-up fixes the real wage they can pay. The intersection is the natural rate of unemployment.",
+        "Workers' wage-setting curve slopes down: the tighter the labour market, the higher the real wage they can win. Firms' price-setting line is flat: their mark-up fixes the real wage they can pay. The intersection is the natural rate of unemployment.",
       chart: {
         xLabel: "Unemployment (%)",
         yLabel: "Real wage (W/P)",
@@ -132,7 +132,7 @@ export function labourMarket(e: Economy): Panel[] {
       ],
       notes: [
         `Higher wage-push factors z or a higher mark-up m both raise the natural rate; a steeper wage-setting curve γ lowers it. Adding 5 points of z here would push uₙ to ${pct(core.exactUn + 0.05 / e.wageSlope)}.`,
-        "This is where the Phillips curve's uₙ comes from. Nothing in the Phillips model explains it — it is inherited from the structure of wage and price setting.",
+        "This is where the Phillips curve's uₙ comes from. Nothing in the Phillips model explains it. It is inherited from the structure of wage and price setting.",
         "The honest caveat: this is a static, one-period model of the labour market. It says nothing about how unemployment actually adjusts, which is what the WS-PS diagram is usually criticised for.",
       ],
       trace: core.trace,
@@ -155,7 +155,7 @@ export function labourMarket(e: Economy): Panel[] {
         { label: "Mark-up sensitivity ∂uₙ/∂m", value: 1 / (1 + e.markup) ** 2 / e.wageSlope, hint: "About one-for-one while the mark-up is small" },
         { label: "Wage-push sensitivity ∂uₙ/∂z", value: 1 / e.wageSlope },      ],
       notes: [
-        "The two lines are close while the mark-up is small and drift apart as it grows — that drift is the log approximation, not a modelling difference.",
+        "The two lines are close while the mark-up is small and drift apart as it grows. That drift is the log approximation, not a modelling difference.",
       ],
       trace: [],
     },

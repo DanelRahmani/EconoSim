@@ -148,11 +148,20 @@ input[type="range"].slider::-moz-range-thumb {
   animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* The dash is measured in screen space (the lines use non-scaling-stroke), so on a
+   chart drawn narrower than its viewBox a dash of "1" covers only part of the line.
+   The last frame drops the dash altogether, so a finished line is always whole. */
 @keyframes draw {
   from {
+    stroke-dasharray: 1;
     stroke-dashoffset: 1;
   }
+  99.9% {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
   to {
+    stroke-dasharray: none;
     stroke-dashoffset: 0;
   }
 }

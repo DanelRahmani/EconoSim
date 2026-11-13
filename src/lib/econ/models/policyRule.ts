@@ -38,7 +38,7 @@ export function policyRule(e: Economy, piTarget = e.piTarget): Panel[] {
     {
       id: "policy-rule",
       title: "Monetary policy rule",
-      description: "A Taylor rule links the policy interest rate to inflation and the output gap — the modern regime-analysis complement to Mundell-Fleming.",
+      description: "A Taylor rule links the policy interest rate to inflation and the output gap: the modern regime-analysis complement to Mundell-Fleming.",
       chart: {
         xLabel: "Inflation (π)",
         yLabel: "Policy rate (i)",

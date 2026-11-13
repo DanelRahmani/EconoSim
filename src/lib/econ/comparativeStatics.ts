@@ -49,7 +49,7 @@ interface Row {
   high?: number;
 }
 
-const ARROW = { up: "▲", down: "▼", same: "=", missing: "—" } as const;
+const ARROW = { up: "▲", down: "▼", same: "=", missing: "n/a" } as const;
 
 /** Sign of the change from `base` to `moved`, with a relative tolerance. */
 function arrow(base: number | undefined, moved: number | undefined): string {
@@ -85,7 +85,7 @@ export function sweepPanel(args: SweepArgs): Panel | null {
       .map((issue) => issue.message)
       .filter((message) => !baseIssues.has(message));
     if (fresh.length) {
-      skipped.push(`${name} cannot move ${side} by ε from here — ${fresh[0]}.`);
+      skipped.push(`${name} cannot move ${side} by ε from here: ${fresh[0]}.`);
       return undefined;
     }
     try {
@@ -130,7 +130,7 @@ export function sweepPanel(args: SweepArgs): Panel | null {
   const table: TableSpec = {
     columns: [`${name} − ε`, "Base", `${name} + ε`, "Direction"],
     rows: [...rows.values()].map((row) => ({
-      label: repeated.has(row.label) ? `${row.panel} — ${row.label}` : row.label,
+      label: repeated.has(row.label) ? `${row.panel}: ${row.label}` : row.label,
       cells: [
         cell(row.low),
         cell(row.base),
@@ -139,17 +139,17 @@ export function sweepPanel(args: SweepArgs): Panel | null {
       ],
     })),
     caption:
-      `ε = ${fmtNum(step, 4)} — 1% of ${name}. Each column is the same model re-run with that one ` +
+      `ε = ${fmtNum(step, 4)}, 1% of ${name}. Each column is the same model re-run with that one ` +
       `parameter moved, so every cell is a real figure rather than a derivative. The direction ` +
       `column is the sign of the ${name} + ε column against the base.`,
   };
 
   const notes = [
-    "Only the direction is the claim. ε is small, so this is the local answer — a figure that falls at +1% can still turn round for a large enough change.",
+    "Only the direction is the claim. ε is small, so this is the local answer: a figure that falls at +1% can still turn round for a large enough change.",
   ];
   if ([...rows.values()].some((row) => row.base === undefined || row.low === undefined || row.high === undefined)) {
     notes.push(
-      "A — means the model does not report that figure at that parameter value at all, rather than that it is zero.",
+      "An n/a means the model does not report that figure at that parameter value at all, rather than that it is zero.",
     );
   }
   notes.push(...skipped, `${modelLabel} is re-run three times for this panel, on the current economy.`);
@@ -172,7 +172,7 @@ export function sweepPanel(args: SweepArgs): Panel | null {
 
   return {
     id: `sweep-${String(param)}`,
-    title: `Comparative statics — ${name}`,
+    title: `Comparative statics: ${name}`,
     description:
       `What moves in ${modelLabel} when ${name} rises by a hair, and what does not. ` +
       `Read the arrows as “${name}↑ ⇒ …”.`,
@@ -284,7 +284,7 @@ export function sweepAxisPanel(args: SweepAxisArgs): Panel | null {
       highest.x,
       undefined,
       undefined,
-      `The answer to "which ${name} gives the most ${figure}" — to the nearest sampled value`,
+      `The answer to "which ${name} gives the most ${figure}", to the nearest sampled value`,
     );
   }
 

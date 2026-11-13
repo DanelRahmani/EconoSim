@@ -61,7 +61,7 @@ function DataTable({ spec }: { spec: TableSpec }) {
 function Delta({ value, previous }: { value: number; previous: number }) {
   const diff = value - previous;
   if (!Number.isFinite(diff) || Math.abs(diff) < 1e-9) {
-    return <span className="font-mono text-[0.6875rem] text-muted">—</span>;
+    return <span className="font-mono text-[0.6875rem] text-muted">=</span>;
   }
   const up = diff > 0;
   const pct = Math.abs(previous) > 1e-9 ? (diff / Math.abs(previous)) * 100 : null;
@@ -142,7 +142,7 @@ export function PanelCard({
       )}
       {legend.length > 0 && hidden.length >= legend.length && (
         <p className="mt-2 text-[0.6875rem] text-muted">
-          Every line is hidden — click a legend entry to bring it back.
+          Every line is hidden. Click a legend entry to bring it back.
         </p>
       )}
 

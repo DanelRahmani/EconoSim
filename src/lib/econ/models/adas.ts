@@ -105,7 +105,7 @@ export function adas(e: Economy, horizon = 60): Panel[] {
     },
     {
       id: "adas-dynamics",
-      title: `Adjustment to the long run — next ${horizon} periods`,
+      title: `Adjustment to the long run: next ${horizon} periods`,
       description: "With sticky expectations, output and prices converge over time to the LRAS level (dP^e/dt = θ·(P − P^e)).",
       timeseries: {
         xLabel: "Time",

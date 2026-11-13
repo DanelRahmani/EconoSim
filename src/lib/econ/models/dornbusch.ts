@@ -68,7 +68,7 @@ export function dornbuschPanel(e: Economy, dmPct = 10, horizon = 40): Panel[] {
       id: "dornbusch",
       title: `Dornbusch overshooting (${dmPct}% shock, ${horizon} periods)`,
       description:
-        "Prices are sticky in the short run, so a monetary expansion depresses the interest rate and the exchange rate depreciates beyond its long-run level before appreciating back — overshooting.",
+        "Prices are sticky in the short run, so a monetary expansion depresses the interest rate and the exchange rate depreciates beyond its long-run level before appreciating back. That is overshooting.",
       timeseries: {
         xLabel: "Time",
         yLabel: "Log level",

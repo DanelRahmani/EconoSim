@@ -114,7 +114,7 @@ export function debtDynamics(e: Economy, horizon = 60): Panel[] {
       id: "debt-phase",
       title: "Debt dynamics: the r − g drift",
       description:
-        "Each period the debt ratio drifts by (r − g)·b and is paid down by the primary balance. The balance that makes those two cancel holds the debt ratio constant — but only exactly at that level: above it the debt grows away without limit, below it the debt falls away to nothing.",
+        "Each period the debt ratio drifts by (r − g)·b and is paid down by the primary balance. The balance that makes those two cancel holds the debt ratio constant, but only exactly at that level: above it the debt grows away without limit, below it the debt falls away to nothing.",
       chart: {
         xLabel: "Debt ratio b (share of GDP)",
         yLabel: "Change in debt this period (Δb)",
@@ -143,7 +143,7 @@ export function debtDynamics(e: Economy, horizon = 60): Panel[] {
           hint: "Positive = surplus after interest payments are excluded",
         },
         ...(finite
-          ? [{ label: "Debt ratio that stays put", value: core.steadyState, hint: "pb/(r − g) — the balance pb exactly covers the snowball here" }]
+          ? [{ label: "Debt ratio that stays put", value: core.steadyState, hint: "pb/(r − g): the balance pb exactly covers the snowball here" }]
           : [{ label: "r − g", value: core.differential, hint: "r ≤ g, so no positive debt ratio is a knife edge" }]),
         { label: `Debt in ${horizon} periods`, value: core.endDebt },
       ],
@@ -153,12 +153,12 @@ export function debtDynamics(e: Economy, horizon = 60): Panel[] {
           : `r > g by ${(core.differential * 100).toFixed(1)} points, so debt snowballs at ${(core.snowball * 100).toFixed(1)}% of GDP a period unless the primary balance covers it.`,        e.primaryBalance < core.stabilisingBalance
           ? `The current primary balance (${(e.primaryBalance * 100).toFixed(1)}% of GDP) is below the stabilising balance (${(core.stabilisingBalance * 100).toFixed(1)}%), so the debt ratio is rising.`
           : `The current primary balance (${(e.primaryBalance * 100).toFixed(1)}% of GDP) exceeds the stabilising balance (${(core.stabilisingBalance * 100).toFixed(1)}%), so the debt ratio is falling.`,
-        "The honest caveat: r and g are treated as constants. In reality the dangerous case is r persistently above g with r itself rising as debt grows — a feedback this linear model cannot show.",      ],
+        "The honest caveat: r and g are treated as constants. In reality the dangerous case is r persistently above g with r itself rising as debt grows, a feedback this linear model cannot show.",      ],
       trace: core.trace,
     },
     {
       id: "debt-path",
-      title: `Debt path — next ${horizon} periods`,
+      title: `Debt path: next ${horizon} periods`,
       description:
         "The debt ratio under the current primary balance, against the level it started at. Whether the line climbs or falls is decided entirely by the sign of pb − (r − g)·b.",
       timeseries: {

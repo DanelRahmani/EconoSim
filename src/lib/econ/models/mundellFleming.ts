@@ -48,7 +48,7 @@ export function mfCore(e: Economy): MfCore {
   if (e.openness === "closed") {
     const base = islmCore(e);
     t.step("Closed economy IS-LM output", base.Y, undefined, undefined, "Openness is off, so the Mundell-Fleming block collapses to IS-LM");
-    return { Y: base.Y, r: base.r, eps: 0, M: e.M, NX: 0, trace: t.steps, note: "Closed economy — trade is switched off." };
+    return { Y: base.Y, r: base.r, eps: 0, M: e.M, NX: 0, trace: t.steps, note: "Closed economy: trade is switched off." };
   }
 
   const realMoney = e.M / e.P;

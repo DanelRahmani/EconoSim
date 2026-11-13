@@ -121,7 +121,7 @@ export function akGrowth(e: Economy, horizon = 120): Panel[] {
       id: "ak-growth",
       title: "Where growth comes from: saving in AK, technology in Solow",
       description:
-        "In Solow the long-run growth rate of output per worker is the exogenous rate of technological progress — the saving rate is irrelevant. In AK the growth rate is s·A − δ − n, so raising saving raises growth permanently.",
+        "In Solow the long-run growth rate of output per worker is the exogenous rate of technological progress, and the saving rate is irrelevant. In AK the growth rate is s·A − δ − n, so raising saving raises growth permanently.",
       chart: {
         xLabel: "Saving rate s (%)",
         yLabel: "Long-run growth of output per worker (% per period)",
@@ -142,13 +142,13 @@ export function akGrowth(e: Economy, horizon = 120): Panel[] {
       scalars: [
         { label: "AK capital productivity A = Y/K", value: A },
         { label: "AK growth rate", value: core.growth },
-        { label: "Solow long-run growth g", value: core.solowGrowth, hint: "Exogenous — the saving rate does not enter" },
+        { label: "Solow long-run growth g", value: core.solowGrowth, hint: "Exogenous: the saving rate does not enter" },
         { label: "Break-even saving rate", value: core.breakEvenSaving },
         {
           label: "Doubling time",
           value: core.doublingTime,
           unit: "periods",
-          hint: "ln2/γ — a permanent growth rate implies a doubling time",
+          hint: "ln2/γ: a permanent growth rate implies a doubling time",
         },
         { label: "Output per worker today", value: core.outputPerWorker },
       ],
@@ -156,14 +156,14 @@ export function akGrowth(e: Economy, horizon = 120): Panel[] {
         core.growth > core.solowGrowth
           ? `At s = ${pct(e.s)} the AK economy grows at ${pct(core.growth)} against Solow's ${pct(core.solowGrowth)}, and the gap widens with every extra point of saving.`
           : `At s = ${pct(e.s)} the AK economy grows at only ${pct(core.growth)} against Solow's ${pct(core.solowGrowth)}. Below the break-even saving rate of ${pct(core.breakEvenSaving)} the AK capital stock actually shrinks.`,
-        "The two lines cross where s·A = g + δ + n. Below the crossing, Solow's world grows faster; above it, AK's does — and there is no ceiling.",
+        "The two lines cross where s·A = g + δ + n. Below the crossing, Solow's world grows faster; above it, AK's does, and there is no ceiling.",
         "The honest caveat: AK is not a finding, it is an assumption. Everything rests on whether returns to a broad capital measure really are constant. If they diminish even slightly, Solow is right, the growth rate collapses back to g, and there is no growth lever in the saving rate at all.",
       ],
       trace: core.trace,
     },
     {
       id: "ak-path",
-      title: `Output per worker — AK against Solow over ${horizon} periods`,
+      title: `Output per worker: AK against Solow over ${horizon} periods`,
       description:
         "Solow is drawn with technological progress switched off, so the contrast is clean: its output converges to a level and stops, while AK compounds at a constant rate that never decays. Both lines are indexed to 100 in period zero.",
       timeseries: {
@@ -186,11 +186,11 @@ export function akGrowth(e: Economy, horizon = 120): Panel[] {
         {
           label: "AK ÷ Solow at the horizon",
           value: core.solowEnd > 0 ? core.akEnd / core.solowEnd : Number.NaN,
-          hint: "The divergence is the model's whole point — AK has no steady state",
+          hint: "The divergence is the model's whole point: AK has no steady state",
         },
       ],
       notes: [
-        "Shorten the time window to see Solow's plateau properly — AK runs away with any long horizon, which is the point of the model.",
+        "Shorten the time window to see Solow's plateau properly. AK runs away with any long horizon, which is the point of the model.",
         "On a logarithmic axis the AK line would be perfectly straight: a constant growth rate forever, with no convergence to anything.",
       ],
       trace: [],

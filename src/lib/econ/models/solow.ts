@@ -121,7 +121,7 @@ export function solow(e: Economy, horizon = 120): Panel[] {
     },
     {
       id: "solow-path",
-      title: `Transition path — next ${horizon} periods`,
+      title: `Transition path: next ${horizon} periods`,
       description: "Starting from the current capital stock, the economy converges to its steady state (RK4 integration of the Solow ODE).",
       timeseries: {
         xLabel: "Time",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ChartSpec, Point } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
 import { axisDomain, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
@@ -8,7 +8,16 @@ import { axisDomain, clampWindow, pointsInWindow, zoomWindow, type Window } from
 /** Series palette tuned to read on both the cool-white and near-black grounds. */
 export const SERIES_COLORS = ["#F43F5E", "#14B8A6", "#8B5CF6", "#F59E0B", "#06B6D4", "#EC4899"];
 
-const W = 560;
+const DEFAULT_WIDTH = 560;
+
+/**
+ * Decimals for an axis whose five ticks span lo..hi: one for most axes, more when the
+ * step is small, so an interest-rate axis reads 0.05, 0.1, 0.15 instead of 0.1, 0.1, 0.2.
+ */
+function tickDp(lo: number, hi: number): number {
+  const step = (hi - lo) / 5;
+  return step > 0 && step < 1 ? Math.max(1, Math.ceil(-Math.log10(step))) : 1;
+}
 
 function finite(points: Point[]): Point[] {
   return points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
@@ -18,14 +27,32 @@ function finite(points: Point[]): Point[] {
 export function CurveChart({
   spec,
   height = 300,
+  width = DEFAULT_WIDTH,
   colors,
+  interactive = true,
+  domain,
+  label,
 }: {
   spec: ChartSpec;
   height?: number;
+  /** viewBox width. Text is drawn at a fixed size in these units, so a narrower box reads larger on a phone. */
+  width?: number;
   /** Optional label → colour map, so colours stay stable when lines are hidden. */
   colors?: Record<string, string>;
+  /** False drops the zoom toolbar and pointer handling: a picture, not a tool. */
+  interactive?: boolean;
+  /**
+   * Fixed axes. Without it the axes fit the data, which is right for a static
+   * chart but makes an animated one swim; with it the frame holds still and the
+   * curves move inside it (anything outside the plot area is clipped).
+   */
+  domain?: { x: Window; y: Window };
+  /** Accessible name; defaults to "y versus x". */
+  label?: string;
 }) {
+  const clipId = useId();
   const H = height;
+  const W = width;
   const pad = { l: 56, r: 18, t: 16, b: 44 };
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
@@ -34,7 +61,7 @@ export function CurveChart({
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
 
   const all = [...spec.series.flatMap((s) => finite(s.points)), ...(spec.markers ?? [])];
-  const full: Window = axisDomain(all.map((p) => p.x));
+  const full: Window = domain?.x ?? axisDomain(all.map((p) => p.x));
   // A zoom left over from another parameter is clamped, and dropped if the data
   // has since moved out from under it.
   const view = zoom ? clampWindow(zoom, full) : null;
@@ -43,7 +70,7 @@ export function CurveChart({
   const inWindow = all.filter((p) => p.x >= x0 && p.x <= x1);
   // The y-axis rescales to what is actually in view, which is the whole point of
   // zooming: a concave curve only shows its curvature when the frame is tight.
-  const [y0, y1] = axisDomain((inWindow.length ? inWindow : all).map((p) => p.y));
+  const [y0, y1] = domain?.y ?? axisDomain((inWindow.length ? inWindow : all).map((p) => p.y));
   const sx = (x: number) => pad.l + ((x - x0) / (x1 - x0)) * iw;
   const sy = (y: number) => pad.t + ih - ((y - y0) / (y1 - y0)) * ih;
 
@@ -62,6 +89,7 @@ export function CurveChart({
 
   return (
     <div>
+      {interactive && (
       <div className="mb-1.5 flex items-center justify-end gap-1.5">
         <span className="mr-auto font-mono text-[0.625rem] uppercase tracking-wider text-muted/70">
           {view ? `zoomed ${x0.toFixed(2)} – ${x1.toFixed(2)} (${spec.xLabel})` : "drag across the chart to zoom"}
@@ -75,12 +103,14 @@ export function CurveChart({
           onClick={() => setZoom(null)}
         />
       </div>
+      )}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full h-auto touch-pan-y"
         role="img"
-        aria-label={`${spec.yLabel} versus ${spec.xLabel}${view ? ", zoomed" : ""}`}
+        aria-label={label ?? `${spec.yLabel} versus ${spec.xLabel}${view ? ", zoomed" : ""}`}
         onPointerDown={(e) => {
+          if (!interactive) return;
           const at = dataX(e);
           e.currentTarget.setPointerCapture(e.pointerId);
           setDrag({ from: at, to: at });
@@ -94,14 +124,19 @@ export function CurveChart({
           setDrag(null);
         }}
         onPointerCancel={() => setDrag(null)}
-        onDoubleClick={() => setZoom(null)}
+        onDoubleClick={() => interactive && setZoom(null)}
       >
+      <defs>
+        <clipPath id={clipId}>
+          <rect x={pad.l} y={pad.t} width={iw} height={ih} />
+        </clipPath>
+      </defs>
       <rect x={pad.l} y={pad.t} width={iw} height={ih} fill="none" stroke="var(--hairline)" />
       {ticks(x0, x1).map((t, i) => (
         <g key={`x${i}`}>
           <line x1={sx(t)} y1={pad.t} x2={sx(t)} y2={pad.t + ih} stroke="var(--hairline)" />
           <text x={sx(t)} y={H - pad.b + 16} textAnchor="middle" fontSize={10} fill="var(--muted)">
-            {fmtNum(t, 1)}
+            {fmtNum(t, tickDp(x0, x1))}
           </text>
         </g>
       ))}
@@ -109,7 +144,7 @@ export function CurveChart({
         <g key={`y${i}`}>
           <line x1={pad.l} y1={sy(t)} x2={pad.l + iw} y2={sy(t)} stroke="var(--hairline)" />
           <text x={pad.l - 8} y={sy(t) + 3} textAnchor="end" fontSize={10} fill="var(--muted)">
-            {fmtNum(t, 1)}
+            {fmtNum(t, tickDp(y0, y1))}
           </text>
         </g>
       ))}
@@ -121,6 +156,7 @@ export function CurveChart({
         return (
           <path
             key={s.label}
+            clipPath={`url(#${clipId})`}
             d={d}
             pathLength={s.dashed ? undefined : 1}
             className={s.dashed ? "pop-in" : "chart-line"}

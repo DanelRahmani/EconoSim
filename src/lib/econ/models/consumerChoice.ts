@@ -43,8 +43,8 @@ export function consumerCore(m: MicroOptions): ConsumerCore {
   const t = new Tracer();
   const env = { alpha: m.weight, I: m.income, px: m.px, py: m.py };
 
-  const x = t.step("Demand for x — x* = αI/pₓ", evaluate(demandXExpr, env), demandXExpr, env);
-  const y = t.step("Demand for y — y* = (1−α)I/p_y", evaluate(demandYExpr, env), demandYExpr, env);
+  const x = t.step("Demand for x: x* = αI/pₓ", evaluate(demandXExpr, env), demandXExpr, env);
+  const y = t.step("Demand for y: y* = (1−α)I/p_y", evaluate(demandYExpr, env), demandYExpr, env);
   const utility = t.step("Utility at the optimum", evaluate(utilityExpr, { ...env, x, y }), utilityExpr, {
     ...env,
     x,
@@ -55,7 +55,7 @@ export function consumerCore(m: MicroOptions): ConsumerCore {
     evaluate(mrsExpr, { ...env, x, y }),
     mrsExpr,
     { ...env, x, y },
-    "Equal to the price ratio — that is what makes this the best affordable bundle",
+    "Equal to the price ratio. That is what makes this the best affordable bundle",
   );
 
   return {
@@ -98,7 +98,7 @@ export function consumerChoice(_e: Economy, m: MicroOptions): Panel[] {
       id: "consumer-choice",
       title: "The best affordable bundle",
       description:
-        "The budget line shows what is affordable; the indifference curve shows what the consumer is equally happy with. The best bundle is where the curve just touches the line — the point where the marginal rate of substitution equals the price ratio.",
+        "The budget line shows what is affordable; the indifference curve shows what the consumer is equally happy with. The best bundle is where the curve just touches the line: the point where the marginal rate of substitution equals the price ratio.",
       chart: {
         xLabel: "Good x",
         yLabel: "Good y",
@@ -111,16 +111,16 @@ export function consumerChoice(_e: Economy, m: MicroOptions): Panel[] {
       scalars: [
         { label: "x*", value: core.x },
         { label: "y*", value: core.y },
-        { label: "Utility U", value: core.utility, hint: "Ordinal only — the number means nothing, the ordering does" },
+        { label: "Utility U", value: core.utility, hint: "Ordinal only: the number means nothing, the ordering does" },
         { label: "MRS at the optimum", value: core.mrs, hint: "How much y the consumer will give up for one more x" },
         { label: "Price ratio pₓ/p_y", value: core.priceRatio },
-        { label: "Share of income on x", value: core.shareX, hint: "α — fixed, whatever the prices" },
+        { label: "Share of income on x", value: core.shareX, hint: "α, fixed whatever the prices" },
         { label: "Spending on x", value: m.px * core.x },
         { label: "Spending on y", value: m.py * core.y },
       ],
       notes: [
         `The tangency condition holds exactly: MRS = ${core.mrs.toFixed(3)} equals pₓ/p_y = ${core.priceRatio.toFixed(3)}. If they differed, the consumer could trade along the budget line and do better.`,
-        `Cobb-Douglas spends a fixed share of income on each good — ${(w * 100).toFixed(0)}% on x and ${((1 - w) * 100).toFixed(0)}% on y — whatever the prices are. That is what the demand curve below is really showing.`,
+        `Cobb-Douglas spends a fixed share of income on each good (${(w * 100).toFixed(0)}% on x and ${((1 - w) * 100).toFixed(0)}% on y), whatever the prices are. That is what the demand curve below is really showing.`,
         "The honest caveat: utility here is ordinal, so the level is meaningless; and this is a two-good, no-saving, no-uncertainty world. The Hicks decomposition of a price change into income and substitution effects is the natural next step and is not shown.",
       ],
       trace: core.trace,
@@ -129,7 +129,7 @@ export function consumerChoice(_e: Economy, m: MicroOptions): Panel[] {
       id: "consumer-demand",
       title: "The demand curve that falls out of it",
       description:
-        "Fix income and the price of y, and vary the price of x. The quantity demanded traces out a demand curve — and for Cobb-Douglas preferences it is a rectangular hyperbola: unit elasticity, so total spending on x never changes.",
+        "Fix income and the price of y, and vary the price of x. The quantity demanded traces out a demand curve, and for Cobb-Douglas preferences it is a rectangular hyperbola: unit elasticity, so total spending on x never changes.",
       chart: {
         xLabel: "Quantity of x",
         yLabel: "Price of x",
@@ -138,11 +138,11 @@ export function consumerChoice(_e: Economy, m: MicroOptions): Panel[] {
       },
       scalars: [
         { label: "Price elasticity of demand", value: -1, hint: "Exactly minus one, everywhere, for Cobb-Douglas" },
-        { label: "Spending pₓ·x at any price", value: w * m.income, hint: "Constant — the unit-elastic case in one number" },
+        { label: "Spending pₓ·x at any price", value: w * m.income, hint: "Constant: the unit-elastic case in one number" },
       ],
       notes: [
         "Double the price of x and the quantity halves: revenue pₓx is unchanged. A firm with Cobb-Douglas consumers faces a unit-elastic demand curve and never wants to change its price.",
-        "Slide the price of x and watch the optimum move along the budget line — but the *shares* of income never move.",
+        "Slide the price of x and watch the optimum move along the budget line, but the *shares* of income never move.",
       ],
       trace: [],
     },

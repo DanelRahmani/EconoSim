@@ -71,7 +71,7 @@ export function crisisCore(e: Economy, horizon = 50): CrisisCore {
       crisisTime,
       undefined,
       undefined,
-      "Reserves run out exactly when credit has grown to fill the whole money supply — T* = −ln(1 − R₀/M)/ln(1 + μ), which the expression language cannot write, so it is stated rather than typeset",
+      "Reserves run out exactly when credit has grown to fill the whole money supply: T* = −ln(1 − R₀/M)/ln(1 + μ), which the expression language cannot write, so it is stated rather than typeset",
     );
   }
 
@@ -110,7 +110,7 @@ export function currencyCrisis(e: Economy, horizon = 50): Panel[] {
   return [
     {
       id: "crisis-reserves",
-      title: `Reserves against the shadow rate — next ${horizon} periods`,
+      title: `Reserves against the shadow rate: next ${horizon} periods`,
       description:
         "Reserves fall as domestic credit grows, and the exchange rate the market would set without them rises towards the peg. Both are measured against the peg's own scale: reserves as a share of the money supply, the shadow rate as a percentage of the peg. They meet at the collapse date.",
       timeseries: {
@@ -147,7 +147,7 @@ export function currencyCrisis(e: Economy, horizon = 50): Panel[] {
         fixed
           ? "The regime is set to Fixed, so this is the case the model is about."
           : "The regime is currently Floating, so there is no peg here to defend. Switch the exchange rate to Fixed to make this the model's case.",
-        "The honest caveat: with constant real money demand the attack lands exactly when reserves reach zero. Allow money demand to depend on the interest rate and the peg breaks slightly *before* exhaustion — Obstfeld's refinement, which this version deliberately does not model.",
+        "The honest caveat: with constant real money demand the attack lands exactly when reserves reach zero. Allow money demand to depend on the interest rate and the peg breaks slightly *before* exhaustion. That is Obstfeld's refinement, which this version deliberately does not model.",
       ],
       trace: core.trace,
     },
@@ -173,7 +173,7 @@ export function currencyCrisis(e: Economy, horizon = 50): Panel[] {
         {
           label: "Reserves lost per period",
           value: core.initialCredit * mu,
-          hint: "D₀·μ — the drain that has to be financed from reserves",
+          hint: "D₀·μ: the drain that has to be financed from reserves",
         },
         {
           label: "Collapse date if credit grew twice as fast",
@@ -188,7 +188,7 @@ export function currencyCrisis(e: Economy, horizon = 50): Panel[] {
         },
       ],
       notes: [
-        "The curve is drawn capped at 200 periods so the interesting region stays visible. Low credit growth does not merely delay the collapse, it postpones it by a lot — which is the whole argument for financing a deficit with debt rather than seigniorage.",
+        "The curve is drawn capped at 200 periods so the interesting region stays visible. Low credit growth does not merely delay the collapse, it postpones it by a lot, which is the whole argument for financing a deficit with debt rather than seigniorage.",
         "The policy conclusions fall straight out: stop the domestic credit growth, or abandon the peg deliberately and devalue before the market does it for you.",
       ],
       trace: [],
