@@ -3,34 +3,53 @@
 /* Theme is driven by a data-theme attribute so the toggle can override the OS. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/*
+ * Tokens follow the danelrahmani.com design system: creme cloth and a maroon thread
+ * in light, aubergine-black and raspberry in dark. `surface` is the system's `panel`;
+ * `surface-2` is its `tint`, made opaque so it can sit under a slider track.
+ * `gain` and `series-*` are EconoSim's own: a chart needs more than one colour, so the
+ * supporting series are muted, warm-leaning hues that sit beside the thread.
+ */
 :root {
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --surface-2: #f1f3f7;
-  --ink: #0b0d12;
-  --muted: #5b6472;
-  --accent: #e11d48;
+  --bg: #fdfbf6;
+  --surface: #faf6ed;
+  --surface-2: #f2ebe2;
+  --ink: #1c1917;
+  --muted: #57534e;
+  --accent: #4a0e0e;
+  --accent-hover: #6b1515;
   --accent-ink: #ffffff;
-  --gain: #0d9488;
-  --hairline: rgba(11, 13, 18, 0.09);
-  --ridge: rgba(255, 255, 255, 0.9);
-  --shadow: 0 1px 2px rgba(11, 13, 18, 0.05);
-  --shadow-hover: 0 14px 34px -20px rgba(11, 13, 18, 0.5);
+  --gain: #1f5f55;
+  --hairline: rgba(74, 14, 14, 0.1);
+  --seam: rgba(74, 14, 14, 0.3);
+  --tint: rgba(74, 14, 14, 0.06);
+  --series-2: #1f5f55;
+  --series-3: #a16207;
+  --series-4: #3f4a8a;
+  --series-6: #b4536a;
+  --shadow: 0 1px 2px -1px rgba(74, 14, 14, 0.06), 0 2px 4px 0 rgba(74, 14, 14, 0.04);
+  --shadow-hover: 0 2px 4px -2px rgba(74, 14, 14, 0.08), 0 12px 24px -4px rgba(74, 14, 14, 0.12);
 }
 
 [data-theme="dark"] {
-  --bg: #07080b;
-  --surface: #0d0f14;
-  --surface-2: #141822;
-  --ink: #f4f6f9;
-  --muted: #98a1b0;
-  --accent: #ff4d6d;
-  --accent-ink: #1a0509;
-  --gain: #2fe0a0;
-  --hairline: rgba(244, 246, 249, 0.1);
-  --ridge: rgba(255, 255, 255, 0.045);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-hover: 0 16px 40px -22px rgba(0, 0, 0, 0.85);
+  --bg: #0f090e;
+  --surface: #150d14;
+  --surface-2: #22161f;
+  --ink: #f4efea;
+  --muted: #a8a29e;
+  --accent: #d43d55;
+  --accent-hover: #e8566a;
+  --accent-ink: #ffffff;
+  --gain: #5fb8a6;
+  --hairline: rgba(168, 162, 158, 0.2);
+  --seam: rgba(212, 61, 85, 0.32);
+  --tint: rgba(212, 61, 85, 0.1);
+  --series-2: #5fb8a6;
+  --series-3: #d9a441;
+  --series-4: #8f9be0;
+  --series-6: #e8a0b0;
+  --shadow: 0 1px 2px -1px rgba(0, 0, 0, 0.3), 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+  --shadow-hover: 0 2px 4px -2px rgba(0, 0, 0, 0.35), 0 12px 24px -4px rgba(212, 61, 85, 0.16);
 }
 
 @theme inline {
@@ -40,11 +59,14 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
+  --color-accenthover: var(--accent-hover);
   --color-accentink: var(--accent-ink);
   --color-gain: var(--gain);
   --color-hairline: var(--hairline);
+  --color-tint: var(--tint);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-bodoni), Didot, "Bodoni MT", Georgia, serif;
 }
 
 html {
@@ -62,24 +84,58 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Surface: faint top-light gradient over the card colour, 1px rise on hover. */
+/* The panel: the one raised surface. Never nested. */
 .card {
   position: relative;
-  border-radius: 0.875rem;
+  border-radius: 1.5rem;
   border: 1px solid var(--hairline);
-  background: linear-gradient(180deg, var(--ridge), transparent 46%), var(--surface);
+  background: var(--surface);
   box-shadow: var(--shadow);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* Interactive cards lift 2px. */
 .card-hover:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-hover);
-  border-color: color-mix(in oklab, var(--accent) 26%, var(--hairline));
 }
 
-/* Rose accent glow used on primary affordances. */
-.accent-glow {
-  box-shadow: 0 8px 26px -14px color-mix(in oklab, var(--accent) 70%, transparent);
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+
+/*
+ * The basting stitch: 1.5px dashes of 9, gaps of 7. As a seam between sections it is
+ * 1px in the seam colour. Drawn with a repeating gradient because a CSS dashed border
+ * cannot set its dash length.
+ */
+.seam {
+  height: 1px;
+  border: 0;
+  background-image: repeating-linear-gradient(90deg, var(--seam) 0 9px, transparent 9px 16px);
+}
+.seam-top {
+  background-image: repeating-linear-gradient(90deg, var(--seam) 0 9px, transparent 9px 16px);
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+  background-position: top;
+}
+
+/* A link that draws a 1px thread underline from the left. */
+.link-thread {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  transition: background-size 0.25s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease;
+}
+.link-thread:hover,
+.link-thread:focus-visible {
+  background-size: 100% 1px;
 }
 
 input[type="range"] {
@@ -108,11 +164,7 @@ input[type="range"].slider::-webkit-slider-thumb {
   border-radius: 999px;
   background: var(--accent);
   border: 2px solid var(--surface);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-  transition: transform 0.15s ease;
-}
-input[type="range"].slider:hover::-webkit-slider-thumb {
-  transform: scale(1.15);
+  box-shadow: var(--shadow);
 }
 input[type="range"].slider::-moz-range-track {
   height: 4px;
@@ -128,7 +180,12 @@ input[type="range"].slider::-moz-range-thumb {
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--accent) 30%, transparent);
+  background: color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+:focus-visible {
+  outline: 1.5px dashed var(--accent);
+  outline-offset: 2px;
 }
 
 /* --- Motion ----------------------------------------------------------------- */
@@ -136,7 +193,8 @@ input[type="range"].slider::-moz-range-thumb {
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px);
+    filter: blur(5px);
   }
   to {
     opacity: 1;
@@ -172,39 +230,20 @@ input[type="range"].slider::-moz-range-thumb {
   animation: draw 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-@keyframes aurora {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(0, -3%, 0) scale(1.09);
-  }
-}
-
-.aurora {
-  animation: aurora 16s ease-in-out infinite;
-}
-
-@keyframes shine {
+/* The stitch sewing itself in under the wordmark, once, on load. */
+@keyframes sew {
   from {
-    transform: translateX(-130%);
+    clip-path: inset(0 100% 0 0);
   }
   to {
-    transform: translateX(130%);
+    clip-path: inset(0 0 0 0);
   }
 }
-
-.shine::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.35) 50%, transparent 80%);
-  transform: translateX(-130%);
-  pointer-events: none;
-}
-.shine:hover::after {
-  animation: shine 0.75s ease;
+.stitch-under {
+  display: block;
+  height: 1.5px;
+  background-image: repeating-linear-gradient(90deg, var(--accent) 0 9px, transparent 9px 16px);
+  animation: sew 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
 }
 
 @keyframes pop-in {

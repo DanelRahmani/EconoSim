@@ -16,7 +16,7 @@ export function PresetManager({ current, onLoad }: { current: Economy; onLoad: (
 
   return (
     <div className="card reveal p-4" style={{ animationDelay: "60ms" }}>
-      <h2 className="mb-2.5 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">My presets</h2>
+      <h2 className="mb-2.5 font-mono text-[0.75rem]  text-muted">My presets</h2>
 
       <div className="flex gap-1.5">
         <input

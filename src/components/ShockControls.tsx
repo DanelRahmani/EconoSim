@@ -54,7 +54,7 @@ export function ShockControls({
   return (
     <section className="card reveal p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold tracking-tight text-ink">Shock this economy</h3>
+        <h3 className="font-display text-base font-semibold tracking-[-0.01em] text-ink">Shock this economy</h3>
         {specs.length > 0 && (
           <button
             type="button"
@@ -81,7 +81,7 @@ export function ShockControls({
               onClick={() => onTogglePreset(s.id)}
               className={`rounded-full border px-3 py-1 text-xs transition-all duration-200 ${
                 on
-                  ? "border-accent bg-accent text-accentink accent-glow"
+                  ? "border-accent bg-accent text-accentink"
                   : "border-hairline text-muted hover:-translate-y-px hover:border-accent/50 hover:text-ink"
               }`}
             >
@@ -125,7 +125,7 @@ export function ShockControls({
           </button>
         ) : (
           <div className="rounded-xl border border-hairline bg-surface2/50 p-3">
-            <div className="font-mono text-[0.625rem] uppercase tracking-wider text-muted">Your shock</div>
+            <div className="font-mono text-[0.75rem]  text-muted">Your shock</div>
 
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <label className="text-[0.75rem] text-muted">
@@ -194,7 +194,7 @@ export function ShockControls({
               <button
                 type="button"
                 onClick={add}
-                className="rounded-full bg-accent px-4 py-1.5 text-xs font-medium text-accentink accent-glow transition-transform hover:-translate-y-px"
+                className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-accentink transition-colors hover:bg-accenthover"
               >
                 Add shock
               </button>

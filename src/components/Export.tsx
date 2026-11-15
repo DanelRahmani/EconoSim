@@ -19,9 +19,13 @@ const CHART_TOKENS = [
   "--ink",
   "--muted",
   "--accent",
-  "--accentink",
+  "--accent-ink",
   "--hairline",
   "--gain",
+  "--series-2",
+  "--series-3",
+  "--series-4",
+  "--series-6",
 ];
 
 function download(content: string, filename: string, mime: string) {

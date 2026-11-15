@@ -6,7 +6,15 @@ import { fmtNum } from "@/lib/format";
 import { axisDomain, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
 
 /** Series palette tuned to read on both the cool-white and near-black grounds. */
-export const SERIES_COLORS = ["#F43F5E", "#14B8A6", "#8B5CF6", "#F59E0B", "#06B6D4", "#EC4899"];
+/** The thread first, ink second, then muted supporting hues; all theme tokens. */
+export const SERIES_COLORS = [
+  "var(--accent)",
+  "var(--ink)",
+  "var(--series-2)",
+  "var(--series-3)",
+  "var(--series-4)",
+  "var(--series-6)",
+];
 
 const DEFAULT_WIDTH = 560;
 
@@ -91,7 +99,7 @@ export function CurveChart({
     <div>
       {interactive && (
       <div className="mb-1.5 flex items-center justify-end gap-1.5">
-        <span className="mr-auto font-mono text-[0.625rem] uppercase tracking-wider text-muted/70">
+        <span className="mr-auto font-mono text-[0.75rem]  text-muted/70">
           {view ? `zoomed ${x0.toFixed(2)} – ${x1.toFixed(2)} (${spec.xLabel})` : "drag across the chart to zoom"}
         </span>
         <ZoomButton label="+" title="Zoom in" onClick={() => setZoom(zoomWindow([x0, x1], full, 0.5))} />

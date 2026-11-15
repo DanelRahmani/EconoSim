@@ -97,7 +97,7 @@ export function Segmented<T extends string>({
       >
         <span
           aria-hidden
-          className="absolute top-0.5 bottom-0.5 rounded-full bg-accent accent-glow transition-[left] duration-300 ease-out"
+          className="absolute top-0.5 bottom-0.5 rounded-full bg-accent transition-[left] duration-300 ease-out"
           style={{
             width: `calc((100% - 4px) / ${options.length})`,
             left: `calc(2px + (100% - 4px) / ${options.length} * ${index})`,

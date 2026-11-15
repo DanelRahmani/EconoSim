@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { Wordmark } from "@/components/ui/Wordmark";
 import { useEffect, useMemo, useState } from "react";
 import type {
   AiOptions,
@@ -316,7 +318,7 @@ function GameControls({ value, onChange }: { value: GameOptions; onChange: (v: G
   return (
     <div className="space-y-3">
       <div>
-        <div className="mb-1 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Game</div>
+        <div className="mb-1 font-mono text-[0.75rem]  text-muted">Game</div>
         <div className="flex flex-wrap gap-1.5">
           {options.map((o) => (
             <button
@@ -326,7 +328,7 @@ function GameControls({ value, onChange }: { value: GameOptions; onChange: (v: G
               onClick={() => onChange({ ...value, game: o.id })}
               className={`rounded-full border px-2.5 py-1 text-xs transition-all duration-200 ${
                 value.game === o.id
-                  ? "border-accent bg-accent text-accentink accent-glow"
+                  ? "border-accent bg-accent text-accentink"
                   : "border-hairline text-muted hover:-translate-y-px hover:border-accent/50 hover:text-ink"
               }`}
             >
@@ -373,7 +375,7 @@ function SweepControl({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="sweep-param" className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
+        <label htmlFor="sweep-param" className="font-mono text-[0.75rem]  text-muted">
           Comparative statics
         </label>
         <select
@@ -392,7 +394,7 @@ function SweepControl({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor="sweep-axis" className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
+        <label htmlFor="sweep-axis" className="font-mono text-[0.75rem]  text-muted">
           Sweep the curve
         </label>
         <select
@@ -430,7 +432,7 @@ function SweepControl({
 /** Compact time-window picker, shown above a time-path chart. */function HorizonControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Time window</span>
+      <span className="font-mono text-[0.75rem]  text-muted">Time window</span>
       <div className="inline-flex overflow-hidden rounded-full border border-hairline">
         {HORIZON_PRESETS.map((h) => (
           <button
@@ -452,18 +454,6 @@ function SweepControl({
         help="How far forward the path is plotted, in periods. A short window keeps the early periods readable; a long one shows the full convergence to the steady state."
       />
     </div>
-  );
-}
-
-function LogoMark() {
-  return (
-    <span
-      aria-hidden
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] font-mono text-sm font-bold text-accentink accent-glow"
-      style={{ background: "linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--gain) 65%, var(--accent)))" }}
-    >
-      Σ
-    </span>
   );
 }
 
@@ -628,24 +618,14 @@ export function Simulator() {
 
   return (
     <div className="relative min-h-screen">
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div
-          className="aurora absolute -left-40 -top-48 h-[28rem] w-[28rem] rounded-full blur-[130px]"
-          style={{ background: "color-mix(in oklab, var(--accent) 20%, transparent)" }}
-        />
-        <div
-          className="aurora absolute -top-24 right-0 h-80 w-80 rounded-full blur-[130px]"
-          style={{ background: "color-mix(in oklab, var(--gain) 16%, transparent)", animationDelay: "3s" }}
-        />
-      </div>
-
       <header className="sticky top-0 z-20 border-b border-hairline bg-bg/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1520px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-3">
-            <LogoMark />
+            <Link href="/" aria-label="EconoSim home" className="shrink-0">
+              <Wordmark size="sm" />
+            </Link>
             <div className="min-w-0 leading-tight">
-              <div className="text-base font-bold tracking-tight text-ink">EconoSim</div>
-              <div className="truncate font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
+              <div className="truncate font-mono text-[0.75rem]  text-muted">
                 {economy.name}
                 {hasShocks && <span className="text-accent"> · {shocks.length} shock{shocks.length > 1 ? "s" : ""}</span>}
               </div>
@@ -712,7 +692,7 @@ export function Simulator() {
       <div className="relative z-10 mx-auto grid max-w-[1520px] gap-4 p-4 lg:grid-cols-[230px_minmax(0,1fr)_300px]">
         <aside className="space-y-4">
           <div className="card reveal p-4">
-            <h2 className="mb-2.5 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Country presets</h2>
+            <h2 className="mb-2.5 font-mono text-[0.75rem]  text-muted">Country presets</h2>
             <div className="flex flex-wrap gap-1.5">
               {COUNTRIES.map((c) => {
                 const active = economy.name === c.name;
@@ -724,7 +704,7 @@ export function Simulator() {
                     onClick={() => loadEconomy(withDefaults({ ...c.params, name: c.name }))}
                     className={`rounded-full border px-2.5 py-1 text-xs transition-all duration-200 ${
                       active
-                        ? "border-accent bg-accent text-accentink accent-glow"
+                        ? "border-accent bg-accent text-accentink"
                         : "border-hairline text-muted hover:-translate-y-px hover:border-accent/50 hover:text-ink"
                     }`}
                   >
@@ -741,10 +721,10 @@ export function Simulator() {
           <PresetManager current={economy} onLoad={loadEconomy} />
 
           <nav className="card reveal p-4" style={{ animationDelay: "110ms" }}>
-            <h2 className="mb-2.5 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Models</h2>
+            <h2 className="mb-2.5 font-mono text-[0.75rem]  text-muted">Models</h2>
             {MODEL_GROUPS.map((g) => (
               <div key={g} className="mb-3 last:mb-0">
-                <div className="mb-1 font-mono text-[0.625rem] uppercase tracking-wider text-muted/70">{g}</div>
+                <div className="mb-1 font-mono text-[0.75rem]  text-muted/70">{g}</div>
                 <div className="flex flex-col gap-0.5">
                   {MODELS.filter((m) => m.group === g).map((m) => {
                     const active = model === m.id;
@@ -772,7 +752,7 @@ export function Simulator() {
               </div>
             ))}
             <div className="mt-1 border-t border-hairline pt-3">
-              <div className="mb-1 font-mono text-[0.625rem] uppercase tracking-wider text-muted/70">Reference</div>
+              <div className="mb-1 font-mono text-[0.75rem]  text-muted/70">Reference</div>
               <button
                 type="button"
                 onClick={() => setModel("glossary")}
@@ -862,7 +842,7 @@ export function Simulator() {
               );
             })
           ) : (
-            <div className="card border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-ink">
+            <div className="card border-accent/40 bg-tint px-4 py-3 text-sm text-ink">
               This model could not be computed with the current parameters. Adjust the sliders to bring the economy
               back into range.
             </div>
@@ -871,7 +851,7 @@ export function Simulator() {
 
         <aside className="lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
           <div className="card reveal p-4">
-            <h2 className="mb-1 font-mono text-[0.6875rem] uppercase tracking-wider text-muted">Parameters</h2>
+            <h2 className="mb-1 font-mono text-[0.75rem]  text-muted">Parameters</h2>
 
             <Segmented<Openness>
               label="Openness"
@@ -909,7 +889,7 @@ export function Simulator() {
               if (!defs.length) return null;
               return (
                 <div key={g} className="mt-3 border-t border-hairline pt-3">
-                  <div className="mb-1 font-mono text-[0.625rem] uppercase tracking-wider text-muted/70">{g}</div>
+                  <div className="mb-1 font-mono text-[0.75rem]  text-muted/70">{g}</div>
                   {defs.map((p) => (
                     <ParamControl
                       key={p.key}

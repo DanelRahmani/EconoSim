@@ -3,33 +3,33 @@ import { SITE_DOMAIN } from "@/lib/site";
 
 /**
  * The link-preview card (1200×630), shared by opengraph-image and twitter-image.
- * Drawn in the dark theme's tokens with the header's Σ mark. Sizes are chosen to
- * survive being shown ~400px wide (a third of full size): nothing below 30px.
+ * Drawn in the light theme of the danelrahmani.com system: creme cloth, maroon
+ * thread, the name in Bodoni Moda italic. Sizes are chosen to survive being shown
+ * ~400px wide (a third of full size): nothing below 30px.
  */
 
-const BG = "#07080b";
-const SURFACE = "#0d0f14";
-const INK = "#f4f6f9";
-const MUTED = "#98a1b0";
-const ROSE = "#ff4d6d";
-const TEAL = "#2fe0a0";
+const BG = "#fdfbf6";
+const PANEL = "#faf6ed";
+const INK = "#1c1917";
+const MUTED = "#57534e";
+const ACCENT = "#4a0e0e";
+const SEAM = "rgba(74,14,14,0.3)";
 
 const TITLE = "An economy you can build, shock and understand.";
 const TAGLINE = "Live economics models, with every step of the maths shown.";
 const TEXT = `EconoSim${TITLE}${TAGLINE}${SITE_DOMAIN}`;
 
 /**
- * Geist, the site's typeface, in one weight. ImageResponse bundles only Geist
- * Regular, and once any custom font is passed it falls back glyph by glyph, so
- * both weights are fetched from Google Fonts, subset to the characters on the
- * card. Cached, so the image routes render once at build rather than per request.
- * If either fetch fails the card still renders, in the bundled regular weight.
+ * One face from Google Fonts, subset to the characters on the card. ImageResponse
+ * bundles only Geist Regular, so anything else must be fetched. Cached, so the image
+ * routes render once at build rather than per request. A failed fetch returns null
+ * and the card falls back to the bundled face.
  */
-async function geist(weight: 400 | 700): Promise<ArrayBuffer | null> {
+async function googleFont(family: string, axes: string): Promise<ArrayBuffer | null> {
   "use cache";
   try {
     const css = await (
-      await fetch(`https://fonts.googleapis.com/css2?family=Geist:wght@${weight}&text=${encodeURIComponent(TEXT)}`)
+      await fetch(`https://fonts.googleapis.com/css2?family=${family}:${axes}&text=${encodeURIComponent(TEXT)}`)
     ).text();
     const src = css.match(/src: url\((.+?)\) format\('(opentype|truetype)'\)/)?.[1];
     if (!src) return null;
@@ -41,14 +41,15 @@ async function geist(weight: 400 | 700): Promise<ArrayBuffer | null> {
 }
 
 export async function renderOgCard(): Promise<ImageResponse> {
-  const [regular, bold] = await Promise.all([geist(400), geist(700)]);
-  const fonts =
-    regular && bold
-      ? [
-          { name: "Geist", data: regular, weight: 400 as const, style: "normal" as const },
-          { name: "Geist", data: bold, weight: 700 as const, style: "normal" as const },
-        ]
-      : undefined;
+  const [geist, bodoni] = await Promise.all([
+    googleFont("Geist", "wght@400"),
+    googleFont("Bodoni+Moda", "ital,wght@1,400"),
+  ]);
+  const fonts = [
+    ...(geist ? [{ name: "Geist", data: geist, weight: 400 as const, style: "normal" as const }] : []),
+    ...(bodoni ? [{ name: "Bodoni Moda", data: bodoni, weight: 400 as const, style: "italic" as const }] : []),
+  ];
+  const display = bodoni ? "Bodoni Moda" : "Geist";
 
   return new ImageResponse(
     (
@@ -59,8 +60,7 @@ export async function renderOgCard(): Promise<ImageResponse> {
           display: "flex",
           flexDirection: "column",
           background: BG,
-          backgroundImage:
-            "radial-gradient(circle at 10% 0%, rgba(255,77,109,0.30), transparent 45%), radial-gradient(circle at 96% 8%, rgba(47,224,160,0.18), transparent 40%)",
+          backgroundImage: "radial-gradient(circle at 12% 0%, rgba(74,14,14,0.07), transparent 50%)",
           color: INK,
           padding: "60px 72px 52px",
           fontFamily: "Geist",
@@ -69,52 +69,49 @@ export async function renderOgCard(): Promise<ImageResponse> {
       >
         <div style={{ display: "flex", flex: 1 }}>
           <div style={{ display: "flex", flexDirection: "column", width: 720 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-              <svg width="72" height="72" viewBox="0 0 32 32">
-                <defs>
-                  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#e11d48" />
-                    <stop offset="1" stopColor="#b0485a" />
-                  </linearGradient>
-                </defs>
-                <rect width="32" height="32" rx="8" fill="url(#g)" />
-                <path
-                  d="M22.5 10.5V8.5H9.5L16.5 16L9.5 23.5H22.5V21.5"
-                  fill="none"
-                  stroke="#fff"
-                  strokeWidth="3.2"
-                  strokeLinejoin="miter"
-                  strokeLinecap="square"
-                />
+            <div style={{ display: "flex", flexDirection: "column", alignSelf: "flex-start" }}>
+              <div style={{ fontFamily: display, fontStyle: "italic", fontSize: 54, lineHeight: 1, letterSpacing: -1 }}>
+                EconoSim
+              </div>
+              <svg width="230" height="6" viewBox="0 0 230 6" style={{ marginTop: 10 }}>
+                <line x1="1" y1="3" x2="229" y2="3" stroke={ACCENT} strokeWidth="3" strokeDasharray="18 14" strokeLinecap="round" />
               </svg>
-              <div style={{ fontSize: 46, fontWeight: 700, letterSpacing: -1 }}>EconoSim</div>
             </div>
-            <div style={{ marginTop: 48, fontSize: 74, fontWeight: 700, lineHeight: 1.04, letterSpacing: -2.5 }}>
+            <div
+              style={{
+                marginTop: 44,
+                fontFamily: display,
+                fontStyle: "italic",
+                fontSize: 76,
+                lineHeight: 1.06,
+                letterSpacing: -1.5,
+              }}
+            >
               {TITLE}
             </div>
           </div>
 
           <div style={{ display: "flex", flex: 1, justifyContent: "flex-end", paddingTop: 30 }}>
             <svg width="320" height="320" viewBox="0 0 400 400">
-              <rect x="10" y="10" width="380" height="380" rx="28" fill={SURFACE} stroke="rgba(244,246,249,0.12)" />
+              <rect x="10" y="10" width="380" height="380" rx="32" fill={PANEL} stroke="rgba(74,14,14,0.12)" />
               <line x1="70" y1="330" x2="350" y2="330" stroke={MUTED} strokeWidth="3" />
               <line x1="70" y1="330" x2="70" y2="60" stroke={MUTED} strokeWidth="3" />
               {/* LM rising; IS before (dashed) and after a fiscal expansion */}
-              <line x1="90" y1="310" x2="340" y2="80" stroke={TEAL} strokeWidth="8" strokeLinecap="round" />
-              <line x1="80" y1="110" x2="290" y2="320" stroke={ROSE} strokeOpacity="0.55" strokeWidth="7" strokeDasharray="16 13" />
-              <line x1="140" y1="80" x2="350" y2="290" stroke={ROSE} strokeWidth="8" strokeLinecap="round" />
-              <circle cx="189" cy="219" r="11" fill={INK} fillOpacity="0.6" />
-              <circle cx="236" cy="176" r="14" fill={ROSE} stroke={SURFACE} strokeWidth="4" />
+              <line x1="90" y1="310" x2="340" y2="80" stroke={INK} strokeWidth="7" strokeLinecap="round" />
+              <line x1="80" y1="110" x2="290" y2="320" stroke={SEAM} strokeWidth="6" strokeDasharray="18 14" strokeLinecap="round" />
+              <line x1="140" y1="80" x2="350" y2="290" stroke={ACCENT} strokeWidth="8" strokeLinecap="round" />
+              <circle cx="189" cy="219" r="10" fill={MUTED} />
+              <circle cx="236" cy="176" r="14" fill={ACCENT} stroke={PANEL} strokeWidth="4" />
             </svg>
           </div>
         </div>
 
         <div style={{ display: "flex", fontSize: 32, color: MUTED }}>{TAGLINE}</div>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18, fontSize: 30, color: ROSE }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18, fontSize: 30, color: ACCENT }}>
           {SITE_DOMAIN}
         </div>
       </div>
     ),
-    { width: 1200, height: 630, fonts },
+    { width: 1200, height: 630, fonts: fonts.length ? fonts : undefined },
   );
 }

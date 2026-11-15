@@ -22,7 +22,7 @@ function DataTable({ spec }: { spec: TableSpec }) {
               <th
                 key={c}
                 scope="col"
-                className="border border-hairline px-2 py-1.5 text-center font-mono text-[0.6875rem] uppercase tracking-wider text-muted"
+                className="border border-hairline px-2 py-1.5 text-center font-mono text-[0.75rem]  text-muted"
               >
                 {c}
               </th>
@@ -34,7 +34,7 @@ function DataTable({ spec }: { spec: TableSpec }) {
             <tr key={r.label}>
               <th
                 scope="row"
-                className="border border-hairline px-2 py-2 text-left font-mono text-[0.6875rem] uppercase tracking-wider text-muted"
+                className="border border-hairline px-2 py-2 text-left font-mono text-[0.75rem]  text-muted"
               >
                 {r.label}
               </th>
@@ -112,8 +112,8 @@ export function PanelCard({
   const dataTable = panel.chart || panel.timeseries ? seriesToTable(panel.chart ?? panel.timeseries!) : undefined;
 
   return (
-    <section className="card card-hover reveal p-5" style={index ? { animationDelay: `${index * 80}ms` } : undefined}>
-      <h3 className="text-base font-semibold tracking-tight text-ink">{panel.title}</h3>
+    <section className="card reveal p-5" style={index ? { animationDelay: `${index * 80}ms` } : undefined}>
+      <h3 className="font-display text-lg font-semibold tracking-[-0.01em] text-ink">{panel.title}</h3>
       {panel.description && <p className="mt-1 text-sm leading-relaxed text-muted">{panel.description}</p>}
 
       {chartControls && <div className="mt-3">{chartControls}</div>}
@@ -128,7 +128,7 @@ export function PanelCard({
 
       {dataTable && (
         <details className="mt-3">
-          <summary className="cursor-pointer font-mono text-[0.6875rem] uppercase tracking-wider text-muted transition-colors hover:text-ink">
+          <summary className="cursor-pointer font-mono text-[0.75rem]  text-muted transition-colors hover:text-ink">
             Data table
           </summary>
           <DataTable spec={dataTable} />
@@ -153,7 +153,7 @@ export function PanelCard({
               key={s.label}
               className="min-w-0 rounded-lg border border-hairline bg-surface2/60 px-3 py-2.5 transition-colors hover:border-accent/40"
             >
-              <dt className="flex flex-wrap items-center gap-x-1 break-words font-mono text-[0.6875rem] uppercase leading-tight tracking-wider text-muted">
+              <dt className="flex flex-wrap items-center gap-x-1 break-words font-mono text-[0.75rem] leading-tight  text-muted">
                 <span>{s.label}</span>
                 {s.hint && <InfoNote help={s.hint} label={s.label} />}
               </dt>

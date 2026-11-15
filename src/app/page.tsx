@@ -1,92 +1,70 @@
 import Link from "next/link";
 import { HeroChart } from "@/components/HeroChart";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { Wordmark } from "@/components/ui/Wordmark";
 
 const FEATURES = [
   {
+    kicker: "Construct",
     title: "Build an economy",
     body: "Set technology, capital and labour, saving and growth, fiscal and monetary policy, and how open the economy is. Or start from a real-country preset.",
   },
   {
+    kicker: "Solow, IS-LM, AD-AS",
     title: "Short and long run",
     body: "Solow-Swan for the long run, IS-LM and AD-AS for the short run, and the dynamics that carry one to the other.",
   },
   {
+    kicker: "Mundell-Fleming, Dornbusch",
     title: "Open economy",
     body: "Mundell-Fleming under fixed vs. floating rates, small vs. large countries, plus parity conditions, overshooting, external balance and trade flows.",
   },
   {
+    kicker: "Trace",
     title: "See the maths",
     body: "Every chart comes with the theory and a live, step-by-step trace of the exact calculation the engine ran.",
   },
 ];
 
-function LogoMark() {
-  return (
-    <span
-      aria-hidden
-      className="grid h-8 w-8 place-items-center rounded-[10px] font-mono text-sm font-bold text-accentink accent-glow"
-      style={{ background: "linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--gain) 65%, var(--accent)))" }}
-    >
-      Σ
-    </span>
-  );
-}
-
 export default function Home() {
   return (
     <div className="relative flex flex-1 flex-col">
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div
-          className="aurora absolute -left-32 -top-40 h-[30rem] w-[30rem] rounded-full blur-[140px]"
-          style={{ background: "color-mix(in oklab, var(--accent) 22%, transparent)" }}
-        />
-        <div
-          className="aurora absolute -top-24 right-[-6rem] h-[26rem] w-[26rem] rounded-full blur-[140px]"
-          style={{ background: "color-mix(in oklab, var(--gain) 18%, transparent)", animationDelay: "4s" }}
-        />
-      </div>
+      {/* The one gradient the system allows: a faint radial tint behind the hero. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[36rem]"
+        style={{ background: "radial-gradient(60% 55% at 20% 0%, var(--tint), transparent 70%)" }}
+      />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-2.5">
-          <LogoMark />
-          <span className="text-base font-bold tracking-tight text-ink">EconoSim</span>
-        </div>
+      <header className="relative z-10 mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-6 sm:px-6">
+        <Wordmark />
         <ThemeToggle />
       </header>
 
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-6 pb-20 pt-10">
-        <p className="reveal font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-accent">
-          Economics simulator
-        </p>
+      <main className="relative z-10 mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-12 sm:px-6">
+        <p className="reveal font-mono text-[0.8125rem] text-muted">An economics simulator</p>
         <h1
-          className="reveal mt-4 max-w-4xl text-4xl font-bold leading-[1.05] tracking-tight text-ink sm:text-6xl"
+          className="reveal mt-4 max-w-3xl font-display text-[2.75rem] font-normal leading-[1.08] tracking-[-0.02em] text-ink sm:text-[4rem]"
           style={{ animationDelay: "60ms" }}
         >
-          An economy you can build,{" "}
-          <span
-            className="bg-clip-text text-transparent"
-            style={{ backgroundImage: "linear-gradient(100deg, var(--accent), color-mix(in oklab, var(--gain) 80%, var(--accent)))" }}
-          >
-            shock and understand.
-          </span>
+          An economy you can build, <em className="text-accent">shock and understand.</em>
         </h1>
         <p
-          className="reveal mt-6 max-w-2xl text-lg leading-relaxed text-muted"
+          className="reveal mt-6 max-w-2xl text-base leading-7 text-muted"
           style={{ animationDelay: "120ms" }}
         >
           Choose the parameters, watch the curves and time paths respond, introduce shocks, and open any diagram to
           see the exact calculations behind it. Everything runs in your browser.
         </p>
 
-        <div className="reveal mt-9 flex flex-wrap items-center gap-3" style={{ animationDelay: "180ms" }}>
+        <div className="reveal mt-9 flex flex-wrap items-center gap-4" style={{ animationDelay: "180ms" }}>
           <Link
             href="/simulator"
-            className="shine relative inline-flex h-12 items-center justify-center overflow-hidden rounded-full bg-accent px-7 text-base font-medium text-accentink accent-glow transition-transform duration-200 hover:-translate-y-0.5"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-accent px-6 text-sm font-semibold text-accentink transition-colors duration-200 hover:bg-accenthover"
           >
-            Open the simulator →
+            Open the simulator
           </Link>
-          <span className="font-mono text-xs text-muted">
+          <span className="font-mono text-[0.8125rem] text-muted">
             IS-LM · AD-AS · Solow · Mundell-Fleming · Dornbusch
           </span>
         </div>
@@ -95,37 +73,36 @@ export default function Home() {
           <HeroChart />
         </div>
 
-        <dl className="mt-16 grid gap-4 sm:grid-cols-2">
+        <hr className="seam mt-24" />
+
+        <h2 className="mt-16 font-display text-2xl font-semibold tracking-[-0.01em] text-ink">What it does</h2>
+        <dl className="mt-4">
           {FEATURES.map((f, i) => (
             <div
               key={f.title}
-              className="card card-hover reveal p-5"
+              className={`reveal grid gap-2 py-10 sm:grid-cols-[14rem_1fr] sm:gap-10 ${i > 0 ? "seam-top" : ""}`}
               style={{ animationDelay: `${240 + i * 70}ms` }}
             >
-              <dt className="text-base font-semibold tracking-tight text-ink">{f.title}</dt>
-              <dd className="mt-1.5 text-sm leading-relaxed text-muted">{f.body}</dd>
+              <div className="font-mono text-[0.8125rem] text-muted">{f.kicker}</div>
+              <div>
+                <dt className="font-display text-xl font-semibold tracking-[-0.01em] text-ink">{f.title}</dt>
+                <dd className="mt-2 max-w-2xl text-base leading-7 text-muted">{f.body}</dd>
+              </div>
             </div>
           ))}
         </dl>
-
       </main>
 
-      <footer className="relative z-10 border-t border-hairline">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-mono text-[0.6875rem] text-muted">
+      <footer className="relative z-10 seam-top">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="font-mono text-[0.8125rem] text-muted">
             No backend, no database, no accounts. The models are computed in the browser.
           </p>
-          <nav aria-label="Elsewhere" className="flex items-center gap-5 text-sm">
-            <a
-              href="https://danelrahmani.com"
-              className="text-muted transition-colors hover:text-accent"
-            >
+          <nav aria-label="Elsewhere" className="flex items-center gap-5 text-sm font-medium">
+            <a href="https://danelrahmani.com" className="link-thread text-accent">
               danelrahmani.com
             </a>
-            <a
-              href="https://github.com/DanelRahmani/EconoSim"
-              className="text-muted transition-colors hover:text-accent"
-            >
+            <a href="https://github.com/DanelRahmani/EconoSim" className="link-thread text-accent">
               Source on GitHub
             </a>
           </nav>

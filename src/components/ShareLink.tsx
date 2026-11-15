@@ -47,7 +47,7 @@ export function ShareLink({ build }: { build: () => string }) {
 
       {url && (
         <div className="flex basis-full flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface2/60 px-3 py-2">
-          <label htmlFor="share-url" className="font-mono text-[0.6875rem] uppercase tracking-wider text-muted">
+          <label htmlFor="share-url" className="font-mono text-[0.75rem]  text-muted">
             Link
           </label>
           <input

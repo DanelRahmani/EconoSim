@@ -49,21 +49,16 @@ const LEGEND = [
   { label: "LM", color: SERIES_COLORS[1] },
 ];
 
-/** One loop, in ms: rest, ease out, hold, ease back. */
-const REST = 1400;
+/** Played once, in ms: rest on the old equilibrium, then ease out to the new one and stay. */
+const REST = 900;
 const OUT = 1800;
-const HOLD = 2600;
-const BACK = 1800;
-const CYCLE = REST + OUT + HOLD + BACK;
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-function shiftAt(ms: number): number {
-  const t = ms % CYCLE;
+function shiftAt(t: number): number {
   if (t < REST) return 0;
   if (t < REST + OUT) return ease((t - REST) / OUT);
-  if (t < REST + OUT + HOLD) return 1;
-  return 1 - ease((t - REST - OUT - HOLD) / BACK);
+  return 1;
 }
 
 const REDUCE = "(prefers-reduced-motion: reduce)";
@@ -110,7 +105,9 @@ export function HeroChart() {
         shown = next;
         setShift(next);
       }
-      raf = requestAnimationFrame(tick);
+      // Nothing loops: once the curve has settled the figure holds still.
+      if (now - start < REST + OUT) raf = requestAnimationFrame(tick);
+      else if (shown !== 1) setShift(1);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -141,10 +138,10 @@ export function HeroChart() {
   return (
     <figure ref={box} className="card p-4 sm:p-5">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-accent">
-          Live · IS-LM · fiscal expansion
+        <span className="font-mono text-[0.8125rem] text-accent">
+          IS-LM, a fiscal expansion
         </span>
-        <span className="font-mono text-[0.6875rem] text-muted">
+        <span className="font-mono text-[0.8125rem] text-muted">
           G {fmtNum(BASE.G, 0)} → {fmtNum(BASE.G + DG, 0)}
         </span>
       </div>
