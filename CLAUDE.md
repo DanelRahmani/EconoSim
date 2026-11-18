@@ -1,6 +1,6 @@
 # EconoSim — working notes for the next session
 
-_Last updated 2026-10-11 · 21 models · 109 tests · live at <https://econosim.danelrahmani.com>_
+_Last updated 2026-11-18 · 21 models · 174 tests · live at <https://econosim.danelrahmani.com>_
 _(the session log below carries the commit hashes; `git log` is the truth for HEAD)_
 
 This file is the handoff note: what exists, how to extend it without breaking it, what is
@@ -58,7 +58,9 @@ src/lib/econ/            the engine — pure, no React
   math.ts                solveLinear, rk4, bisection, linspace, clamp, round
   panel.ts               the output types: Panel, ChartSpec, TimeSeriesSpec, TableSpec, Scalar,
                          plus seriesToTable() — the text alternative behind every chart
-  registry.ts            RunOptions, DEFAULT_* constants, the MODELS array
+  registry.ts            RunOptions, DEFAULT_* constants, the MODELS array, and MODEL_INPUTS —
+                         which sliders and switches each model reads (key dials first)
+  params.ts              the slider definitions (label, range, help) and GROUP_ORDER
   shocks.ts              preset shocks + the user-defined shock builder
   permalink.ts           encode/decode the whole view into ?s=
   comparativeStatics.ts  sweepPanel() — the "G↑ ⇒ Y↑, r↑, I↓" grid, built from a model's
@@ -67,7 +69,7 @@ src/lib/econ/            the engine — pure, no React
   export.ts              panelToCsv / panelsToCsv — the figures *and* the working as a CSV
   glossary.ts            symbol reference shown in the Glossary tab
   models/*.ts            one file per model — 21 of them
-  engine.test.ts         the whole suite (141 tests)
+  engine.test.ts         the whole suite (174 tests)
 src/lib/scale.ts         axisDomain() — the axis rule, plus the zoom-window maths
 src/components/          PanelCard renders any Panel; CurveChart (SVG), TimeSeriesChart (Recharts)
 src/app/                 landing page + /simulator
@@ -102,9 +104,13 @@ new model needs no new UI unless it needs its own dials.
 2. **Register it in `registry.ts`** — add to `MODELS` with `id`, `label`, `group`, `blurb`,
    `run`. Group order in the sidebar follows first appearance in the array, so insert it at
    the position you want the group to appear.
-3. **Parameters** live in `Economy` (genuine economic structure) and need four touch points:
+3. **List its inputs in `MODEL_INPUTS`** (`registry.ts`): `key` (the 2–4 dials shown first),
+   `uses` (every slider it reads) and `structure` (openness / size / regime, if they change it).
+   The Parameters panel shows only these, shocks are offered only if they touch them, and a
+   test perturbs every slider and switch and fails if the list is wrong in either direction.
+   **Parameters** live in `Economy` (genuine economic structure) and need four touch points:
    `types.ts`, `defaults.ts`, `validateEconomy()` if it needs a range guard, and a `PARAMS`
-   entry in `Simulator.tsx` with a `group` that appears in `GROUP_ORDER`.
+   entry in `params.ts` with a `group` that appears in `GROUP_ORDER`.
    **Scenario dials** (hypotheticals, model-specific switches) go in `RunOptions` instead,
    following the `AiOptions` pattern: an interface in `types.ts`, a `DEFAULT_*` in
    `registry.ts`, a control component in `Simulator.tsx`, and an entry in `scenarioControls`.
@@ -227,6 +233,17 @@ the exact-arithmetic promise the trace panels make.
 ## Session log
 
 Work in this session, newest first:
+
+- 2026-11-18 — **usability pass after a live review.** `e3b1b5a` fixed the charts: ticks on a
+  1/2/5 step (`niceTicks`), AD-AS no longer plotting negative prices, the oil shock actually
+  moving AD-AS (potential output nets off `1 − m(P* − 1)` in an open economy), marker labels
+  that dodge each other, locale-proof number boxes. `bb50319` made each model show only the
+  sliders, switches and shocks it reads (`MODEL_INPUTS`, tested by perturbation; Simple/Expert
+  removed). `923982c` reorganised the page: opens on IS-LM, models first, a five-control
+  header with a ⋯ menu, compare switching on at the first change, a "what moved" line under
+  each chart, and comparative statics/sweeps in a collapsed Analysis card with their results
+  beside the pickers. `7b7a202` did mobile: a model select, a bottom parameter sheet, and
+  charts that draw in their own pixels so tick text stays legible. 150 → 174 tests.
 
 - This session — **a parameter swept onto the x-axis.** The last Tier-1 item: two new dials
   (`sweepAxis`, `sweepFigure`) append a panel plotting one figure against the whole range of
