@@ -17,14 +17,14 @@ export function defaultEconomy(): Economy {
     G: 20,
     T: 20,
 
-    M: 90,
+    M: 72,
     P: 1,
     kY: 0.5,
     hR: 200,
 
     c0: 10,
     c1: 0.6,
-    I0: 72,
+    I0: 51,
     b: 200,
 
     openness: "open",

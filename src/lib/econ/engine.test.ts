@@ -1452,3 +1452,17 @@ describe("chart units", () => {
     for (const p of crisisCore(defaultEconomy(), 120).path) expect(p.reserves).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe("default calibration", () => {
+  it("demand at the expected price level sits at potential, so AD-AS opens in equilibrium", () => {
+    const e = defaultEconomy();
+    const Y = islmCore(e).Y;
+    const Yn = naturalOutput(e);
+    expect(Math.abs(Y - Yn) / Yn).toBeLessThan(0.005);
+  });
+
+  it("the IS-LM rate sits near the world rate", () => {
+    const e = defaultEconomy();
+    expect(Math.abs(islmCore(e).r - e.rStar)).toBeLessThan(0.005);
+  });
+});

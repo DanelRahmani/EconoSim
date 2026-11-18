@@ -180,7 +180,9 @@ keyboard-accessible path, and the drag is a convenience on top.
 sensible nominal rate and the Phillips model opens on a *disinflation*), and `markup = 0.03`
 with `wagePush = 0.02` (so the WS-PS linearisation `(m+z)/γ` lands exactly on `un = 0.05`).
 Change one of these and the defaults stop being mutually consistent — check the other models
-before moving them.
+before moving them. The demand side is pinned too: `M = 72` and `I0 = 51` put IS-LM output at
+P = 1 on the Solow potential (≈157, within 0.3%) with r ≈ 3.2%, next to r* = 3%. That is what
+lets AD-AS open in equilibrium and the ZLB scenario bind by default; a test holds both.
 
 **`next dev` rewrites `AGENTS.md`.** Leave that file alone; the block is regenerated on every
 dev-server start, and removing it just recreates the uncommitted change.
