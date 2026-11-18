@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import type { ChartSpec, Point } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
-import { axisDomain, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
+import { axisDomain, niceTicks, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
 
 /** Series palette tuned to read on both the cool-white and near-black grounds. */
 /** The thread first, ink second, then muted supporting hues; all theme tokens. */
@@ -18,13 +18,39 @@ export const SERIES_COLORS = [
 
 const DEFAULT_WIDTH = 560;
 
+/** Rough width of a marker label in viewBox units, at its 11px bold size. */
+const labelWidth = (text: string) => text.length * 6.6 + 4;
+
+type Box = { x0: number; y0: number; x1: number; y1: number };
+const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
 /**
- * Decimals for an axis whose five ticks span lo..hi: one for most axes, more when the
- * step is small, so an interest-rate axis reads 0.05, 0.1, 0.15 instead of 0.1, 0.1, 0.2.
+ * Where each marker's label goes. The default is up and to the right of the dot;
+ * when that would sit on an earlier label or dot (the Solow "k̂*" and "golden
+ * rule" labels collide once the two points are close), the next free corner wins.
  */
-function tickDp(lo: number, hi: number): number {
-  const step = (hi - lo) / 5;
-  return step > 0 && step < 1 ? Math.max(1, Math.ceil(-Math.log10(step))) : 1;
+function placeLabels(points: { x: number; y: number; label: string }[], bounds: Box) {
+  const placed: Box[] = points.map((p) => ({ x0: p.x - 5, y0: p.y - 5, x1: p.x + 5, y1: p.y + 5 }));
+  return points.map((p) => {
+    const w = labelWidth(p.label);
+    const options = [
+      { dx: 8, dy: -6, anchor: "start" as const },
+      { dx: 8, dy: 16, anchor: "start" as const },
+      { dx: -8, dy: -6, anchor: "end" as const },
+      { dx: -8, dy: 16, anchor: "end" as const },
+    ];
+    const boxOf = (o: (typeof options)[number]): Box => {
+      const x0 = o.anchor === "start" ? p.x + o.dx : p.x + o.dx - w;
+      return { x0, y0: p.y + o.dy - 10, x1: x0 + w, y1: p.y + o.dy + 2 };
+    };
+    const inside = (b: Box) => b.x0 >= bounds.x0 && b.x1 <= bounds.x1 && b.y0 >= bounds.y0 && b.y1 <= bounds.y1;
+    const pick =
+      options.find((o) => inside(boxOf(o)) && !placed.some((b) => overlaps(b, boxOf(o)))) ??
+      options.find((o) => !placed.some((b) => overlaps(b, boxOf(o)))) ??
+      options[0];
+    placed.push(boxOf(pick));
+    return pick;
+  });
 }
 
 function finite(points: Point[]): Point[] {
@@ -69,7 +95,7 @@ export function CurveChart({
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
 
   const all = [...spec.series.flatMap((s) => finite(s.points)), ...(spec.markers ?? [])];
-  const full: Window = domain?.x ?? axisDomain(all.map((p) => p.x));
+  const full: Window = domain?.x ?? axisDomain(all.map((p) => p.x), undefined, spec.xBounds);
   // A zoom left over from another parameter is clamped, and dropped if the data
   // has since moved out from under it.
   const view = zoom ? clampWindow(zoom, full) : null;
@@ -78,7 +104,7 @@ export function CurveChart({
   const inWindow = all.filter((p) => p.x >= x0 && p.x <= x1);
   // The y-axis rescales to what is actually in view, which is the whole point of
   // zooming: a concave curve only shows its curvature when the frame is tight.
-  const [y0, y1] = domain?.y ?? axisDomain((inWindow.length ? inWindow : all).map((p) => p.y));
+  const [y0, y1] = domain?.y ?? axisDomain((inWindow.length ? inWindow : all).map((p) => p.y), undefined, spec.yBounds);
   const sx = (x: number) => pad.l + ((x - x0) / (x1 - x0)) * iw;
   const sy = (y: number) => pad.t + ih - ((y - y0) / (y1 - y0)) * ih;
 
@@ -89,11 +115,15 @@ export function CurveChart({
     return x0 + ((units - pad.l) / iw) * (x1 - x0);
   };
 
-  const ticks = (lo: number, hi: number, n = 5) => {
-    const out: number[] = [];
-    for (let i = 0; i <= n; i++) out.push(lo + ((hi - lo) * i) / n);
-    return out;
-  };
+  const xTicks = niceTicks(x0, x1);
+  const yTicks = niceTicks(y0, y1);
+  const shownMarkers = (spec.markers ?? []).filter(
+    (m) => Number.isFinite(m.x) && Number.isFinite(m.y) && m.x >= x0 && m.x <= x1,
+  );
+  const labelPlacement = placeLabels(
+    shownMarkers.map((m) => ({ x: sx(m.x), y: sy(m.y), label: m.label })),
+    { x0: pad.l, y0: pad.t, x1: pad.l + iw, y1: pad.t + ih },
+  );
 
   return (
     <div>
@@ -105,7 +135,7 @@ export function CurveChart({
         <ZoomButton label="+" title="Zoom in" onClick={() => setZoom(zoomWindow([x0, x1], full, 0.5))} />
         <ZoomButton label="−" title="Zoom out" onClick={() => setZoom(zoomWindow([x0, x1], full, 2))} />
         <ZoomButton
-          label="Reset"
+          label="Full view"
           title="Show the full range"
           disabled={!view}
           onClick={() => setZoom(null)}
@@ -140,19 +170,19 @@ export function CurveChart({
         </clipPath>
       </defs>
       <rect x={pad.l} y={pad.t} width={iw} height={ih} fill="none" stroke="var(--hairline)" />
-      {ticks(x0, x1).map((t, i) => (
+      {xTicks.ticks.map((t, i) => (
         <g key={`x${i}`}>
           <line x1={sx(t)} y1={pad.t} x2={sx(t)} y2={pad.t + ih} stroke="var(--hairline)" />
           <text x={sx(t)} y={H - pad.b + 16} textAnchor="middle" fontSize={10} fill="var(--muted)">
-            {fmtNum(t, tickDp(x0, x1))}
+            {fmtNum(t, xTicks.dp)}
           </text>
         </g>
       ))}
-      {ticks(y0, y1).map((t, i) => (
+      {yTicks.ticks.map((t, i) => (
         <g key={`y${i}`}>
           <line x1={pad.l} y1={sy(t)} x2={pad.l + iw} y2={sy(t)} stroke="var(--hairline)" />
           <text x={pad.l - 8} y={sy(t) + 3} textAnchor="end" fontSize={10} fill="var(--muted)">
-            {fmtNum(t, tickDp(y0, y1))}
+            {fmtNum(t, yTicks.dp)}
           </text>
         </g>
       ))}
@@ -179,16 +209,27 @@ export function CurveChart({
         );
       })}
 
-      {(spec.markers ?? []).map((m) =>
-        Number.isFinite(m.x) && Number.isFinite(m.y) ? (
+      {shownMarkers.map((m, i) => {
+        const at = labelPlacement[i];
+        return (
           <g key={m.label + m.x}>
             <circle cx={sx(m.x)} cy={sy(m.y)} r={4.5} fill="var(--accent)" stroke="var(--surface)" strokeWidth={1.5} />
-            <text x={sx(m.x) + 8} y={sy(m.y) - 6} fontSize={11} fontWeight={600} fill="var(--ink)">
+            <text
+              x={sx(m.x) + at.dx}
+              y={sy(m.y) + at.dy}
+              textAnchor={at.anchor}
+              fontSize={11}
+              fontWeight={600}
+              fill="var(--ink)"
+              paintOrder="stroke"
+              stroke="var(--surface)"
+              strokeWidth={3}
+            >
               {m.label}
             </text>
           </g>
-        ) : null,
-      )}
+        );
+      })}
 
       {drag && Math.abs(sx(drag.to) - sx(drag.from)) > 2 && (
         <rect

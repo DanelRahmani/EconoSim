@@ -24,6 +24,9 @@ export interface ChartSpec {
   yLabel: string;
   series: LineSpec[];
   markers?: MarkerSpec[];
+  /** Hard limits the axes may not be padded past, e.g. [0, 100] for a percentage probability. */
+  xBounds?: [number, number];
+  yBounds?: [number, number];
 }
 
 export interface SeriesSpec {

@@ -11,6 +11,25 @@ export function naturalOutput(e: Economy): number {
   return e.A * e.L * core.ySteady;
 }
 
+/**
+ * How much of potential output survives the cost of imported inputs: 1 − m·(P* − 1).
+ *
+ * A share m of the economy's inputs is bought abroad at the foreign price P*
+ * (1 in the baseline). Dearer imports — an oil shock — make the same factors
+ * produce less, so potential output falls: LRAS and SRAS both shift left, the
+ * textbook adverse supply shock. A closed economy buys nothing abroad, so its
+ * factor is 1. Floored at 0.1 so an extreme P* cannot drive potential to zero.
+ */
+export function importCostFactor(e: Economy): number {
+  if (e.openness !== "open") return 1;
+  return Math.max(0.1, 1 - e.importProp * (e.pStar - 1));
+}
+
+/** Potential output in AD-AS: the Solow level, net of the imported-input cost. */
+export function adasPotential(e: Economy): number {
+  return naturalOutput(e) * importCostFactor(e);
+}
+
 /** Aggregate demand: output from the IS-LM block as the price level varies. */
 export function adOutput(e: Economy, P: number): number {
   const D = (1 - e.c1) + (e.b * e.kY) / e.hR;
@@ -53,9 +72,27 @@ export function adasPath(e: Economy, Yn: number, horizon = 60, steps = 300): Ada
 
 export function adas(e: Economy, horizon = 60): Panel[] {
   const t = new Tracer();
-  const Yn = naturalOutput(e);
   const core = solowCore(e);
-  t.step("Natural output Yn (Solow steady state)", Yn, mul(v("A"), v("L"), v("y")), { A: e.A, L: e.L, y: core.ySteady }, "Potential output the long-run AS curve sits at");
+  const Ysolow = t.step(
+    "Solow output A·L·ŷ*",
+    naturalOutput(e),
+    mul(v("A"), v("L"), v("y")),
+    { A: e.A, L: e.L, y: core.ySteady },
+    "Output at the Solow steady state",
+  );
+  const factor = importCostFactor(e);
+  const Yn = Ysolow * factor;
+  if (e.openness === "open") {
+    t.step(
+      "Natural output Yn (net of imported-input cost)",
+      Yn,
+      mul(v("Y_s"), sub(num(1), mul(v("m"), sub(v("P^*"), num(1))))),
+      { Y_s: Ysolow, m: e.importProp, "P^*": e.pStar },
+      factor === 0.1
+        ? "Floored: the imported-input cost is never allowed to take more than 90% of potential output"
+        : "A dearer foreign price level P* (an oil shock) makes the same factors produce less: LRAS shifts left",
+    );
+  }
   const eq = shortRunEquilibrium(e, e.P, Yn);
   t.step(
     "Short-run output Y (AD ∩ SRAS)",
@@ -68,9 +105,11 @@ export function adas(e: Economy, horizon = 60): Panel[] {
   );
   const path = adasPath(e, Yn, horizon, Math.max(120, Math.min(1200, Math.round(horizon * 5))));
 
-  const yMax = Math.max(Yn * 1.4, eq.Y * 1.2, 100);
-  const ys = linspace(1, yMax, 120);
-  const ps = linspace(0.2, Math.max(eq.P * 1.6, 1.6), 120);
+  // Both curves are drawn over one range of prices, so neither can wander into
+  // negative prices: SRAS used to be drawn over output from 1 upward, which at
+  // λ = 0.5 put its left end at P ≈ −100 and squashed the equilibrium flat.
+  const pTop = Math.max(eq.P * 1.6, 1.6);
+  const ps = linspace(Math.max(0.2, eq.P * 0.6), pTop, 120);
 
   return [
     {
@@ -83,8 +122,8 @@ export function adas(e: Economy, horizon = 60): Panel[] {
         yLabel: "Price level (P)",
         series: [
           { label: "AD", points: ps.map((P) => ({ x: adOutput(e, P), y: P })) },
-          { label: "SRAS", points: ys.map((Y) => ({ x: Y, y: e.P + e.lambda * (Y - Yn) })) },
-          { label: "LRAS", points: [{ x: Yn, y: 0.2 }, { x: Yn, y: 20 }], dashed: true },
+          { label: "SRAS", points: ps.map((P) => ({ x: srasOutput(e, P, e.P, Yn), y: P })) },
+          { label: "LRAS", points: [{ x: Yn, y: ps[0] }, { x: Yn, y: pTop }], dashed: true },
         ],
         markers: [{ x: eq.Y, y: eq.P, label: "E" }],
       },

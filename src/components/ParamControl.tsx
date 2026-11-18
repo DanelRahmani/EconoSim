@@ -1,7 +1,55 @@
 "use client";
 
+import { useState } from "react";
 import { fmtNum } from "@/lib/format";
 import { InfoNote } from "./ui/InfoNote";
+
+/**
+ * A numeric text box that always writes a decimal point.
+ *
+ * `<input type="number">` formats with the browser's locale, so a Dutch browser
+ * showed "0,33" beside axes that read 0.33. This box shows the value with a dot,
+ * accepts either a dot or a comma while typing, and commits on every valid edit.
+ */
+function NumberField({
+  value,
+  min,
+  max,
+  label,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  label: string;
+  onChange: (v: number) => void;
+}) {
+  // While the box is focused it holds whatever was typed, so "0." is not erased mid-edit.
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? (Number.isFinite(value) ? String(Number(value.toFixed(6))) : "0");
+  const commit = (text: string) => {
+    const n = Number(text.replace(",", "."));
+    if (text.trim() !== "" && Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)));
+  };
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      aria-label={`${label} value`}
+      value={shown}
+      onFocus={() => setDraft(shown)}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        commit(e.target.value);
+      }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      className="ml-auto w-20 shrink-0 rounded-md border border-hairline bg-surface2 px-1.5 py-0.5 text-right font-mono text-[0.6875rem] text-ink transition-colors focus:border-accent focus:outline-none"
+    />
+  );
+}
 
 /** A labelled slider with a synced numeric input and a click-to-open explanation. */
 export function ParamControl({
@@ -29,18 +77,7 @@ export function ParamControl({
           {label}
         </label>
         {help && <InfoNote help={help} label={label} />}
-        <input
-          type="number"
-          value={Number.isFinite(value) ? value : 0}
-          min={min}
-          max={max}
-          step={step}
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            if (Number.isFinite(n)) onChange(Math.min(max, Math.max(min, n)));
-          }}
-          className="ml-auto w-20 shrink-0 rounded-md border border-hairline bg-surface2 px-1.5 py-0.5 text-right font-mono text-[0.6875rem] text-ink transition-colors focus:border-accent focus:outline-none"
-        />
+        <NumberField value={value} min={min} max={max} label={label} onChange={onChange} />
       </div>
       <input
         id={id}

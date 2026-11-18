@@ -266,7 +266,11 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
           "Each cell shows (row player's payoff, column player's payoff). Underlined payoffs are best responses; tinted cells are Nash equilibria.",
       },
       scalars: [
-        { label: "Pure Nash equilibria", value: core.nashCount },
+        {
+          label: "Number of pure Nash equilibria",
+          value: core.nashCount,
+          hint: "How many cells of the matrix are Nash equilibria. They are the tinted cells above.",
+        },
         ...(core.mixed
           ? [
               {
@@ -335,6 +339,7 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
           },
         ],
         markers,
+        xBounds: [0, 100],
       },
       scalars: [
         ...(core.mixed

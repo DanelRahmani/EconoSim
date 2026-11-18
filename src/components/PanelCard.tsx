@@ -57,6 +57,24 @@ function DataTable({ spec }: { spec: TableSpec }) {
   );
 }
 
+/**
+ * Bodoni's hyphen is a hairline about as wide as a space, so "IS-LM" read as
+ * "IS LM" in a heading. Hyphens are set in the sans face, which has a visible one.
+ */
+export function SolidHyphens({ text }: { text: string }) {
+  const parts = text.split("-");
+  return (
+    <>
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && <span className="font-sans font-medium">-</span>}
+          {part}
+        </span>
+      ))}
+    </>
+  );
+}
+
 /** A small up/down chip showing a figure against its baseline value. */
 function Delta({ value, previous }: { value: number; previous: number }) {
   const diff = value - previous;
@@ -113,7 +131,9 @@ export function PanelCard({
 
   return (
     <section className="card reveal p-5" style={index ? { animationDelay: `${index * 80}ms` } : undefined}>
-      <h3 className="font-display text-lg font-semibold tracking-[-0.01em] text-ink">{panel.title}</h3>
+      <h3 className="font-display text-lg font-semibold tracking-[-0.01em] text-ink">
+        <SolidHyphens text={panel.title} />
+      </h3>
       {panel.description && <p className="mt-1 text-sm leading-relaxed text-muted">{panel.description}</p>}
 
       {chartControls && <div className="mt-3">{chartControls}</div>}

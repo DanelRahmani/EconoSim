@@ -32,9 +32,9 @@ const DEFAULT_PAD = 0.08;
  * is flat — a flat series drawn *alongside* a varying one is clamped with the
  * rest, which is the usual shape (the AK model's dashed "No growth" baseline).
  */
-export function axisDomain(values: number[], pad = DEFAULT_PAD): [number, number] {
+export function axisDomain(values: number[], pad = DEFAULT_PAD, bounds?: [number, number]): [number, number] {
   const finite = values.filter(Number.isFinite);
-  if (!finite.length) return [0, 1];
+  if (!finite.length) return bounds ?? [0, 1];
 
   let lo = Math.min(...finite);
   let hi = Math.max(...finite);
@@ -45,7 +45,39 @@ export function axisDomain(values: number[], pad = DEFAULT_PAD): [number, number
   }
 
   const room = (hi - lo) * pad;
-  return [lo >= 0 ? Math.max(0, lo - room) : lo - room, hi + room];
+  const out: [number, number] = [lo >= 0 ? Math.max(0, lo - room) : lo - room, hi + room];
+  // A quantity with a hard range — a probability, a share — is never padded past it.
+  if (bounds) {
+    out[0] = Math.max(bounds[0], out[0]);
+    out[1] = Math.min(bounds[1], out[1]);
+  }
+  return out;
+}
+
+/**
+ * Tick positions for an axis spanning `lo..hi`, on a round step (1, 2 or 5 × 10ⁿ),
+ * with the decimals that step needs.
+ *
+ * Dividing the window into equal fifths and rounding each label put "−0.1" on the
+ * zero gridline of the IS-LM chart: the window was −0.53…0.6, the step 0.226, and
+ * one decimal place cannot say where those ticks really are. A round step lands
+ * on zero exactly whenever zero is in range, and each label is then the truth.
+ */
+export function niceTicks(lo: number, hi: number, target = 5): { ticks: number[]; dp: number } {
+  if (!(hi > lo) || !Number.isFinite(lo) || !Number.isFinite(hi)) return { ticks: [lo], dp: 1 };
+  const raw = (hi - lo) / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const unit = raw / mag;
+  const step = (unit < 1.5 ? 1 : unit < 3 ? 2 : unit < 7 ? 5 : 10) * mag;
+  const dp = Math.max(0, -Math.floor(Math.log10(step) + 1e-9));
+  const ticks: number[] = [];
+  const eps = step * 1e-6;
+  for (let t = Math.ceil((lo - eps) / step) * step; t <= hi + eps; t += step) {
+    // Snap to the step's precision, so 0.30000000000000004 reads 0.3 and −0 reads 0.
+    const snapped = Number(t.toFixed(dp + 2)) || 0;
+    ticks.push(snapped);
+  }
+  return { ticks, dp };
 }
 
 /** A range on one axis, as `[min, max]`. */

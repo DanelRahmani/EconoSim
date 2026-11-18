@@ -23,7 +23,7 @@ import { vars, evaluate } from "@/lib/econ/expr";
 import { outputExpr, perWorkerExpr } from "@/lib/econ/models/cobbDouglas";
 import { solowCore, solowPath } from "@/lib/econ/models/solow";
 import { islmCore } from "@/lib/econ/models/islm";
-import { adasPath, naturalOutput, shortRunEquilibrium } from "@/lib/econ/models/adas";
+import { adas, adasPath, importCostFactor, naturalOutput, shortRunEquilibrium } from "@/lib/econ/models/adas";
 import { mfCore } from "@/lib/econ/models/mundellFleming";
 import { dornbusch } from "@/lib/econ/models/dornbusch";
 import { debtNext, debtSteadyState, currentAccount, nationalSaving, investment } from "@/lib/econ/models/externalBalance";
@@ -38,7 +38,7 @@ import {
   sweepPanel,
 } from "@/lib/econ/comparativeStatics";
 import { exportName, panelToCsv, panelsToCsv } from "@/lib/econ/export";
-import { axisDomain, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
+import { axisDomain, clampWindow, niceTicks, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
 import type { Panel } from "@/lib/econ/panel";
 import { seriesToTable } from "@/lib/econ/panel";
 import type { SweepParam } from "@/lib/econ/types";
@@ -1267,5 +1267,69 @@ describe("time window", () => {
   it("widens the window when asked", () => {
     expect(maxX("solow", 100)).toBeGreaterThan(maxX("solow", 10));
     expect(maxX("adas", 100)).toBeGreaterThan(maxX("adas", 10));
+  });
+});
+
+describe("niceTicks", () => {
+  it("puts a tick exactly on zero when zero is in range", () => {
+    const { ticks } = niceTicks(-0.53, 0.6);
+    expect(ticks).toContain(0);
+    expect(ticks.every((t) => !Object.is(t, -0))).toBe(true);
+  });
+
+  it("uses a round step and stays inside the window", () => {
+    for (const [lo, hi] of [[0, 812], [-0.53, 0.6], [2.3, 9.3], [0.001, 0.004], [190.8, 193.2]] as const) {
+      const { ticks } = niceTicks(lo, hi);
+      expect(ticks.length).toBeGreaterThanOrEqual(3);
+      expect(ticks[0]).toBeGreaterThanOrEqual(lo - 1e-9);
+      expect(ticks[ticks.length - 1]).toBeLessThanOrEqual(hi + 1e-9);
+      const step = ticks[1] - ticks[0];
+      const unit = step / Math.pow(10, Math.floor(Math.log10(step) + 1e-9));
+      expect([1, 2, 5, 10].some((u) => Math.abs(unit - u) < 1e-6), `step ${step}`).toBe(true);
+    }
+  });
+
+  it("labels every tick faithfully at its decimals", () => {
+    const { ticks, dp } = niceTicks(-0.53, 0.6);
+    for (const t of ticks) expect(Number(t.toFixed(dp))).toBeCloseTo(t, 12);
+  });
+});
+
+describe("axisDomain bounds", () => {
+  it("never pads a percentage past 100", () => {
+    expect(axisDomain([0, 50, 100], undefined, [0, 100])).toEqual([0, 100]);
+  });
+});
+
+describe("AD-AS chart and supply shocks", () => {
+  it("never plots a negative price", () => {
+    const [panel] = adas(defaultEconomy());
+    for (const s of panel.chart!.series) for (const p of s.points) expect(p.y).toBeGreaterThan(0);
+  });
+
+  it("keeps the equilibrium inside the price range it draws", () => {
+    const [panel] = adas(defaultEconomy());
+    const ys = panel.chart!.series.flatMap((s) => s.points.map((p) => p.y));
+    const P = panel.chart!.markers![0].y;
+    expect(P).toBeGreaterThan(Math.min(...ys));
+    expect(P).toBeLessThan(Math.max(...ys));
+  });
+
+  it("is neutral at the baseline foreign price", () => {
+    expect(importCostFactor(defaultEconomy())).toBe(1);
+  });
+
+  it("the oil shock raises the price level and lowers output", () => {
+    const e = defaultEconomy();
+    const { economy: shocked } = resolveShocks(e, [{ kind: "preset", id: "oil" }]);
+    const fig = (x: typeof e, label: string) => adas(x)[0].scalars!.find((s) => s.label === label)!.value;
+    expect(fig(shocked, "Price level (P*)")).toBeGreaterThan(fig(e, "Price level (P*)"));
+    expect(fig(shocked, "Output (Y*)")).toBeLessThan(fig(e, "Output (Y*)"));
+    expect(fig(shocked, "Natural output (Yn)")).toBeLessThan(fig(e, "Natural output (Yn)"));
+  });
+
+  it("a closed economy does not feel the foreign price", () => {
+    const e = { ...defaultEconomy(), openness: "closed" as const };
+    expect(importCostFactor({ ...e, pStar: 2 })).toBe(1);
   });
 });
