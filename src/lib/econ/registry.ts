@@ -61,8 +61,8 @@ export interface RunOptions {
 export const DEFAULT_HORIZON = 50;
 /** Preset windows — a couple of clicks rather than a fiddly slider. */
 export const HORIZON_PRESETS = [10, 25, 50, 100, 120];
-/** The model the simulator opens on. */
-export const DEFAULT_MODEL = "solow";
+/** The model the simulator opens on: the one a first-year course starts with. */
+export const DEFAULT_MODEL = "islm";
 export const DEFAULT_AI: AiOptions = { substitutionPct: 30, capitalIntensity: 1, capitalProductivity: 1 };
 export const DEFAULT_MICRO: MicroOptions = { px: 1, py: 2, income: 24, weight: 0.5 };
 export const DEFAULT_MARKET: MarketOptions = { demandA: 20, demandB: 1, mc: 4, fixed: 10 };

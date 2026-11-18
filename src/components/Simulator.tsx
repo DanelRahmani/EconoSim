@@ -25,7 +25,7 @@ import { mergePanels } from "@/lib/econ/compare";
 import { sweepAxisPanel, sweepPanel } from "@/lib/econ/comparativeStatics";
 import type { Panel } from "@/lib/econ/panel";
 import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
-import { PanelCard } from "./PanelCard";
+import { PanelCard, SolidHyphens } from "./PanelCard";
 import { ParamControl, Segmented } from "./ParamControl";
 import { ParametersPanel } from "./ParametersPanel";
 import { ShareLink } from "./ShareLink";
@@ -410,6 +410,12 @@ export function Simulator() {
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [showMore, setShowMore] = useState(false);
   const [compare, setCompare] = useState<CompareMode>("current");
+  // Once the reader picks a comparison view themselves, stop choosing it for them.
+  const [compareTouched, setCompareTouched] = useState(false);
+  const chooseCompare = (mode: CompareMode) => {
+    setCompare(mode);
+    setCompareTouched(true);
+  };
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
   const [ai, setAi] = useState<AiOptions>(DEFAULT_AI);
   const [expectations, setExpectations] = useState<Expectations>(DEFAULT_EXPECTATIONS);
@@ -454,7 +460,12 @@ export function Simulator() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const update = (patch: Partial<Economy>) => setEconomy((e) => ({ ...e, ...patch }));
+  // The first change a reader makes switches the comparison on, so the old curves
+  // stay on screen dashed and every figure shows how far it moved.
+  const update = (patch: Partial<Economy>) => {
+    setEconomy((e) => ({ ...e, ...patch }));
+    if (!compareTouched && compare === "current") setCompare("both");
+  };
 
   const inputs = modelInputs(model);
   const sliders = orderedParams(inputs.key, inputs.uses);
@@ -538,6 +549,13 @@ export function Simulator() {
     setBaseline(e);
     setShocks([]);
     setCompare("current");
+    setCompareTouched(false);
+  };
+
+  const pinBaseline = () => {
+    setBaseline({ ...economy });
+    setShocks([]);
+    setCompare("both");
   };
 
   const setShockList = (next: ShockSpec[]) => {
@@ -578,24 +596,112 @@ export function Simulator() {
       <GameControls value={game} onChange={setGame} />
     ) : undefined;
 
+  const modelLabel = model === "glossary" ? "Glossary" : getModel(model).label;
+  const exportStem = `econosim-${modelLabel}-${economy.name}`;
+  const analysisOpen = sweep !== "none" || sweepAxis !== "none";
+
+  const modelButton = (id: string, label: string, title: string) => {
+    const active = model === id;
+    return (
+      <button
+        key={id}
+        type="button"
+        title={title}
+        aria-current={active ? "page" : undefined}
+        onClick={() => selectModel(id)}
+        className={`relative w-full rounded-md py-1.5 pl-3 pr-2 text-left text-xs transition-all duration-200 ${
+          active ? "bg-accent/10 font-medium text-accent" : "text-muted hover:bg-surface2 hover:text-ink"
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`absolute left-0 top-1/2 w-0.5 -translate-y-1/2 rounded-full bg-accent transition-all duration-300 ${
+            active ? "h-4 opacity-100" : "h-0 opacity-0"
+          }`}
+        />
+        {label}
+      </button>
+    );
+  };
+
+  const economyPresets = (
+    <details className="card reveal group p-4">
+      <summary className="flex cursor-pointer list-none items-center justify-between font-mono text-[0.75rem] text-muted marker:content-none hover:text-ink">
+        <span>Economy presets</span>
+        <span aria-hidden className="transition-transform group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <div className="mt-3">
+        <h2 className="mb-2.5 font-mono text-[0.75rem] text-muted">Countries</h2>
+        <div className="flex flex-wrap gap-1.5">
+          {COUNTRIES.map((c) => {
+            const active = economy.name === c.name;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                title={`${c.note}. Source: ${c.source}`}
+                onClick={() => loadEconomy(withDefaults({ ...c.params, name: c.name }))}
+                className={`rounded-full border px-2.5 py-1 text-xs transition-all duration-200 ${
+                  active
+                    ? "border-accent bg-accent text-accentink"
+                    : "border-hairline text-muted hover:-translate-y-px hover:border-accent/50 hover:text-ink"
+                }`}
+              >
+                {c.name}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2.5 text-[0.6875rem] leading-snug text-muted/80">
+          Stylised approximations (World Bank / PWT / AMECO), editable. Real-side parameters only.
+        </p>
+        <div className="mt-4 border-t border-hairline pt-3">
+          <PresetManager current={economy} onLoad={loadEconomy} bare />
+        </div>
+      </div>
+    </details>
+  );
+
+  const HEADER_BUTTON =
+    "rounded-full border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent";
+
   return (
     <div className="relative min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-hairline bg-bg/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1520px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5">
+      <header className="sticky top-0 z-30 border-b border-hairline bg-bg/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1520px] items-center justify-between gap-3 px-4 py-2">
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/" aria-label="EconoSim home" className="shrink-0">
               <Wordmark size="sm" />
             </Link>
-            <div className="min-w-0 leading-tight">
-              <div className="truncate font-mono text-[0.75rem]  text-muted">
+            <div className="hidden min-w-0 leading-tight sm:block">
+              <div className="truncate text-sm font-medium text-ink">
+                <SolidHyphens text={modelLabel} />
+              </div>
+              <div className="truncate font-mono text-[0.6875rem] text-muted">
                 {economy.name}
                 {hasShocks && <span className="text-accent"> · {shocks.length} shock{shocks.length > 1 ? "s" : ""}</span>}
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <ThemeToggle />
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            {model !== "glossary" && (
+              <button
+                type="button"
+                aria-pressed={compare === "both"}
+                onClick={() => chooseCompare(compare === "both" ? "current" : "both")}
+                title={
+                  hasShocks
+                    ? "Show the same economy without the shocks as dashed lines, with the change on every figure"
+                    : "Show the baseline as dashed lines, with the change on every figure"
+                }
+                className={`${HEADER_BUTTON} ${compare === "both" ? "!border-accent !bg-accent !text-accentink" : ""}`}
+              >
+                Compare
+              </button>
+            )}
             <ShareLink
               build={() =>
                 shareUrl(
@@ -603,131 +709,124 @@ export function Simulator() {
                   window.location.href,
                 )
               }
-            />            <div className="w-[13rem]">
-              <Segmented<CompareMode>
-                value={compare}
-                options={[
-                  { value: "current", label: "Current" },
-                  { value: "baseline", label: "Baseline" },
-                  { value: "both", label: "Compare" },
-                ]}
-                onChange={setCompare}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setBaseline({ ...economy });
-                setShocks([]);
-                setCompare("both");
-              }}
-              title="Freeze the current economy as the comparison baseline"
-              className="rounded-full border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent"
-            >
-              Pin baseline
-            </button>
+            />
             <button
               type="button"
               onClick={() => loadEconomy(defaultEconomy())}
-              title="Back to the internally consistent baseline economy"
-              className="rounded-full border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent"
+              title="Back to the baseline economy, with no shocks"
+              className={HEADER_BUTTON}
             >
               Reset
             </button>
-            {panels && panels.length > 0 && (
-              <ExportAllCsv panels={panels} name={`econosim-${getModel(model).label}-${economy.name}`} />
-            )}
+            <details className="relative">
+              <summary
+                aria-label="More actions"
+                className={`${HEADER_BUTTON} cursor-pointer list-none px-2.5 marker:content-none`}
+              >
+                ⋯
+              </summary>
+              <div className="absolute right-0 top-full z-40 mt-2 w-60 space-y-1 rounded-xl border border-hairline bg-surface p-2 shadow-lg">
+                <button
+                  type="button"
+                  onClick={pinBaseline}
+                  className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-ink hover:bg-surface2"
+                >
+                  Pin current economy as baseline
+                  <span className="block text-[0.6875rem] text-muted">Later changes are compared against this.</span>
+                </button>
+                {panels && panels.length > 0 && (
+                  <ExportAllCsv panels={panels} name={exportStem} variant="menu" />
+                )}
+                <div className="flex items-center justify-between px-2.5 py-1 text-xs text-muted">
+                  <span>Theme</span>
+                  <ThemeToggle />
+                </div>
+              </div>
+            </details>
           </div>
         </div>
       </header>
 
-      <div className="relative z-10 mx-auto grid max-w-[1520px] gap-4 p-4 lg:grid-cols-[230px_minmax(0,1fr)_300px]">
+      <div className="relative z-10 mx-auto grid max-w-[1520px] gap-4 p-4 lg:grid-cols-[220px_minmax(0,1fr)_300px]">
         <aside className="space-y-4">
-          {inputs.uses.length > 0 && (
-          <div className="card reveal p-4">
-            <h2 className="mb-2.5 font-mono text-[0.75rem]  text-muted">Country presets</h2>
-            <div className="flex flex-wrap gap-1.5">
-              {COUNTRIES.map((c) => {
-                const active = economy.name === c.name;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    title={`${c.note}. Source: ${c.source}`}
-                    onClick={() => loadEconomy(withDefaults({ ...c.params, name: c.name }))}
-                    className={`rounded-full border px-2.5 py-1 text-xs transition-all duration-200 ${
-                      active
-                        ? "border-accent bg-accent text-accentink"
-                        : "border-hairline text-muted hover:-translate-y-px hover:border-accent/50 hover:text-ink"
-                    }`}
-                  >
-                    {c.name}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-2.5 text-[0.6875rem] leading-snug text-muted/80">
-              Stylised approximations (World Bank / PWT / AMECO), editable. Real-side parameters only.
-            </p>
-          </div>
-          )}
-
-          <PresetManager current={economy} onLoad={loadEconomy} />
-
-          <nav className="card reveal p-4" style={{ animationDelay: "110ms" }}>
-            <h2 className="mb-2.5 font-mono text-[0.75rem]  text-muted">Models</h2>
+          <nav aria-label="Models" className="card reveal p-4">
+            <h2 className="mb-2.5 font-mono text-[0.75rem] text-muted">Models</h2>
             {MODEL_GROUPS.map((g) => (
               <div key={g} className="mb-3 last:mb-0">
-                <div className="mb-1 font-mono text-[0.75rem]  text-muted/70">{g}</div>
+                <div className="mb-1 font-mono text-[0.6875rem] text-muted/70">{g}</div>
                 <div className="flex flex-col gap-0.5">
-                  {MODELS.filter((m) => m.group === g).map((m) => {
-                    const active = model === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        title={m.blurb}
-                        onClick={() => selectModel(m.id)}
-                        className={`relative rounded-md py-1.5 pl-3 pr-2 text-left text-xs transition-all duration-200 ${
-                          active ? "bg-accent/10 font-medium text-accent" : "text-muted hover:bg-surface2 hover:text-ink"
-                        }`}
-                      >
-                        <span
-                          aria-hidden
-                          className={`absolute left-0 top-1/2 w-0.5 -translate-y-1/2 rounded-full bg-accent transition-all duration-300 ${
-                            active ? "h-4 opacity-100" : "h-0 opacity-0"
-                          }`}
-                        />
-                        {m.label}
-                      </button>
-                    );
-                  })}
+                  {MODELS.filter((m) => m.group === g).map((m) => modelButton(m.id, m.label, m.blurb))}
                 </div>
               </div>
             ))}
             <div className="mt-1 border-t border-hairline pt-3">
-              <div className="mb-1 font-mono text-[0.75rem]  text-muted/70">Reference</div>
-              <button
-                type="button"
-                onClick={() => selectModel("glossary")}
-                title="What every symbol and switch means"
-                className={`relative w-full rounded-md py-1.5 pl-3 pr-2 text-left text-xs transition-all duration-200 ${
-                  model === "glossary" ? "bg-accent/10 font-medium text-accent" : "text-muted hover:bg-surface2 hover:text-ink"
-                }`}
-              >
-                <span
-                  aria-hidden
-                  className={`absolute left-0 top-1/2 w-0.5 -translate-y-1/2 rounded-full bg-accent transition-all duration-300 ${
-                    model === "glossary" ? "h-4 opacity-100" : "h-0 opacity-0"
-                  }`}
-                />
-                Glossary
-              </button>
+              <div className="mb-1 font-mono text-[0.6875rem] text-muted/70">Reference</div>
+              {modelButton("glossary", "Glossary", "What every symbol and switch means")}
             </div>
           </nav>
+
+          {inputs.uses.length > 0 && economyPresets}
         </aside>
 
         <main key={model} className="min-w-0 space-y-4">
+          {model !== "glossary" && (
+            <p className="px-1 text-sm leading-relaxed text-muted">{getModel(model).blurb}</p>
+          )}
+
+          {compare !== "current" && model !== "glossary" && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2 text-xs text-muted">
+              <span>
+                {compare === "baseline"
+                  ? "Showing the baseline only."
+                  : hasShocks
+                    ? "Dashed lines and ▲/▼ show the same economy without the shocks."
+                    : "Dashed lines and ▲/▼ show the change from the baseline."}
+              </span>
+              <button
+                type="button"
+                onClick={() => chooseCompare("current")}
+                className="shrink-0 rounded-full border border-hairline px-2.5 py-0.5 transition-colors hover:border-accent/50 hover:text-accent"
+              >
+                Hide comparison
+              </button>
+            </div>
+          )}
+
+          {issues.length > 0 && (
+            <div className="card border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-ink">
+              Some parameters are out of range: {issues.map((i) => i.message).join("; ")}
+            </div>
+          )}
+
+          {model === "glossary" ? (
+            <GlossaryPanel />
+          ) : modelPanels && modelPanels.length > 0 ? (
+            modelPanels.map((p, i) => {
+              const scenario = i === 0 ? scenarioControls : undefined;
+              return (
+                <PanelCard
+                  key={p.id}
+                  panel={p}
+                  index={i}
+                  exportName={exportStem}
+                  chartControls={
+                    scenario || p.timeseries ? (
+                      <div className="space-y-3">
+                        {scenario}
+                        {p.timeseries && <HorizonControl value={horizon} onChange={setHorizon} />}
+                      </div>
+                    ) : undefined
+                  }
+                />
+              );
+            })
+          ) : (
+            <div className="card border-accent/40 bg-tint px-4 py-3 text-sm text-ink">
+              This model could not be computed with the current parameters. Adjust the sliders to bring the economy
+              back into range.
+            </div>
+          )}
+
           {model !== "glossary" && (shockPresets.length > 0 || shocks.length > 0) && (
             <ShockControls
               presets={shockPresets}
@@ -741,74 +840,45 @@ export function Simulator() {
             />
           )}
 
-          {compare !== "current" && model !== "glossary" && (
-            <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-xs text-muted">
-              <span>
-                {hasShocks
-                  ? "Showing the economy with the shock(s); dashed lines and the ▲/▼ figures are the same economy without them."
-                  : "Showing the comparison against the pinned baseline: baseline curves are dashed and each figure shows its change."}
-              </span>
-              <button
-                type="button"
-                onClick={() => setCompare("current")}
-                className="shrink-0 rounded-full border border-hairline px-2.5 py-0.5 transition-colors hover:border-accent/50 hover:text-accent"
-              >
-                Show current
-              </button>
-            </div>
-          )}
-
-          {issues.length > 0 && (
-            <div className="card border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-ink">
-              Some parameters are out of range: {issues.map((i) => i.message).join("; ")}
-            </div>
-          )}
-
-          {model === "glossary" ? (
-            <GlossaryPanel />
-          ) : panels && panels.length > 0 ? (
-            panels.map((p, i) => {
-              const scenario = i === 0 ? scenarioControls : undefined;
-              return (
-                <PanelCard
-                  key={p.id}
-                  panel={p}
-                  index={i}
-                  exportName={`econosim-${getModel(model).label}-${economy.name}`}
-                  chartControls={
-                    scenario || i === 0 || p.timeseries ? (
-                      <>
-                        {scenario}
-                        {i === 0 && inputs.uses.length > 0 && (
-                          <SweepControl
-                            value={sweep}
-                            onChange={setSweep}
-                            axis={sweepAxis}
-                            onAxisChange={setSweepAxis}
-                            figure={sweepFigure}
-                            onFigureChange={setSweepFigure}
-                            figures={figureOptions}
-                            params={paramOptions(inputs.uses)}
-                          />
-                        )}
-                        {p.timeseries && <HorizonControl value={horizon} onChange={setHorizon} />}
-                      </>
-                    ) : undefined
-                  }
+          {model !== "glossary" && inputs.uses.length > 0 && (
+            <details className="card group p-4" open={analysisOpen || undefined}>
+              <summary className="flex cursor-pointer list-none items-center justify-between marker:content-none">
+                <span>
+                  <span className="font-display text-base font-semibold tracking-[-0.01em] text-ink">Analysis</span>
+                  <span className="ml-2 text-xs text-muted">comparative statics and parameter sweeps</span>
+                </span>
+                <span aria-hidden className="text-muted transition-transform group-open:rotate-180">
+                  ▾
+                </span>
+              </summary>
+              <div className="mt-3">
+                <SweepControl
+                  value={sweep}
+                  onChange={setSweep}
+                  axis={sweepAxis}
+                  onAxisChange={setSweepAxis}
+                  figure={sweepFigure}
+                  onFigureChange={setSweepFigure}
+                  figures={figureOptions}
+                  params={paramOptions(inputs.uses)}
                 />
-              );
-            })
-          ) : (
-            <div className="card border-accent/40 bg-tint px-4 py-3 text-sm text-ink">
-              This model could not be computed with the current parameters. Adjust the sliders to bring the economy
-              back into range.
-            </div>
+                {sweepPanels.length === 0 ? (
+                  <p className="mt-3 text-xs text-muted">Pick a parameter to see its effect on every figure.</p>
+                ) : (
+                  <div className="mt-4 space-y-4">
+                    {sweepPanels.map((p, i) => (
+                      <PanelCard key={p.id} panel={p} index={i} exportName={exportStem} flat />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
           )}
         </main>
 
         <aside className="lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
           <div className="card reveal p-4">
-            <h2 className="mb-1 font-mono text-[0.75rem]  text-muted">Parameters</h2>
+            <h2 className="mb-1 font-mono text-[0.75rem] text-muted">Parameters</h2>
             <ParametersPanel
               economy={economy}
               update={update}
@@ -816,7 +886,7 @@ export function Simulator() {
               sliders={sliders}
               showMore={showMore}
               onShowMore={setShowMore}
-              modelLabel={model === "glossary" ? "The glossary" : getModel(model).label}
+              modelLabel={modelLabel}
             />
           </div>
         </aside>

@@ -30,8 +30,8 @@ function DataTable({ spec }: { spec: TableSpec }) {
           </tr>
         </thead>
         <tbody>
-          {spec.rows.map((r) => (
-            <tr key={r.label}>
+          {spec.rows.map((r, rowIndex) => (
+            <tr key={`${rowIndex}-${r.label}`}>
               <th
                 scope="row"
                 className="border border-hairline px-2 py-2 text-left font-mono text-[0.75rem]  text-muted"
@@ -93,14 +93,44 @@ function Delta({ value, previous }: { value: number; previous: number }) {
   );
 }
 
+/**
+ * One line under the chart saying what moved: "Output Y 200 → 233.3 ▲16.7%".
+ * The figure cards say the same further down, but this puts the answer next to
+ * the picture, where the eye already is when a slider moves.
+ */
+function ChangeSummary({ panel }: { panel: Panel }) {
+  const moved = (panel.scalars ?? []).filter(
+    (s) => s.previous !== undefined && Math.abs(s.value - s.previous) > 1e-9 * Math.max(1, Math.abs(s.previous)),
+  );
+  if (!moved.length) return null;
+  const shown = moved.slice(0, 4);
+  return (
+    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-accent/5 px-3 py-2 font-mono text-[0.75rem] text-ink" aria-live="polite">
+      {shown.map((s) => (
+        <span key={s.label} className="inline-flex items-baseline gap-1.5">
+          <span className="text-muted">{s.label}</span>
+          <span>
+            {fmtNum(s.previous!, 3)} → {fmtNum(s.value, 3)}
+          </span>
+          <Delta value={s.value} previous={s.previous!} />
+        </span>
+      ))}
+      {moved.length > shown.length && <span className="text-muted">+{moved.length - shown.length} more below</span>}
+    </div>
+  );
+}
+
 /** Renders one model output panel: charts, scalars, notes and the maths. */
 export function PanelCard({
   panel,
   index = 0,
   chartControls,
   exportName,
+  flat = false,
 }: {
   panel: Panel;
+  /** Drop the card frame, for a panel shown inside another card. */
+  flat?: boolean;
   index?: number;
   /** Rendered directly above the chart — e.g. the time-window control. */
   chartControls?: React.ReactNode;
@@ -130,7 +160,10 @@ export function PanelCard({
   const dataTable = panel.chart || panel.timeseries ? seriesToTable(panel.chart ?? panel.timeseries!) : undefined;
 
   return (
-    <section className="card reveal p-5" style={index ? { animationDelay: `${index * 80}ms` } : undefined}>
+    <section
+      className={flat ? "border-t border-hairline pt-4" : "card reveal p-5"}
+      style={index && !flat ? { animationDelay: `${index * 80}ms` } : undefined}
+    >
       <h3 className="font-display text-lg font-semibold tracking-[-0.01em] text-ink">
         <SolidHyphens text={panel.title} />
       </h3>
@@ -143,6 +176,8 @@ export function PanelCard({
           {chart ? <CurveChart spec={chart} colors={colors} /> : timeseries && <TimeSeriesChart spec={timeseries} colors={colors} />}
         </div>
       )}
+
+      <ChangeSummary panel={panel} />
 
       {panel.table && <DataTable spec={panel.table} />}
 

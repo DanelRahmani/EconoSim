@@ -67,11 +67,20 @@ const BUTTON =
   "rounded-full border border-hairline bg-surface px-2.5 py-0.5 font-mono text-[0.6875rem] text-muted transition-colors hover:border-accent/50 hover:text-accent";
 
 /** CSV of every panel in the view — the whole model's working in one file. */
-export function ExportAllCsv({ panels, name }: { panels: Panel[]; name: string }) {
+export function ExportAllCsv({ panels, name, variant = "button" }: { panels: Panel[]; name: string; variant?: "button" | "menu" }) {
+  const save = () => download(panelsToCsv(panels), `${exportName(name)}.csv`, "text/csv;charset=utf-8");
+  if (variant === "menu") {
+    return (
+      <button type="button" onClick={save} className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-ink hover:bg-surface2">
+        Download this view as CSV
+        <span className="block text-[0.6875rem] text-muted">Every figure, series and calculation step.</span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
-      onClick={() => download(panelsToCsv(panels), `${exportName(name)}.csv`, "text/csv;charset=utf-8")}
+      onClick={save}
       title="Download every figure, series, table and calculation step in this view as a CSV"
       className="rounded-full border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent"
     >
