@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ChartSpec, LineSpec, MarkerSpec, Point } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
-import { axisDomain, niceTicks, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
+import { axisDomain, niceTicks, clampWindow, pointsInWindow, stickyWindow, zoomWindow, type Window } from "@/lib/scale";
 import { useMorph } from "@/hooks/useMorph";
 import { splitTag, stableId } from "./series-label";
 
@@ -42,11 +42,13 @@ export function lineLabelWidth(label: string) {
  * current curves are placed before their dashed baselines, so when space is
  * short it is the baseline's name that moves.
  */
+type LinePlace = { idx: number; dx: number; dy: number; w: number };
+
 function placeLineLabels(
-  lines: { key: string; label: string; anchors: Point[] }[],
+  lines: { key: string; label: string; anchors: (Point & { idx: number })[] }[],
   taken: Box[],
   frame: Box,
-): ({ box: Box; at: Point } | null)[] {
+): (LinePlace | null)[] {
   const placed = [...taken];
   return lines.map((line) => {
     const w = lineLabelWidth(line.label);
@@ -60,7 +62,7 @@ function placeLineLabels(
       const box = candidates.find((b) => insideBox(b, frame) && !placed.some((p) => overlaps(p, b)));
       if (box) {
         placed.push(box);
-        return { box, at };
+        return { idx: at.idx, dx: box.x0 - at.x, dy: box.y0 - at.y, w };
       }
     }
     return null;
@@ -94,7 +96,7 @@ function placeMarkerLabels(points: { x: number; y: number; label: string }[], fr
   return { picks, boxes: [...boxes, ...points.map((p) => ({ x0: p.x - 6, y0: p.y - 6, x1: p.x + 6, y1: p.y + 6 }))] };
 }
 
-function finite(points: Point[]): Point[] {
+function finite<T extends Point>(points: T[]): T[] {
   return points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
 }
 
@@ -115,6 +117,8 @@ export function CurveChart({
   label,
   tools,
   readout = false,
+  animate = true,
+  labelsFrom,
 }: {
   spec: ChartSpec;
   height?: number;
@@ -136,6 +140,14 @@ export function CurveChart({
   tools?: ReactNode;
   /** Show each line's value under the pointer (for time paths, whose x is time). */
   readout?: boolean;
+  /** False when the caller animates the spec itself (the landing hero): no morph on top. */
+  animate?: boolean;
+  /**
+   * Where the picture is heading, for placing labels. A caller that animates its
+   * own spec frame by frame passes the end state here, so labels are placed once
+   * instead of hopping between spots as the lines move.
+   */
+  labelsFrom?: ChartSpec;
 }) {
   const clipId = useId();
   // The SVG scales to its box, and its text with it: a 560-unit chart drawn 330px
@@ -163,17 +175,45 @@ export function CurveChart({
 
   // What is drawn eases from the old picture to the new one: lines, markers and,
   // because the axes fit the drawn data, the axes too.
-  const series = useMorph(spec.series, seriesKey);
+  const duration = animate ? 220 : 0;
+  const series = useMorph(spec.series, seriesKey, duration);
   const markerInput = useMemo(() => (spec.markers ?? []).map((m) => ({ ...m, points: [{ x: m.x, y: m.y }] })), [spec.markers]);
-  const markerItems = useMorph(markerInput, markerKey);
+  const markerItems = useMorph(markerInput, markerKey, duration);
   const markers: MarkerSpec[] = markerItems.map(({ points, ...m }) => ({ ...m, x: points[0].x, y: points[0].y }));
 
   const [zoom, setZoom] = useState<Window | null>(null);
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
   const [hoverX, setHoverX] = useState<number | null>(null);
 
+  // The frame the data asks for, from where the picture is heading...
+  const targetPts = [...spec.series.flatMap((s) => finite(s.points)), ...finite(spec.markers ?? [])];
+  const [wx0, wx1] = domain?.x ?? axisDomain(targetPts.map((p) => p.x), undefined, spec.xBounds);
+  const [wy0, wy1] = domain?.y ?? axisDomain(targetPts.map((p) => p.y), undefined, spec.yBounds);
+  // ...and the frame actually used, which holds still unless the data needs it to
+  // move. Applying a shock used to rescale both axes every time, which made the
+  // whole chart lurch; now the frame stays put while the new picture fits, widens
+  // just enough when it does not, and only refits when the data has shrunk to a
+  // small part of it.
+  const [frameDom, setFrameDom] = useState<{ x: Window; y: Window }>({ x: [wx0, wx1], y: [wy0, wy1] });
+  useEffect(() => {
+    const raf = requestAnimationFrame(() =>
+      setFrameDom((prev) => {
+        const x = stickyWindow(prev.x, [wx0, wx1]);
+        const y = stickyWindow(prev.y, [wy0, wy1]);
+        return x === prev.x && y === prev.y ? prev : { x, y };
+      }),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [wx0, wx1, wy0, wy1]);
+  // The frame eases too, so a needed rescale glides instead of jumping.
+  const frameItems = useMemo(
+    () => [{ key: "frame", points: [{ x: frameDom.x[0], y: frameDom.y[0] }, { x: frameDom.x[1], y: frameDom.y[1] }] }],
+    [frameDom],
+  );
+  const [shownFrame] = useMorph(frameItems, (f) => f.key, duration);
+
   const all = [...series.flatMap((s) => finite(s.points)), ...markers];
-  const full: Window = domain?.x ?? axisDomain(all.map((p) => p.x), undefined, spec.xBounds);
+  const full: Window = [shownFrame.points[0].x, shownFrame.points[1].x];
   // A zoom left over from another parameter is clamped, and dropped if the data
   // has since moved out from under it.
   const view = zoom ? clampWindow(zoom, full) : null;
@@ -182,7 +222,9 @@ export function CurveChart({
   const inWindow = all.filter((p) => p.x >= x0 && p.x <= x1);
   // The y-axis rescales to what is actually in view, which is the whole point of
   // zooming: a concave curve only shows its curvature when the frame is tight.
-  const [y0, y1] = domain?.y ?? axisDomain((inWindow.length ? inWindow : all).map((p) => p.y), undefined, spec.yBounds);
+  const [y0, y1]: Window = view
+    ? axisDomain((inWindow.length ? inWindow : all).map((p) => p.y), undefined, spec.yBounds)
+    : [shownFrame.points[0].y, shownFrame.points[1].y];
   const sx = (x: number) => pad.l + ((x - x0) / (x1 - x0)) * iw;
   const sy = (y: number) => pad.t + ih - ((y - y0) / (y1 - y0)) * ih;
 
@@ -201,29 +243,42 @@ export function CurveChart({
   const colorOf = (s: LineSpec) => colors?.[s.label] ?? SERIES_COLORS[series.indexOf(s) % SERIES_COLORS.length];
 
   const frame = { x0: pad.l + 2, y0: pad.t + 2, x1: pad.l + iw - 2, y1: pad.t + ih - 2 };
-  const markerLabels = shownMarkers.map((m) => {
+  const markerText = (m: { label: string; ghost?: boolean }) => {
     const { name, tag } = splitTag(m.label);
     // The equilibrium now is just "E"; the one it moved from says so.
     return m.ghost ? `${name} ${tag ?? "base"}` : name;
-  });
+  };
+
+  // Labels are placed once, on the picture the chart is heading to, and then ride
+  // along with their line or point while it moves. Re-placing them every frame made
+  // them hop between spots mid-animation.
+  const source = labelsFrom ?? spec;
+  const [tx0, tx1] = view ?? frameDom.x;
+  const [ty0, ty1] = view ? [y0, y1] : frameDom.y;
+  const tsx = (x: number) => pad.l + ((x - tx0) / (tx1 - tx0)) * iw;
+  const tsy = (y: number) => pad.t + ih - ((y - ty0) / (ty1 - ty0)) * ih;
+  const targetMarkers = finite(source.markers ?? []).filter((m) => m.x >= tx0 && m.x <= tx1) as MarkerSpec[];
   const markerPlacement = placeMarkerLabels(
-    shownMarkers.map((m, i) => ({ x: sx(m.x), y: sy(m.y), label: markerLabels[i] })),
+    targetMarkers.map((m) => ({ x: tsx(m.x), y: tsy(m.y), label: markerText(m) })),
     frame,
   );
+  const markerPick = new Map(targetMarkers.map((m, i) => [markerKey(m), markerPlacement.picks[i]]));
 
   // Each line is named beside a point on the line itself, current curves first.
-  const labelled = [...series]
+  const labelled = [...source.series]
     .filter((s) => splitTag(s.label).name.length <= 34)
     .sort((a, b) => Number(!!a.ghost) - Number(!!b.ghost))
     .map((s) => {
-      const inside = finite(s.points).filter((p) => p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1);
-      const n = inside.length;
-      const anchors = n
-        ? [1, 0.85, 0.7, 0.55, 0.4, 0.25].map((f) => inside[Math.max(0, Math.round((n - 1) * f))]).map((p) => ({ x: sx(p.x), y: sy(p.y) }))
-        : [];
-      return { series: s, key: seriesKey(s), label: s.label, anchors };
+      const n = s.points.length;
+      const anchors = [1, 0.85, 0.7, 0.55, 0.4, 0.25]
+        .map((f) => Math.max(0, Math.round((n - 1) * f)))
+        .map((idx) => ({ idx, p: s.points[idx] }))
+        .filter(({ p }) => p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= tx0 && p.x <= tx1 && p.y >= ty0 && p.y <= ty1)
+        .map(({ idx, p }) => ({ idx, x: tsx(p.x), y: tsy(p.y) }));
+      return { key: seriesKey(s), label: s.label, anchors };
     });
   const linePlacement = placeLineLabels(labelled, markerPlacement.boxes, frame);
+  const seriesByKey = new Map(series.map((s) => [seriesKey(s), s]));
 
   return (
     <div ref={boxRef}>
@@ -316,13 +371,17 @@ export function CurveChart({
 
         {labelled.map((l, i) => {
           const place = linePlacement[i];
-          if (!place) return null;
-          const { name, tag } = splitTag(l.label);
-          const { box } = place;
+          const drawn = seriesByKey.get(l.key);
+          const anchor = drawn?.points[place?.idx ?? -1];
+          if (!place || !drawn || !anchor || !Number.isFinite(anchor.x) || !Number.isFinite(anchor.y)) return null;
+          const { name, tag } = splitTag(drawn.label);
+          const bx = sx(anchor.x) + place.dx;
+          const by = sy(anchor.y) + place.dy;
+          const box = { x0: bx, y0: by, x1: bx + place.w, y1: by + LABEL_H };
           const midY = (box.y0 + box.y1) / 2;
-          const color = colorOf(l.series);
+          const color = colorOf(drawn);
           return (
-            <g key={`label-${l.key}`} className={l.series.ghost ? "fade-in" : undefined} aria-hidden>
+            <g key={`label-${l.key}`} className={drawn.ghost ? "fade-in" : undefined} aria-hidden>
               <rect x={box.x0} y={box.y0} width={box.x1 - box.x0} height={box.y1 - box.y0} rx={4} fill="var(--surface)" opacity={0.88} />
               <line
                 x1={box.x0 + 3}
@@ -331,8 +390,8 @@ export function CurveChart({
                 y2={midY}
                 stroke={color}
                 strokeWidth={2.5}
-                strokeDasharray={l.series.ghost ? "3 3" : l.series.dashed ? "4 3" : undefined}
-                opacity={l.series.ghost ? 0.7 : 1}
+                strokeDasharray={drawn.ghost ? "3 3" : drawn.dashed ? "4 3" : undefined}
+                opacity={drawn.ghost ? 0.7 : 1}
               />
               <text x={box.x0 + 3 + SWATCH + 5} y={midY + 4} fontSize={11} fontWeight={600} fill="var(--ink)">
                 {name}
@@ -347,8 +406,8 @@ export function CurveChart({
           );
         })}
 
-        {shownMarkers.map((m, i) => {
-          const at = markerPlacement.picks[i];
+        {shownMarkers.map((m) => {
+          const at = markerPick.get(markerKey(m)) ?? { dx: 8, dy: -6, anchor: "start" as const };
           return (
             <g key={markerKey(m)} className={m.ghost ? "fade-in" : undefined}>
               {m.ghost ? (
@@ -367,7 +426,7 @@ export function CurveChart({
                 stroke="var(--surface)"
                 strokeWidth={3}
               >
-                {markerLabels[i]}
+                {markerText(m)}
               </text>
             </g>
           );

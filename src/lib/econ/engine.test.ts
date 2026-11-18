@@ -46,7 +46,7 @@ import { srasOutput } from "@/lib/econ/models/adas";
 import { dornbuschPanel } from "@/lib/econ/models/dornbusch";
 import { PARAMS, SLIDER_KEYS } from "@/lib/econ/params";
 import { relevantShocks } from "@/lib/econ/shocks";
-import { axisDomain, clampWindow, niceTicks, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
+import { axisDomain, clampWindow, niceTicks, pointsInWindow, stickyWindow, zoomWindow, type Window } from "@/lib/scale";
 import type { Panel } from "@/lib/econ/panel";
 import { seriesToTable } from "@/lib/econ/panel";
 import type { Economy, SweepParam } from "@/lib/econ/types";
@@ -1610,5 +1610,21 @@ describe("Dornbusch adjustment slider", () => {
     const r = dornbusch(e, Math.log(1.1));
     const eta = (e.hR * e.P) / e.M;
     expect(r.overshootRatio).toBeCloseTo(1 + 1 / (eta * Math.abs(r.lambda)), 9);
+  });
+});
+
+describe("stickyWindow: chart axes hold still unless the data needs them to move", () => {
+  it("keeps the frame when the new data still fits comfortably", () => {
+    const prev: Window = [0, 100];
+    expect(stickyWindow(prev, [5, 90])).toBe(prev);
+  });
+  it("widens to take in data that has moved a little outside", () => {
+    expect(stickyWindow([0, 100], [10, 115])).toEqual([0, 115]);
+  });
+  it("refits when the data has shrunk to a small part of the frame", () => {
+    expect(stickyWindow([0, 100], [40, 60])).toEqual([40, 60]);
+  });
+  it("refits when the data has moved far away", () => {
+    expect(stickyWindow([0, 100], [500, 600])).toEqual([500, 600]);
   });
 });

@@ -143,3 +143,19 @@ export function pointsInWindow(points: Point[], win: Window): Point[] {
   if (after) kept.push(after);
   return kept;
 }
+
+/**
+ * Keep an axis where it is when the data it should show still fits comfortably,
+ * widen it to take in data that has moved outside, and refit only when the data
+ * has shrunk to a small part of it.
+ */
+export function stickyWindow(prev: Window, want: Window): Window {
+  const span = (w: Window) => w[1] - w[0];
+  const eps = 1e-9 * Math.max(1, Math.abs(prev[0]), Math.abs(prev[1]));
+  const fits = want[0] >= prev[0] - eps && want[1] <= prev[1] + eps;
+  if (fits && span(want) >= 0.4 * span(prev)) return prev;
+  const union: Window = [Math.min(prev[0], want[0]), Math.max(prev[1], want[1])];
+  if (!fits && span(union) <= 1.6 * span(want)) return union;
+  return want;
+}
+

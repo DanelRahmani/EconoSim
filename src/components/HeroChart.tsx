@@ -71,6 +71,32 @@ const reducedMotion = () => window.matchMedia(REDUCE).matches;
 
 const pct = (r: number) => `${fmtNum(r * 100, 1)}%`;
 
+/** The diagram at a given point of the shift: 0 is the old equilibrium, 1 the new. */
+function specAt(shift: number): ChartSpec {
+  const now = islm({ ...BASE, G: BASE.G + shift * DG })[0];
+  const moved = shift > 0.02;
+  return {
+    xLabel: "Output (Y)",
+    yLabel: "Interest rate (r)",
+    series: [
+      { label: "IS₀", points: curve(before, "IS"), dashed: true },
+      { label: "IS", points: curve(now, "IS") },
+      // LM does not depend on G, so it is drawn from one fixed run: the model
+      // resamples it around each new equilibrium, which made its label slide.
+      { label: "LM", points: curve(before, "LM") },
+    ],
+    markers: moved
+      ? [
+          { x: Y0, y: R0, label: "E₀" },
+          { x: figure(now, "Output (Y*)"), y: figure(now, "Interest rate (r*)"), label: "E₁" },
+        ]
+      : [{ x: Y0, y: R0, label: "E₀" }],
+  };
+}
+
+/** Labels are placed on the finished picture, so they hold still while the curve moves. */
+const FINAL = specAt(1);
+
 export function HeroChart() {
   // The server renders the shifted end state, which is also what a reader who has
   // asked for reduced motion keeps: the whole story in one still frame.
@@ -113,25 +139,7 @@ export function HeroChart() {
     return () => cancelAnimationFrame(raf);
   }, [reduce]);
 
-  const spec = useMemo<ChartSpec>(() => {
-    const now = islm({ ...BASE, G: BASE.G + shift * DG })[0];
-    const moved = shift > 0.02;
-    return {
-      xLabel: "Output (Y)",
-      yLabel: "Interest rate (r)",
-      series: [
-        { label: "IS₀", points: curve(before, "IS"), dashed: true },
-        { label: "IS", points: curve(now, "IS") },
-        { label: "LM", points: curve(now, "LM") },
-      ],
-      markers: moved
-        ? [
-            { x: Y0, y: R0, label: "E₀" },
-            { x: figure(now, "Output (Y*)"), y: figure(now, "Interest rate (r*)"), label: "E₁" },
-          ]
-        : [{ x: Y0, y: R0, label: "E₀" }],
-    };
-  }, [shift]);
+  const spec = useMemo(() => specAt(shift), [shift]);
 
   const label = `IS-LM diagram of a fiscal expansion: government spending rises from ${BASE.G} to ${BASE.G + DG}, the IS curve shifts right, output rises from ${fmtNum(Y0, 0)} to ${fmtNum(Y1, 0)} and the interest rate from ${pct(R0)} to ${pct(R1)}.`;
 
@@ -147,10 +155,10 @@ export function HeroChart() {
       </div>
       {/* Two frames: a narrower viewBox on phones keeps the axis text readable. */}
       <div className="sm:hidden">
-        <CurveChart spec={spec} width={340} height={280} colors={COLORS} interactive={false} domain={DOMAIN} label={label} />
+        <CurveChart spec={spec} width={340} height={280} colors={COLORS} interactive={false} domain={DOMAIN} label={label} animate={false} labelsFrom={FINAL} />
       </div>
       <div className="hidden sm:block">
-        <CurveChart spec={spec} height={300} colors={COLORS} interactive={false} domain={DOMAIN} label={label} />
+        <CurveChart spec={spec} height={300} colors={COLORS} interactive={false} domain={DOMAIN} label={label} animate={false} labelsFrom={FINAL} />
       </div>
       <div className="mt-3">
         <Legend labels={LEGEND} />
