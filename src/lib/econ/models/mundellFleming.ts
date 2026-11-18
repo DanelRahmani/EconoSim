@@ -144,7 +144,13 @@ export function mundellFleming(e: Economy): Panel[] {
       id: "mf",
       title: "Mundell-Fleming (IS-LM-BP)",
       description: core.note,
-      chart: { xLabel: "Output (Y)", yLabel: "Interest rate (r)", series, markers: [{ x: core.Y, y: core.r, label: "E" }] },
+      chart: {
+        xLabel: "Output (Y)",
+        yLabel: "Interest rate (r)",
+        series,
+        markers: [{ x: core.Y, y: core.r, label: "E" }],
+        yBounds: core.r >= 0 ? [0, Number.POSITIVE_INFINITY] : undefined,
+      },
       scalars: [
         { label: "Output (Y*)", value: core.Y },
         { label: "Interest rate (r*)", value: core.r },

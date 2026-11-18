@@ -11,12 +11,18 @@ export interface LineSpec {
   points: Point[];
   /** Render as a dashed reference line (e.g. a baseline curve before a shock). */
   dashed?: boolean;
+  /** Lines sharing a group share a colour: a curve and its baseline twin. */
+  group?: string;
+  /** The baseline twin in a comparison: drawn fainter. */
+  ghost?: boolean;
 }
 
 export interface MarkerSpec {
   x: number;
   y: number;
   label: string;
+  /** Where an equilibrium was before the change: drawn hollow. */
+  ghost?: boolean;
 }
 
 export interface ChartSpec {
@@ -34,6 +40,10 @@ export interface SeriesSpec {
   points: Point[];
   /** Render as a dashed reference line (e.g. a steady state or a baseline). */
   dashed?: boolean;
+  /** Lines sharing a group share a colour: a path and its baseline twin. */
+  group?: string;
+  /** The baseline twin in a comparison: drawn fainter. */
+  ghost?: boolean;
 }
 
 export interface TimeSeriesSpec {

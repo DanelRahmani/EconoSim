@@ -21,7 +21,7 @@ import { GROUP_ORDER, PARAMS, PARAM_BY_KEY, orderedParams } from "@/lib/econ/par
 import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_SWEEP, DEFAULT_SWEEP_AXIS, DEFAULT_SWEEP_FIGURE, DEFAULT_ZLB, HORIZON_PRESETS, MODELS, MODEL_GROUPS, getModel, modelInputs, runModel } from "@/lib/econ/registry";
 import { readState, shareUrl, type CompareMode } from "@/lib/econ/permalink";
 import { CUSTOM_FIELDS, relevantShocks, resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
-import { mergePanels } from "@/lib/econ/compare";
+import { CHANGE_TAGS, SHOCK_TAGS, mergePanels } from "@/lib/econ/compare";
 import { sweepAxisPanel, sweepPanel } from "@/lib/econ/comparativeStatics";
 import type { Panel } from "@/lib/econ/panel";
 import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
@@ -411,6 +411,7 @@ export function Simulator() {
   const [showMore, setShowMore] = useState(false);
   // On a phone the parameters live in a sheet over the bottom of the screen.
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [tab, setTab] = useState<"params" | "shocks" | "analysis">("params");
   const [compare, setCompare] = useState<CompareMode>("current");
   // Once the reader picks a comparison view themselves, stop choosing it for them.
   const [compareTouched, setCompareTouched] = useState(false);
@@ -487,7 +488,18 @@ export function Simulator() {
   const issues = useMemo(() => validateEconomy(economy), [economy]);
 
   const { economy: shockedEconomy, applied } = useMemo(() => resolveShocks(economy, shocks), [economy, shocks]);
-  const hasShocks = shocks.length > 0;
+  // A shock this model does not read changes nothing here, so it should not take
+  // over the comparison: with only those active, slider changes are compared
+  // against the baseline as usual.
+  const hasShocks = useMemo(
+    () =>
+      shocks.some((spec) =>
+        spec.kind === "preset"
+          ? shockPresets.some((p) => p.id === spec.id)
+          : inputs.uses.includes(spec.key),
+      ),
+    [shocks, shockPresets, inputs.uses],
+  );
 
   // Ease the economy so curves and figures morph instead of jumping.
   const tweened = useTweenedEconomy(shockedEconomy);
@@ -501,11 +513,13 @@ export function Simulator() {
     if (model === "glossary") return [];
     try {
       const current = runModel(model, shownEconomy, options);
-      return compare === "both" ? mergePanels(current, runModel(model, reference, options)) : current;
+      return compare === "both"
+        ? mergePanels(current, runModel(model, reference, options), hasShocks ? SHOCK_TAGS : CHANGE_TAGS)
+        : current;
     } catch {
       return null;
     }
-  }, [model, shownEconomy, reference, compare, options]);
+  }, [model, shownEconomy, reference, compare, options, hasShocks]);
 
   // The sweep panels interrogate the settled economy rather than the tweened one:
   // each re-runs the model many times, and once per animation frame would be waste.
@@ -666,6 +680,82 @@ export function Simulator() {
     </details>
   );
 
+  const hasShockTab = model !== "glossary" && (shockPresets.length > 0 || shocks.length > 0);
+  const hasAnalysisTab = model !== "glossary" && inputs.uses.length > 0;
+  const activeTab = (tab === "shocks" && !hasShockTab) || (tab === "analysis" && !hasAnalysisTab) ? "params" : tab;
+  const tabs: { id: typeof tab; label: string; badge?: string; show: boolean }[] = [
+    { id: "params", label: "Parameters", show: true },
+    { id: "shocks", label: "Shocks", badge: shocks.length ? String(shocks.length) : undefined, show: hasShockTab },
+    { id: "analysis", label: "Analysis", badge: analysisOpen ? "on" : undefined, show: hasAnalysisTab },
+  ];
+
+  /** Everything that changes the economy, in one sidebar: parameters, shocks, analysis. */
+  const controlTabs = (
+    <div>
+      <div role="tablist" aria-label="Controls" className="mb-3 flex gap-1 rounded-full border border-hairline bg-surface2 p-0.5">
+        {tabs
+          .filter((t) => t.show)
+          .map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 rounded-full px-2 py-1 text-[0.75rem] transition-colors ${
+                activeTab === t.id ? "bg-accent text-accentink" : "text-muted hover:text-ink"
+              }`}
+            >
+              {t.label}
+              {t.badge && <span className="ml-1 font-mono text-[0.6875rem]">· {t.badge}</span>}
+            </button>
+          ))}
+      </div>
+
+      {activeTab === "params" && (
+        <ParametersPanel
+          economy={economy}
+          update={update}
+          inputs={inputs}
+          sliders={sliders}
+          showMore={showMore}
+          onShowMore={setShowMore}
+          modelLabel={modelLabel}
+        />
+      )}
+      {activeTab === "shocks" && (
+        <ShockControls
+          presets={shockPresets}
+          fields={shockFields}
+          specs={shocks}
+          applied={applied}
+          onTogglePreset={togglePreset}
+          onAddCustom={addCustom}
+          onRemove={removeShock}
+          onClear={clearShocks}
+          bare
+        />
+      )}
+      {activeTab === "analysis" && (
+        <div>
+          <SweepControl
+            value={sweep}
+            onChange={setSweep}
+            axis={sweepAxis}
+            onAxisChange={setSweepAxis}
+            figure={sweepFigure}
+            onFigureChange={setSweepFigure}
+            figures={figureOptions}
+            params={paramOptions(inputs.uses)}
+          />
+          <p className="mt-3 text-[0.6875rem] leading-relaxed text-muted">
+            {analysisOpen ? "Results appear below the model's charts." : "Pick a parameter to see its effect on every figure."}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   const HEADER_BUTTON =
     "rounded-full border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-accent/50 hover:text-accent";
 
@@ -750,7 +840,7 @@ export function Simulator() {
       </header>
 
       <div className="relative z-10 mx-auto grid max-w-[1520px] gap-4 p-4 pb-24 lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:pb-4">
-        <aside className="hidden space-y-4 lg:block">
+        <aside className="hidden space-y-4 lg:sticky lg:top-16 lg:block lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
           <nav aria-label="Models" className="card reveal p-4">
             <h2 className="mb-2.5 font-mono text-[0.75rem] text-muted">Models</h2>
             {MODEL_GROUPS.map((g) => (
@@ -802,13 +892,32 @@ export function Simulator() {
 
           {compare !== "current" && model !== "glossary" && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2 text-xs text-muted">
-              <span>
-                {compare === "baseline"
-                  ? "Showing the baseline only."
-                  : hasShocks
-                    ? "Dashed lines and ▲/▼ show the same economy without the shocks."
-                    : "Dashed lines and ▲/▼ show the change from the baseline."}
-              </span>
+              {compare === "baseline" ? (
+                <span>Showing the baseline only.</span>
+              ) : (
+                <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="font-medium text-ink">{hasShocks ? "With vs without the shocks" : "Now vs baseline"}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="22" height="6" aria-hidden>
+                      <line x1="1" y1="3" x2="21" y2="3" stroke="var(--accent)" strokeWidth="2.25" />
+                    </svg>
+                    {hasShocks ? "(shock)" : "(new)"}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="22" height="6" aria-hidden>
+                      <line x1="1" y1="3" x2="21" y2="3" stroke="var(--accent)" strokeWidth="1.75" strokeDasharray="5 5" opacity="0.55" />
+                    </svg>
+                    (base)
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="10" height="10" aria-hidden>
+                      <circle cx="5" cy="5" r="3.5" fill="none" stroke="var(--muted)" strokeWidth="1.5" />
+                    </svg>
+                    where it was
+                  </span>
+                  <span>▲▼ on every figure</span>
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => chooseCompare("current")}
@@ -854,85 +963,27 @@ export function Simulator() {
             </div>
           )}
 
-          {model !== "glossary" && (shockPresets.length > 0 || shocks.length > 0) && (
-            <ShockControls
-              presets={shockPresets}
-              fields={shockFields}
-              specs={shocks}
-              applied={applied}
-              onTogglePreset={togglePreset}
-              onAddCustom={addCustom}
-              onRemove={removeShock}
-              onClear={clearShocks}
-            />
-          )}
-
-          {model !== "glossary" && inputs.uses.length > 0 && (
-            <details className="card group p-4" open={analysisOpen || undefined}>
-              <summary className="flex cursor-pointer list-none items-center justify-between marker:content-none">
-                <span>
-                  <span className="font-display text-base font-semibold tracking-[-0.01em] text-ink">Analysis</span>
-                  <span className="ml-2 text-xs text-muted">comparative statics and parameter sweeps</span>
-                </span>
-                <span aria-hidden className="text-muted transition-transform group-open:rotate-180">
-                  ▾
-                </span>
-              </summary>
-              <div className="mt-3">
-                <SweepControl
-                  value={sweep}
-                  onChange={setSweep}
-                  axis={sweepAxis}
-                  onAxisChange={setSweepAxis}
-                  figure={sweepFigure}
-                  onFigureChange={setSweepFigure}
-                  figures={figureOptions}
-                  params={paramOptions(inputs.uses)}
-                />
-                {sweepPanels.length === 0 ? (
-                  <p className="mt-3 text-xs text-muted">Pick a parameter to see its effect on every figure.</p>
-                ) : (
-                  <div className="mt-4 space-y-4">
-                    {sweepPanels.map((p, i) => (
-                      <PanelCard key={p.id} panel={p} index={i} exportName={exportStem} flat />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </details>
+          {model !== "glossary" && sweepPanels.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="px-1 font-mono text-[0.75rem] text-muted">Analysis</h2>
+              {sweepPanels.map((p, i) => (
+                <PanelCard key={p.id} panel={p} index={i} exportName={exportStem} />
+              ))}
+            </section>
           )}
         </main>
 
         <aside className="hidden lg:sticky lg:top-16 lg:block lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
-          <div className="card reveal p-4">
-            <h2 className="mb-1 font-mono text-[0.75rem] text-muted">Parameters</h2>
-            <ParametersPanel
-              economy={economy}
-              update={update}
-              inputs={inputs}
-              sliders={sliders}
-              showMore={showMore}
-              onShowMore={setShowMore}
-              modelLabel={modelLabel}
-            />
-          </div>
+          <div className="card reveal p-3">{controlTabs}</div>
         </aside>
       </div>
 
-      {/* Phone: the parameters in a sheet, so a slider and its chart share the screen. */}
+      {/* Phone: the controls in a sheet, so a slider and its chart share the screen. */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-bg/95 backdrop-blur-xl lg:hidden">
         {sheetOpen && (
-          <div id="parameter-sheet" className="max-h-[50vh] overflow-y-auto px-4 pb-2 pt-3">
-            <ParametersPanel
-              economy={economy}
-              update={update}
-              inputs={inputs}
-              sliders={sliders}
-              showMore={showMore}
-              onShowMore={setShowMore}
-              modelLabel={modelLabel}
-            />
-            {inputs.uses.length > 0 && <div className="mt-3">{economyPresets}</div>}
+          <div id="parameter-sheet" className="max-h-[55vh] overflow-y-auto px-4 pb-2 pt-3">
+            {controlTabs}
+            {activeTab === "params" && inputs.uses.length > 0 && <div className="mt-3">{economyPresets}</div>}
           </div>
         )}
         <button
@@ -943,10 +994,11 @@ export function Simulator() {
           className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-ink"
         >
           <span>
-            {sheetOpen ? "Hide parameters" : "Parameters"}
+            {sheetOpen ? "Hide controls" : "Controls"}
             {!sheetOpen && sliders.key.length > 0 && (
               <span className="ml-2 font-mono text-[0.6875rem] text-muted">
                 {sliders.key.map((p) => p.label.split(" ").pop()).join(" · ")}
+                {shocks.length > 0 && ` · ${shocks.length} shock${shocks.length > 1 ? "s" : ""}`}
               </span>
             )}
           </span>

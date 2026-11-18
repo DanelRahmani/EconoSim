@@ -146,9 +146,13 @@ export function PanelCard({
   const source = panel.chart ? panel.chart.series : (panel.timeseries?.series ?? []);
   // Colours are keyed by label off the *full* list, so hiding a line never
   // shifts the colours of the remaining ones.
+  // A curve and its baseline twin share a group, and so a colour.
   const colors: Record<string, string> = {};
-  source.forEach((s, i) => {
-    colors[s.label] = SERIES_COLORS[i % SERIES_COLORS.length];
+  const groups: string[] = [];
+  source.forEach((s) => {
+    const g = s.group ?? s.label;
+    if (!groups.includes(g)) groups.push(g);
+    colors[s.label] = SERIES_COLORS[groups.indexOf(g) % SERIES_COLORS.length];
   });
   const legend = source.length > 1 ? source.map((s) => ({ label: s.label, color: colors[s.label] })) : [];
   const visible = <T extends { label: string }>(series: T[]) => series.filter((s) => !hidden.includes(s.label));

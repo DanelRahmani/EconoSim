@@ -22,7 +22,10 @@ export function ShockControls({
   onAddCustom,
   onRemove,
   onClear,
+  bare = false,
 }: {
+  /** Drop the card frame and heading, for use inside a sidebar tab. */
+  bare?: boolean;
   /** The presets that can move the current model. */
   presets: ShockDef[];
   /** The fields the current model reads, for the custom builder. */
@@ -58,9 +61,13 @@ export function ShockControls({
   };
 
   return (
-    <section className="card reveal p-4">
+    <section className={bare ? "" : "card reveal p-4"}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-display text-base font-semibold tracking-[-0.01em] text-ink">Shock this economy</h3>
+        {bare ? (
+          <span className="text-[0.75rem] text-muted">Click to apply; click again to remove.</span>
+        ) : (
+          <h3 className="font-display text-base font-semibold tracking-[-0.01em] text-ink">Shock this economy</h3>
+        )}
         {specs.length > 0 && (
           <button
             type="button"
@@ -71,10 +78,12 @@ export function ShockControls({
           </button>
         )}
       </div>
-      <p className="mt-1 text-xs leading-relaxed text-muted">
-        The panels show the economy <span className="text-ink">with</span> the shock selected, and in Compare the same
-        economy <span className="text-ink">without</span> it, with the difference on every figure.
-      </p>
+      {!bare && (
+        <p className="mt-1 text-xs leading-relaxed text-muted">
+          The panels show the economy <span className="text-ink">with</span> the shock selected, and in Compare the
+          same economy <span className="text-ink">without</span> it, with the difference on every figure.
+        </p>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {presets.map((s) => {
@@ -84,6 +93,7 @@ export function ShockControls({
               key={s.id}
               type="button"
               aria-pressed={on}
+              title={s.help}
               onClick={() => onTogglePreset(s.id)}
               className={`rounded-full border px-3 py-1 text-xs transition-all duration-200 ${
                 on
@@ -133,7 +143,7 @@ export function ShockControls({
           <div className="rounded-xl border border-hairline bg-surface2/50 p-3">
             <div className="font-mono text-[0.75rem]  text-muted">Your shock</div>
 
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div className="mt-2 grid gap-2">
               <label className="text-[0.75rem] text-muted">
                 Name
                 <input

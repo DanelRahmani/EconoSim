@@ -46,6 +46,34 @@ export function TimeSeriesChart({
     }
   });
   const data = [...byX.values()].sort((a, b) => a.x - b.x);
+  // Paths that converge end on top of one another, and so would their names. Work
+  // out each end label's height from the data (the plot spans the data's range),
+  // then push apart any pair closer than one line of text. Computed from the data,
+  // not during drawing, so it is the same on every animation frame.
+  const plotHeight = height - 32;
+  const values = data.flatMap((row) => Object.entries(row).filter(([k]) => k !== "x").map(([, v]) => v));
+  const vMin = Math.min(...values);
+  const vMax = Math.max(...values);
+  const toPx = (v: number) => (vMax > vMin ? ((vMax - v) / (vMax - vMin)) * plotHeight : plotHeight / 2);
+  const ends = spec.series
+    .map((s) => {
+      const last = [...s.points].reverse().find((p) => Number.isFinite(p.y));
+      return last ? { label: s.label, px: toPx(last.y) } : null;
+    })
+    .filter((e): e is { label: string; px: number } => !!e)
+    .sort((a, b) => a.px - b.px);
+  const labelShift: Record<string, number> = {};
+  let prev = -Infinity;
+  for (const e of ends) {
+    const at = Math.max(e.px, prev + 13);
+    labelShift[e.label] = at - e.px;
+    prev = at;
+  }
+  /** The last row in which a series has a value: where its end label goes. */
+  const lastIndex = (label: string) => {
+    for (let i = data.length - 1; i >= 0; i--) if (data[i][label] !== undefined) return i;
+    return -1;
+  };
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -84,16 +112,43 @@ export function TimeSeriesChart({
           }}
         />
         {/* No Recharts legend here — the panel renders one interactive legend. */}
-        {spec.series.map((s, i) => (
+        {[...spec.series]
+          // Baselines underneath, so a path is never hidden by its own ghost.
+          .sort((a, b) => Number(!!b.ghost) - Number(!!a.ghost))
+          .map((s, i) => (
           <Line
             key={s.label}
             type="monotone"
             dataKey={s.label}
             name={s.label}
             dot={false}
-            strokeWidth={2}
-            strokeDasharray={s.dashed ? "5 4" : undefined}
+            strokeWidth={s.ghost ? 1.75 : 2.25}
+            strokeOpacity={s.ghost ? 0.55 : 1}
+            strokeDasharray={s.ghost ? "5 5" : s.dashed ? "5 4" : undefined}
             stroke={colors?.[s.label] ?? SERIES_COLORS[i % SERIES_COLORS.length]}
+            // Name each path at its right-hand end, so the reader need not match
+            // colours against the legend.
+            label={(props: { index?: number; x?: number | string; y?: number | string }) =>
+              props.index === lastIndex(s.label) && s.label.length <= 26 ? (
+                <text
+                  key={`end-${s.label}`}
+                  x={Number(props.x) - 4}
+                  y={Number(props.y) - 7 + (labelShift[s.label] ?? 0)}
+                  textAnchor="end"
+                  fontSize={11}
+                  fontWeight={600}
+                  fill={colors?.[s.label] ?? SERIES_COLORS[i % SERIES_COLORS.length]}
+                  opacity={s.ghost ? 0.75 : 1}
+                  paintOrder="stroke"
+                  stroke="var(--surface)"
+                  strokeWidth={3}
+                >
+                  {s.label}
+                </text>
+              ) : (
+                <g key={`none-${s.label}-${props.index}`} />
+              )
+            }
             isAnimationActive
             animationDuration={400}
             animationEasing="ease-out"

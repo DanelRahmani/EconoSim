@@ -62,13 +62,15 @@ export function externalBalance(e: Economy, horizon = 60): Panel[] {
     v += CA;
   }
 
-  const debtSeries = [
-    { label: "Net foreign assets", points: nfa.map((p) => ({ x: p.t, y: p.v })) },
-    { label: "Debt ratio d", points: debt.map((p) => ({ x: p.t, y: p.d })) },
+  const debtSeries: { label: string; points: { x: number; y: number }[]; dashed?: boolean }[] = [
+    // Both as a percent of output, so they share an axis: NFA in levels (≈ −360)
+    // beside a debt ratio of 0.6 left the debt line flat along zero.
+    { label: "Net foreign assets (% of Y)", points: nfa.map((p) => ({ x: p.t, y: (p.v / Y) * 100 })) },
+    { label: "Debt ratio d (% of Y)", points: debt.map((p) => ({ x: p.t, y: p.d * 100 })) },
   ];
   // Only draw the (finite) steady-state line when r > g.
   if (hasDebtSteadyState) {
-    debtSeries.push({ label: "Steady-state debt d*", points: debt.map((p) => ({ x: p.t, y: dStar })) });
+    debtSeries.push({ label: "Steady-state debt d* (% of Y)", points: debt.map((p) => ({ x: p.t, y: dStar * 100 })), dashed: true });
   }
 
   return [
@@ -79,7 +81,7 @@ export function externalBalance(e: Economy, horizon = 60): Panel[] {
         "The current account is the gap between national saving and investment. Persistent surpluses build foreign assets; deficits build debt.",
       timeseries: {
         xLabel: "Time",
-        yLabel: "Value",
+        yLabel: "Percent of output",
         series: debtSeries,
       },
       scalars: [

@@ -24,17 +24,22 @@ export interface DornbuschResult {
 export function dornbusch(e: Economy, dm: number, horizon = 40, steps = 200): DornbuschResult {
   const t = new Tracer();
   const phi = e.kY;
-  const eta = e.hR;
+  // The model is in logs, so the money-demand slope has to be a semi-elasticity:
+  // the IS-LM h is d(M/P)/di in levels, and dividing by real balances converts it.
+  // Using h itself (≈ 100) made η|λ| huge and the overshoot invisible.
+  const eta = (e.hR * e.P) / e.M;
   const iStar = e.rStar;
   const pStar = Math.log(e.pStar);
 
   const m = Math.log(e.M);
-  const p0 = Math.log(e.P);
   const y = 0; // log deviation of output from trend
 
+  // The economy starts at its old steady state; p₀ = ln P put it ~10 log points
+  // away from it, so the "price path" was a climb from nowhere.
+  const p0 = m - phi * y + eta * iStar;
   const pBar = m + dm - phi * y + eta * iStar;
   const sBar = pBar - pStar;
-  const sOld = m - phi * y + eta * iStar - pStar;
+  const sOld = p0 - pStar;
 
   t.step("Long-run price level p̄ = m − φy + ηi*", pBar, add(sub(v("m"), mul(v("phi"), v("y"))), mul(v("eta"), v("iStar"))), { m: m + dm, phi, y, eta, iStar });
   t.step("Long-run exchange rate s̄ = p̄ − p*", sBar);
@@ -69,13 +74,15 @@ export function dornbuschPanel(e: Economy, dmPct = 10, horizon = 40): Panel[] {
       title: `Dornbusch overshooting (${dmPct}% shock, ${horizon} periods)`,
       description:
         "Prices are sticky in the short run, so a monetary expansion depresses the interest rate and the exchange rate depreciates beyond its long-run level before appreciating back. That is overshooting.",
+      // Changes from the old steady state, in percent (log points × 100): the
+      // overshoot is a few percent, and in log levels it vanished into the axis.
       timeseries: {
         xLabel: "Time",
-        yLabel: "Log level",
+        yLabel: "% change since the shock",
         series: [
-          { label: "s (exchange rate)", points: r.series.map((p) => ({ x: p.t, y: p.s })) },
-          { label: "s̄ (long run)", points: r.series.map((p) => ({ x: p.t, y: r.sLongRun })) },
-          { label: "p (price level)", points: r.series.map((p) => ({ x: p.t, y: p.p })) },
+          { label: "Exchange rate s", points: r.series.map((p) => ({ x: p.t, y: (p.s - r.sOld) * 100 })) },
+          { label: "Long-run s̄", points: r.series.map((p) => ({ x: p.t, y: (r.sLongRun - r.sOld) * 100 })), dashed: true },
+          { label: "Price level p", points: r.series.map((p) => ({ x: p.t, y: (p.p - r.p0) * 100 })) },
         ],
       },
       scalars: [

@@ -136,6 +136,8 @@ export function marketStructure(_e: Economy, m: MarketOptions): Panel[] {
           { x: core.qc, y: c, label: "competition" },
           { x: core.qm, y: core.priceM, label: "monopoly" },
         ],
+        // Prices are not negative; marginal revenue below zero runs off the frame.
+        yBounds: [0, Number.POSITIVE_INFINITY],
       },
       scalars: [
         { label: "Competitive price", value: core.priceC },

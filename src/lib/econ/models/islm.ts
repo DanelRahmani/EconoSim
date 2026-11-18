@@ -113,6 +113,9 @@ export function islm(e: Economy): Panel[] {
           { label: "LM", points: curves.lm },
         ],
         markers: [{ x: core.Y, y: core.r, label: "E" }],
+        // A positive-rate equilibrium is framed from r = 0 up; the negative-rate
+        // region only matters when the economy is actually there (see the ZLB model).
+        yBounds: core.r >= 0 ? [0, Number.POSITIVE_INFINITY] : undefined,
       },
       scalars: [
         { label: "Output (Y*)", value: core.Y },

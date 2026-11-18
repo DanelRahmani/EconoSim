@@ -29,16 +29,22 @@ const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 &
  * when that would sit on an earlier label or dot (the Solow "k̂*" and "golden
  * rule" labels collide once the two points are close), the next free corner wins.
  */
-function placeLabels(points: { x: number; y: number; label: string }[], bounds: Box) {
+function placeLabels(points: { x: number; y: number; label: string; preferLeft?: boolean }[], bounds: Box) {
   const placed: Box[] = points.map((p) => ({ x0: p.x - 5, y0: p.y - 5, x1: p.x + 5, y1: p.y + 5 }));
   return points.map((p) => {
     const w = labelWidth(p.label);
-    const options = [
+    const right = [
       { dx: 8, dy: -6, anchor: "start" as const },
       { dx: 8, dy: 16, anchor: "start" as const },
+    ];
+    const left = [
       { dx: -8, dy: -6, anchor: "end" as const },
       { dx: -8, dy: 16, anchor: "end" as const },
     ];
+    // A line's own name sits just inside its end; nudged up or down a line's
+    // height when another label is already there.
+    const nudged = [-20, 30, -34, 44].map((dy) => ({ dx: -8, dy, anchor: "end" as const }));
+    const options = p.preferLeft ? [...left, ...nudged, ...right] : [...right, ...left];
     const boxOf = (o: (typeof options)[number]): Box => {
       const x0 = o.anchor === "start" ? p.x + o.dx : p.x + o.dx - w;
       return { x0, y0: p.y + o.dy - 10, x1: x0 + w, y1: p.y + o.dy + 2 };
@@ -132,10 +138,29 @@ export function CurveChart({
   const shownMarkers = (spec.markers ?? []).filter(
     (m) => Number.isFinite(m.x) && Number.isFinite(m.y) && m.x >= x0 && m.x <= x1,
   );
-  const labelPlacement = placeLabels(
-    shownMarkers.map((m) => ({ x: sx(m.x), y: sy(m.y), label: m.label })),
-    { x0: pad.l, y0: pad.t, x1: pad.l + iw, y1: pad.t + ih },
+  // Baselines underneath, so the current curve is never hidden by its own ghost.
+  const ordered = [...spec.series].sort((a, b) => Number(!!b.ghost) - Number(!!a.ghost));
+  const colorOf = (s: (typeof spec.series)[number]) =>
+    colors?.[s.label] ?? SERIES_COLORS[spec.series.indexOf(s) % SERIES_COLORS.length];
+
+  // Each line is named where it ends inside the frame, so a reader does not have
+  // to match colours against the legend to tell "SRAS (shock)" from "SRAS (base)".
+  const lineEnds = spec.series.flatMap((s) => {
+    if (s.label.length > 22) return [];
+    const inside = finite(s.points).filter((p) => p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1);
+    const end = inside[inside.length - 1];
+    return end ? [{ series: s, x: sx(end.x), y: sy(end.y) }] : [];
+  });
+  const plotBox = { x0: pad.l, y0: pad.t, x1: pad.l + iw, y1: pad.t + ih };
+  const placement = placeLabels(
+    [
+      ...shownMarkers.map((m) => ({ x: sx(m.x), y: sy(m.y), label: m.label })),
+      ...lineEnds.map((l) => ({ x: l.x, y: l.y, label: l.series.label, preferLeft: true })),
+    ],
+    plotBox,
   );
+  const labelPlacement = placement.slice(0, shownMarkers.length);
+  const linePlacement = placement.slice(shownMarkers.length);
 
   return (
     <div ref={boxRef}>
@@ -199,7 +224,7 @@ export function CurveChart({
         </g>
       ))}
 
-      {spec.series.map((s, i) => {
+      {ordered.map((s, i) => {
         const pts = finite(pointsInWindow(s.points, [x0, x1]));
         if (pts.length < 2) return null;
         const d = pts.map((p, j) => `${j === 0 ? "M" : "L"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ");
@@ -210,14 +235,35 @@ export function CurveChart({
             d={d}
             pathLength={s.dashed ? undefined : 1}
             className={s.dashed ? "pop-in" : "chart-line"}
-            style={{ animationDelay: `${i * 90}ms`, opacity: s.dashed ? 0.7 : undefined }}
+            style={{ animationDelay: `${i * 90}ms`, opacity: s.ghost ? 0.5 : s.dashed ? 0.7 : undefined }}
             fill="none"
-            stroke={colors?.[s.label] ?? SERIES_COLORS[i % SERIES_COLORS.length]}
-            strokeWidth={2}
+            stroke={colorOf(s)}
+            strokeWidth={s.ghost ? 1.75 : 2.25}
             strokeLinecap="round"
-            strokeDasharray={s.dashed ? "6 5" : undefined}
+            strokeDasharray={s.ghost ? "5 5" : s.dashed ? "6 5" : undefined}
             vectorEffect="non-scaling-stroke"
           />
+        );
+      })}
+
+      {lineEnds.map((l, i) => {
+        const at = linePlacement[i];
+        return (
+          <text
+            key={`end-${l.series.label}`}
+            x={l.x + at.dx}
+            y={l.y + at.dy}
+            textAnchor={at.anchor}
+            fontSize={11}
+            fontWeight={600}
+            fill={colorOf(l.series)}
+            opacity={l.series.ghost ? 0.75 : 1}
+            paintOrder="stroke"
+            stroke="var(--surface)"
+            strokeWidth={3}
+          >
+            {l.series.label}
+          </text>
         );
       })}
 
@@ -225,14 +271,18 @@ export function CurveChart({
         const at = labelPlacement[i];
         return (
           <g key={m.label + m.x}>
-            <circle cx={sx(m.x)} cy={sy(m.y)} r={4.5} fill="var(--accent)" stroke="var(--surface)" strokeWidth={1.5} />
+            {m.ghost ? (
+              <circle cx={sx(m.x)} cy={sy(m.y)} r={4.5} fill="var(--surface)" stroke="var(--muted)" strokeWidth={1.75} />
+            ) : (
+              <circle cx={sx(m.x)} cy={sy(m.y)} r={4.5} fill="var(--accent)" stroke="var(--surface)" strokeWidth={1.5} />
+            )}
             <text
               x={sx(m.x) + at.dx}
               y={sy(m.y) + at.dy}
               textAnchor={at.anchor}
               fontSize={11}
               fontWeight={600}
-              fill="var(--ink)"
+              fill={m.ghost ? "var(--muted)" : "var(--ink)"}
               paintOrder="stroke"
               stroke="var(--surface)"
               strokeWidth={3}

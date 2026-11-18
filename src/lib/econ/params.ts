@@ -47,7 +47,7 @@ export const PARAMS: ParamDef[] = [
   { key: "kappa", label: "Capital mobility κ", min: 1, max: 100, step: 1, group: "Open economy", help: "How freely capital crosses the border. Small κ means a steeper BP curve (less mobile)." },
   { key: "fxPeg", label: "Peg level ε̄", min: 0.5, max: 1.5, step: 0.01, group: "Open economy", help: "The real exchange rate the central bank defends when the regime is Fixed." },
 
-  { key: "lambda", label: "SRAS slope λ", min: 0.1, max: 2, step: 0.05, group: "Adjustment", help: "How strongly prices respond to an output gap, i.e. how flexible short-run supply is." },
+  { key: "lambda", label: "SRAS slope λ", min: 0.1, max: 2, step: 0.05, group: "Adjustment", help: "How far prices rise above expectations for each 1% that output is above potential. Low λ: a flat SRAS, sticky prices. High λ: a steep SRAS, flexible prices." },
   { key: "theta", label: "Expectations speed θ", min: 0.05, max: 1, step: 0.05, group: "Adjustment", help: "How quickly price expectations catch up to realised prices, and so how fast the economy returns to potential output. In the Phillips curve it also sets the sacrifice ratio 1/(βθ)." },
 
   { key: "piE", label: "Expected inflation πᵉ", min: 0, max: 0.2, step: 0.005, group: "Inflation & labour", help: "The inflation rate people expect, and the rate the economy starts at. A high πᵉ makes a disinflation expensive." },

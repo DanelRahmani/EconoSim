@@ -36,9 +36,24 @@ export function adOutput(e: Economy, P: number): number {
   return (e.c0 - e.c1 * e.T + e.I0 + e.G + (e.b / e.hR) * (e.M / P)) / D;
 }
 
-/** Short-run aggregate supply: P = P^e + λ (Y − Yn). */
+/**
+ * Short-run aggregate supply: P = Pᵉ·(1 + λ·(Y − Yn)/Yn).
+ *
+ * λ is unit-free: a 1% output gap moves prices λ% above what was expected.
+ * It used to be P = Pᵉ + λ(Y − Yn), which mixed a price index (≈ 1) with output
+ * in levels (≈ 150): at λ = 0.5 a 1% gap raised prices 75%, and SRAS drew as an
+ * almost vertical line.
+ */
 export function srasOutput(e: Economy, P: number, priceExpectation: number, Yn: number): number {
-  return Yn + (P - priceExpectation) / e.lambda;
+  return Yn * (1 + (P / priceExpectation - 1) / e.lambda);
+}
+
+/** AD solved for the price level: the P at which demand equals Y (NaN where no positive price does). */
+export function adPrice(e: Economy, Y: number): number {
+  const D = (1 - e.c1) + (e.b * e.kY) / e.hR;
+  const autonomous = e.c0 - e.c1 * e.T + e.I0 + e.G;
+  const realBalances = ((Y * D - autonomous) * e.hR) / e.b;
+  return realBalances > 0 ? e.M / realBalances : Number.NaN;
 }
 
 /** Short-run equilibrium where AD meets SRAS. */
@@ -105,11 +120,22 @@ export function adas(e: Economy, horizon = 60): Panel[] {
   );
   const path = adasPath(e, Yn, horizon, Math.max(120, Math.min(1200, Math.round(horizon * 5))));
 
-  // Both curves are drawn over one range of prices, so neither can wander into
-  // negative prices: SRAS used to be drawn over output from 1 upward, which at
-  // λ = 0.5 put its left end at P ≈ −100 and squashed the equilibrium flat.
-  const pTop = Math.max(eq.P * 1.6, 1.6);
-  const ps = linspace(Math.max(0.2, eq.P * 0.6), pTop, 120);
+  // Both curves are drawn over one window of output around the equilibrium and
+  // potential, so the frame shows where they cross rather than how far each
+  // can run. Points with a non-positive price are dropped: there is no such
+  // region to draw.
+  const yLo = 0.8 * Math.min(eq.Y, Yn);
+  const yHi = 1.2 * Math.max(eq.Y, Yn);
+  const ys = linspace(yLo, yHi, 120);
+  // AD runs off towards infinite prices as output falls; past twice the
+  // equilibrium price it only squashes the crossing into the bottom of the frame.
+  const pCap = 2 * Math.max(eq.P, e.P);
+  const positive = (pts: { x: number; y: number }[]) => pts.filter((q) => Number.isFinite(q.y) && q.y > 0 && q.y <= pCap);
+  const adPts = positive(ys.map((Y) => ({ x: Y, y: adPrice(e, Y) })));
+  const srasPts = positive(ys.map((Y) => ({ x: Y, y: e.P * (1 + (e.lambda * (Y - Yn)) / Yn) })));
+  const prices = [...adPts, ...srasPts].map((q) => q.y);
+  const pLo = Math.min(...prices);
+  const pHi = Math.max(...prices);
 
   return [
     {
@@ -121,9 +147,9 @@ export function adas(e: Economy, horizon = 60): Panel[] {
         xLabel: "Output (Y)",
         yLabel: "Price level (P)",
         series: [
-          { label: "AD", points: ps.map((P) => ({ x: adOutput(e, P), y: P })) },
-          { label: "SRAS", points: ps.map((P) => ({ x: srasOutput(e, P, e.P, Yn), y: P })) },
-          { label: "LRAS", points: [{ x: Yn, y: ps[0] }, { x: Yn, y: pTop }], dashed: true },
+          { label: "AD", points: adPts },
+          { label: "SRAS", points: srasPts },
+          { label: "LRAS", points: [{ x: Yn, y: pLo }, { x: Yn, y: pHi }], dashed: true },
         ],
         markers: [{ x: eq.Y, y: eq.P, label: "E" }],
       },
@@ -146,13 +172,15 @@ export function adas(e: Economy, horizon = 60): Panel[] {
       id: "adas-dynamics",
       title: `Adjustment to the long run: next ${horizon} periods`,
       description: "With sticky expectations, output and prices converge over time to the LRAS level (dP^e/dt = θ·(P − P^e)).",
+      // Both paths in percent, so they share an axis: output (≈ 150) and the
+      // price index (≈ 1) drawn as levels left the price line flat along zero.
       timeseries: {
         xLabel: "Time",
-        yLabel: "Value",
+        yLabel: "Percent",
         series: [
-          { label: "Y", points: path.map((p) => ({ x: p.t, y: p.Y })) },
-          { label: "Yn", points: path.map((p) => ({ x: p.t, y: Yn })) },
-          { label: "P", points: path.map((p) => ({ x: p.t, y: p.P })) },
+          { label: "Output gap (% of Yn)", points: path.map((p) => ({ x: p.t, y: ((p.Y - Yn) / Yn) * 100 })) },
+          { label: "Price level (% above start)", points: path.map((p) => ({ x: p.t, y: (p.P / path[0].P - 1) * 100 })) },
+          { label: "Potential (gap = 0)", points: path.map((p) => ({ x: p.t, y: 0 })), dashed: true },
         ],
       },
       trace: [],

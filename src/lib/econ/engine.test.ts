@@ -39,6 +39,9 @@ import {
 } from "@/lib/econ/comparativeStatics";
 import { exportName, panelToCsv, panelsToCsv } from "@/lib/econ/export";
 import { MODEL_INPUTS, modelInputs } from "@/lib/econ/registry";
+import { mergePanels, sameLine, SHOCK_TAGS } from "@/lib/econ/compare";
+import { srasOutput } from "@/lib/econ/models/adas";
+import { dornbuschPanel } from "@/lib/econ/models/dornbusch";
 import { PARAMS, SLIDER_KEYS } from "@/lib/econ/params";
 import { relevantShocks } from "@/lib/econ/shocks";
 import { axisDomain, clampWindow, niceTicks, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
@@ -643,11 +646,11 @@ describe("currency crisis", () => {
   it("brings reserves through zero exactly at the collapse date", () => {
     const core = crisisCore(e, 40);
     // The collapse date is a fraction of a period, so the crossing sits between
-    // two samples: positive before it, negative after it.
+    // two samples: positive before it, exhausted (floored at zero) after it.
     const before = core.path[Math.floor(core.crisisTime)];
     const after = core.path[Math.ceil(core.crisisTime)];
     expect(before.reserves).toBeGreaterThan(0);
-    expect(after.reserves).toBeLessThan(0);
+    expect(after.reserves).toBe(0);
     expect(before.shadow).toBeLessThan(100);
     expect(after.shadow).toBeGreaterThan(100);
   });
@@ -1385,5 +1388,67 @@ describe("per-model parameter lists", () => {
     expect(relevantShocks(modelInputs("game-theory").uses, base)).toHaveLength(0);
     expect(relevantShocks(modelInputs("adas").uses, base).map((s) => s.id)).toContain("oil");
     expect(relevantShocks(modelInputs("islm").uses, base).map((s) => s.id)).not.toContain("oil");
+  });
+});
+
+describe("comparison view", () => {
+  it("treats the same curve sampled on a different grid as unchanged", () => {
+    // Straight segments between samples are not exactly a curve, so compare a line.
+    const lineA = [0, 10].map((x) => ({ x, y: 2 * x + 1 }));
+    const lineB = [2, 5, 8].map((x) => ({ x, y: 2 * x + 1 }));
+    expect(sameLine(lineA, lineB)).toBe(true);
+    expect(sameLine(lineA, lineA.map((p) => ({ ...p, y: p.y + 1 })))).toBe(false);
+  });
+
+  it("pairs moved curves as (shock)/(base) in one colour group and drops unmoved twins", () => {
+    const e = defaultEconomy();
+    const base = runModel("islm", e);
+    const now = runModel("islm", { ...e, G: e.G + 20 });
+    const [panel] = mergePanels(now, base, SHOCK_TAGS);
+    const labels = panel.chart!.series.map((s) => s.label);
+    expect(labels).toContain("IS (shock)");
+    expect(labels).toContain("IS (base)");
+    expect(labels).toContain("LM");
+    expect(labels).not.toContain("LM (base)");
+    const ghost = panel.chart!.series.find((s) => s.label === "IS (base)")!;
+    expect(ghost.ghost).toBe(true);
+    expect(ghost.group).toBe("IS");
+    expect(panel.chart!.markers!.some((m) => m.ghost && m.label === "E (base)")).toBe(true);
+  });
+});
+
+describe("chart units", () => {
+  it("SRAS: a 1% output gap lifts prices λ% above expectations", () => {
+    const e = defaultEconomy();
+    const Yn = 150;
+    const P = 1 + e.lambda * 0.01;
+    expect(srasOutput(e, P, 1, Yn)).toBeCloseTo(Yn * 1.01, 9);
+  });
+
+  it("Dornbusch paths start from the old steady state", () => {
+    const [panel] = dornbuschPanel(defaultEconomy(), 10, 40);
+    const price = panel.timeseries!.series.find((s) => s.label === "Price level p")!;
+    const fx = panel.timeseries!.series.find((s) => s.label === "Exchange rate s")!;
+    const longRun = panel.timeseries!.series.find((s) => s.label === "Long-run s̄")!;
+    expect(price.points[0].y).toBeCloseTo(0, 9);
+    expect(price.points[price.points.length - 1].y).toBeCloseTo(100 * Math.log(1.1), 2);
+    expect(fx.points[0].y).toBeGreaterThan(longRun.points[0].y);
+  });
+
+  it("time paths never mix scales more than 50 to 1 on one axis", () => {
+    for (const m of MODELS) {
+      for (const p of runModel(m.id, defaultEconomy())) {
+        if (!p.timeseries) continue;
+        const spans = p.timeseries.series
+          .map((s) => Math.max(...s.points.map((q) => Math.abs(q.y)).filter(Number.isFinite)))
+          .filter((v) => v > 1e-9);
+        if (spans.length < 2) continue;
+        expect(Math.max(...spans) / Math.min(...spans), `${m.id}/${p.id}`).toBeLessThan(50);
+      }
+    }
+  });
+
+  it("reserves never go negative in the currency-crisis path", () => {
+    for (const p of crisisCore(defaultEconomy(), 120).path) expect(p.reserves).toBeGreaterThanOrEqual(0);
   });
 });

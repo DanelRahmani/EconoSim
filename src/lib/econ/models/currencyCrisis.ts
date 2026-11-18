@@ -76,12 +76,16 @@ export function crisisCore(e: Economy, horizon = 50): CrisisCore {
   }
 
   const periods = Math.max(5, Math.min(400, Math.round(horizon)));
+  // After the collapse there is no peg left to plot against: the path stops a
+  // little past T* rather than running reserves thousands of percent negative.
+  const shown = Number.isFinite(crisisTime) ? Math.min(periods, Math.max(5, Math.ceil(crisisTime * 1.5))) : periods;
   const path: CrisisCore["path"] = [];
-  for (let i = 0; i <= periods; i++) {
+  for (let i = 0; i <= shown; i++) {
     const credit = D0 * Math.pow(1 + mu, i);
     path.push({
       t: i,
-      reserves: ((M - credit) / M) * 100,
+      // Reserves cannot fall below zero: that is the collapse.
+      reserves: Math.max(0, ((M - credit) / M) * 100),
       // Shadow rate as a percentage of the peg: it reaches 100 exactly at T*.
       shadow: (credit / M) * 100,
     });
