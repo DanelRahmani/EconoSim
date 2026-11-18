@@ -78,8 +78,9 @@ export const GLOSSARY: GlossaryGroup[] = [
   {
     group: "Open economy",
     entries: [
-      { symbol: "ε", latex: "\\varepsilon", name: "Real exchange rate", meaning: "The price of domestic goods relative to foreign goods. A rise is an appreciation, which reduces net exports." },
-      { symbol: "q", latex: "q", name: "Real exchange rate (parity view)", meaning: "q = S·P*/P: the same idea expressed with the nominal rate S and price levels." },
+      { symbol: "ε", latex: "\\varepsilon", name: "Real exchange rate", meaning: "The price of domestic goods in terms of foreign goods: P/(S·P*), with S the nominal rate in domestic currency per foreign unit. A rise is a real appreciation, which reduces net exports. Mundell-Fleming and the parity panel use the same definition." },
+      { symbol: "S", latex: "S", name: "Nominal exchange rate", meaning: "Units of domestic currency per unit of foreign currency. A rise in S is a nominal depreciation; the real rate is then ε = P/(S·P*)." },
+      { symbol: "σ", latex: "\\sigma", name: "Imported energy share", meaning: "The share of production costs spent on imported energy. When the foreign price P* rises, potential output falls by the factor P*^(−σ/(1−σ)): the larger σ, the harder an oil shock bites." },
       { symbol: "NX", latex: "NX", name: "Net exports", meaning: "Exports minus imports, i.e. the trade balance." },
       { symbol: "CA", latex: "CA", name: "Current account", meaning: "National saving minus investment. A surplus builds foreign assets, a deficit builds debt." },
       { symbol: "S−I", latex: "S - I", name: "Saving minus investment", meaning: "The identity behind the current account: what the country saves beyond what it invests is lent abroad." },
@@ -98,11 +99,11 @@ export const GLOSSARY: GlossaryGroup[] = [
     group: "The switches",
     entries: [
       { symbol: "Closed / Open", name: "Openness", meaning: "Closed turns trade off and the open-economy models collapse to plain IS-LM. Open lets the country trade and borrow abroad." },
-      { symbol: "Small / Large", name: "Country size", meaning: "Small means perfect capital mobility: the country takes the world interest rate as given (a horizontal BP curve) and its own policies do not move world rates. Large means its borrowing does move the world rate, so the BP curve slopes upward and policy spills over." },
+      { symbol: "Small / Large", name: "Country size", meaning: "In this simulator the switch sets capital mobility. Small: perfect mobility, so the domestic rate is pinned to the world rate plus the risk premium (a horizontal BP curve). Large: finite mobility κ, so the BP curve slopes upward and the domestic rate can differ. Textbooks treat country size and capital mobility as separate ideas; here they are bundled into one switch." },
       { symbol: "Floating / Fixed", name: "Exchange-rate regime", meaning: "Floating: the exchange rate adjusts and monetary policy is powerful. Fixed: the peg is held, the money supply adjusts instead, so fiscal policy is powerful and monetary policy loses its independent effect." },
       { symbol: "Adaptive / Credible", name: "Expectations regime", meaning: "How expectations behave when the central bank disinflates. Adaptive: people learn from realised inflation, so unemployment has to rise above its natural rate and the sacrifice ratio is 1/(βθ). Credible: the announcement is believed at once, expectations jump to the target, and the disinflation costs nothing. That is the Lucas-critique lesson." },
       { symbol: "Prisoner's dilemma / Coordination / Chicken / Matching pennies", name: "Which 2×2 game", meaning: "The payoffs of all four games are solved generically, so the panel reports dominant strategies, Nash equilibria and whether the dilemma is real for whichever one is chosen." },
-      { symbol: "Y = A·Kᵅ·L¹⁻ᵅ", latex: "Y = A\\,K^{\\alpha}L^{1-\\alpha}", name: "Cobb-Douglas production", meaning: "The production function everything builds on. Notice α is the 'technology share' of capital: it says how much of income capital earns." },
+      { symbol: "Y = A·Kᵅ·L¹⁻ᵅ", latex: "Y = A\\,K^{\\alpha}L^{1-\\alpha}", name: "Cobb-Douglas production", meaning: "The production function everything builds on. α is capital's share of income and 1 − α is labour's. Here A is total factor productivity (Hicks-neutral); the Solow model writes the same technology as labour-augmenting, Y = Kᵅ(AL)¹⁻ᵅ, which is equivalent with A_TFP = A^(1−α)." },
       { symbol: "Golden rule", name: "Golden rule", meaning: "The saving rate that maximises long-run consumption. It happens exactly where s = α." },
       { symbol: "Marshall-Lerner", name: "Marshall-Lerner condition", meaning: "A depreciation improves the trade balance only if the export and import price elasticities sum to more than one." },
       { symbol: "Overshooting", name: "Dornbusch overshooting", meaning: "Because prices are sticky, a money shock pushes the exchange rate past its long-run value before it comes back." },

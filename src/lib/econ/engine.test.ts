@@ -16,6 +16,7 @@ import {
   DEFAULT_SWEEP_FIGURE,
   DEFAULT_ZLB,
   MODELS,
+  HORIZON_MODELS,
   runModel,
 } from "@/lib/econ/registry";
 import { solveLinear } from "@/lib/econ/math";
@@ -38,6 +39,7 @@ import {
   sweepPanel,
 } from "@/lib/econ/comparativeStatics";
 import { exportName, panelToCsv, panelsToCsv } from "@/lib/econ/export";
+import { describeChange } from "@/lib/format";
 import { MODEL_INPUTS, modelInputs } from "@/lib/econ/registry";
 import { mergePanels, sameLine, SHOCK_TAGS } from "@/lib/econ/compare";
 import { srasOutput } from "@/lib/econ/models/adas";
@@ -299,7 +301,7 @@ describe("shocks", () => {
 
   it("rebuilds presets from the live economy, so slider changes are respected", () => {
     const richer = { ...defaultEconomy(), M: 200 };
-    expect(resolveShocks(richer, [preset("monetary")]).economy.M).toBeCloseTo(240, 10);
+    expect(resolveShocks(richer, [preset("monetary")]).economy.M).toBeCloseTo(220, 10);
   });
 
   it("every preset only touches real Economy fields and stays valid", () => {
@@ -748,7 +750,10 @@ describe("game theory", () => {
     for (const g of GAMES) {
       const core = gameCore({ game: g.id, temptation: 5 });
       expect(core.nashCount).toBeGreaterThanOrEqual(0);
-      expect(Number.isFinite(core.equilibriumPayoff[0])).toBe(true);
+      // A unique equilibrium (pure, or mixed when there is no pure one) has a
+      // payoff; two pure equilibria have no single payoff to report.
+      if (core.nashCount === 2) expect(core.equilibriumPayoff).toBeNull();
+      else expect(Number.isFinite(core.equilibriumPayoff![0])).toBe(true);
     }
   });
 });
@@ -1345,7 +1350,11 @@ describe("per-model parameter lists", () => {
   const variants: Economy[] = [];
   for (const openness of ["open", "closed"] as const)
     for (const size of ["small", "large"] as const)
-      for (const regime of ["floating", "fixed"] as const) variants.push({ ...base, openness, size, regime });
+      for (const regime of ["floating", "fixed"] as const) {
+        variants.push({ ...base, openness, size, regime });
+        // At a peg of exactly 1, ln ε = 0 hides every term multiplied by it.
+        if (regime === "fixed") variants.push({ ...base, openness, size, regime, fxPeg: 1.2 });
+      }
 
   /** Every slider and switch that changes the model's output, found by perturbing each one. */
   const reads = (id: string) => {
@@ -1464,5 +1473,131 @@ describe("default calibration", () => {
   it("the IS-LM rate sits near the world rate", () => {
     const e = defaultEconomy();
     expect(Math.abs(islmCore(e).r - e.rStar)).toBeLessThan(0.005);
+  });
+});
+
+describe("economics review fixes", () => {
+  const e = defaultEconomy();
+  const fig = (id: string, label: string, econ = e, panel = 0) =>
+    runModel(id, econ).at(panel)!.scalars!.find((s) => s.label === label)!.value;
+
+  it("Phillips: Okun's coefficient is 2, so the output cost is 2·(πᵉ − π*)/(βθ)", () => {
+    const core = phillipsCore(e, "adaptive");
+    expect(core.outputCost).toBeCloseTo((2 * (e.piE - e.piTarget)) / (e.pcBeta * e.theta), 12);
+    const path = phillipsPath(e, "adaptive", 40);
+    expect(path[0].outputGap).toBeCloseTo(-2 * (path[0].u - e.un), 12);
+  });
+
+  it("policy rule: the stance compares the rule's real rate with the IS-LM real rate", () => {
+    const i = fig("policy-rule", "Rule nominal rate i");
+    const pi = fig("policy-rule", "Inflation π (= πᵉ)");
+    const r = fig("policy-rule", "IS-LM real rate r");
+    expect(fig("policy-rule", "Rule real rate i − π")).toBeCloseTo(i - pi, 12);
+    expect(fig("policy-rule", "Stance (rule − market, real)")).toBeCloseTo(i - pi - r, 12);
+  });
+
+  it("Mundell-Fleming: ε is 1 at the defaults and stays positive under any expansion", () => {
+    expect(mfCore(e).eps).toBeCloseTo(1, 9);
+    for (const M of [e.M * 1.5, e.M * 3]) expect(mfCore({ ...e, M }).eps).toBeGreaterThan(0);
+    // A monetary expansion under a float is a real depreciation: ε falls.
+    expect(mfCore({ ...e, M: e.M * 1.1 }).eps).toBeLessThan(mfCore(e).eps);
+    // Net exports fall as ε rises (appreciation).
+    expect(netExports(e, 100, 1.2)).toBeLessThan(netExports(e, 100, 1));
+  });
+
+  it("parity: ε uses the same convention as Mundell-Fleming (a rise is an appreciation)", () => {
+    // Dearer foreign goods make home goods relatively cheap: ε falls below 1.
+    expect(fig("parity", "Real exchange rate (ε)", { ...e, pStar: 1.25 })).toBeLessThan(1);
+    expect(fig("parity", "Real exchange rate (ε)", { ...e, P: 1.25 })).toBeGreaterThan(1);
+    expect(fig("parity", "Forward premium (F − S)/S")).toBeCloseTo(fig("parity", "Domestic rate (i)") - e.rStar, 12);
+  });
+
+  it("external balance: S − I equals the trade balance, and NFA follows a' = a(1+r)/(1+g) + tb", () => {
+    const core = mfCore(e);
+    const sMinusI = fig("external-balance", "Current account today (S − I)");
+    expect(sMinusI).toBeCloseTo(core.NX, 9);
+    const [panel] = runModel("external-balance", e);
+    const a = panel.timeseries!.series[0].points.map((p) => p.y / 100);
+    const tb = core.NX / core.Y;
+    const g = e.n + e.g;
+    expect(a[2]).toBeCloseTo((a[1] * (1 + core.r)) / (1 + g) + tb, 9);
+    expect(panel.trace.some((s) => s.label === "Balance of payments identity")).toBe(false);
+  });
+
+  it("trade flows: Marshall-Lerner and the J-curve come from the elasticities", () => {
+    const run = (etaX: number, etaM: number) => runModel("trade-flows", e, { ...DEFAULT_OPTIONS, trade: { etaX, etaM } })[0];
+    const ok = run(0.7, 0.6);
+    const tb = ok.timeseries!.series[0].points;
+    expect(tb[0].y).toBeLessThan(0);
+    expect(tb[tb.length - 1].y).toBeGreaterThan(0);
+    const fails = run(0.3, 0.4);
+    const tbFail = fails.timeseries!.series[0].points;
+    expect(tbFail[tbFail.length - 1].y).toBeLessThan(0);
+    // Terms of trade read the foreign price.
+    expect(runModel("trade-flows", { ...e, pStar: 1.25 })[0].scalars!.find((s) => s.label === "Terms of trade P/P*")!.value).toBeCloseTo(0.8, 12);
+  });
+
+  it("Cobb-Douglas: paying factors their marginal products exhausts output", () => {
+    for (const A of [1, 1.5]) {
+      const econ = { ...e, A };
+      const Y = fig("cobb-douglas", "Output (Y)", econ);
+      const mpk = fig("cobb-douglas", "Marginal product of capital", econ);
+      const w = fig("cobb-douglas", "Real wage", econ);
+      expect(mpk * econ.K0 + w * econ.L).toBeCloseTo(Y, 9);
+    }
+  });
+
+  it("AK: both paths are indexed to 100 at the start whatever A is", () => {
+    const [, path] = runModel("ak-growth", { ...e, A: 1.4 });
+    for (const s of path.timeseries!.series) expect(s.points[0].y).toBeCloseTo(100, 9);
+  });
+
+  it("oil shock: potential falls by P*^(−σ/(1−σ)), prices rise and output falls", () => {
+    const oil = { ...e, pStar: 1.25 };
+    const s = e.energyShare;
+    expect(fig("adas", "Natural output (Yn)", oil) / fig("adas", "Natural output (Yn)")).toBeCloseTo(Math.pow(1.25, -s / (1 - s)), 9);
+    expect(fig("adas", "Price level (P*)", oil)).toBeGreaterThan(fig("adas", "Price level (P*)"));
+    expect(fig("adas", "Output (Y*)", oil)).toBeLessThan(fig("adas", "Output (Y*)"));
+  });
+
+  it("game theory: best responses are marked per payoff, and two equilibria report no single payoff", () => {
+    const [matrix] = runModel("game-theory", e, { ...DEFAULT_OPTIONS, game: { game: "chicken", temptation: 5 } });
+    expect(matrix.scalars!.some((s) => s.label.includes("equilibrium payoff"))).toBe(false);
+    const cell = matrix.table!.rows[0].cells[0];
+    expect(cell.parts).toHaveLength(3);
+    const [pd] = runModel("game-theory", e, { ...DEFAULT_OPTIONS, game: { game: "prisoners", temptation: 5 } });
+    expect(pd.notes!.join(" ")).not.toContain("Backward induction");
+  });
+
+  it("shocks: only presets that apply in full are offered", () => {
+    const ids = (id: string, econ = e) => relevantShocks(modelInputs(id).uses, econ).map((s) => s.id);
+    expect(ids("adas")).not.toContain("ai");
+    expect(ids("ai-boom")).toContain("ai");
+    expect(ids("mf")).not.toContain("devalue");
+    expect(ids("mf", { ...e, regime: "fixed" })).toContain("devalue");
+  });
+
+  it("changes are described honestly: points for rates, levels across zero", () => {
+    expect(describeChange(0.087, 0.032, true)!.text).toBe("5.5 pp");
+    expect(describeChange(1.27, -0.29)!.text).toBe("1.56");
+    expect(describeChange(110, 100)!.text).toBe("10.0%");
+    expect(describeChange(1, 1)).toBeNull();
+  });
+
+  it("the default ZLB shock is a recession, not a depression", () => {
+    const gap = fig("zlb", "Output gap");
+    const Yn = fig("zlb", "Natural output Yₙ");
+    expect(fig("zlb", "Natural rate rₙ")).toBeLessThan(0);
+    expect(Math.abs(gap / Yn)).toBeLessThan(0.1);
+  });
+});
+
+describe("time-window control", () => {
+  it("is offered exactly for the models whose output depends on the horizon", () => {
+    for (const m of MODELS) {
+      const a = JSON.stringify(runModel(m.id, defaultEconomy(), { ...DEFAULT_OPTIONS, horizon: 20 }));
+      const b = JSON.stringify(runModel(m.id, defaultEconomy(), { ...DEFAULT_OPTIONS, horizon: 80 }));
+      expect(HORIZON_MODELS.has(m.id), m.id).toBe(a !== b);
+    }
   });
 });

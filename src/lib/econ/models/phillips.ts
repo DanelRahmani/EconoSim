@@ -12,7 +12,7 @@ import { naturalOutput } from "./adas";
  *
  * plus Okun's law, which turns an unemployment gap into an output gap:
  *
- *     (Y − Yn)/Yn = −0.5 (u − u_n)
+ *     (Y − Yn)/Yn = −2 (u − u_n)
  *
  * The point of the model is the disinflation experiment. The central bank
  * announces and delivers a lower inflation rate. What that costs depends
@@ -29,8 +29,12 @@ import { naturalOutput } from "./adas";
  * the Lucas-critique lesson.
  */
 
-/** Okun's law: a one-point rise in unemployment costs about 0.5% of output. */
-const OKUN = 0.5;
+/**
+ * Okun's law in gap form: a one-point rise in unemployment above its natural
+ * rate goes with output about 2% below potential (Blanchard, Mankiw). It was
+ * 0.5 here, which understated the output cost of a disinflation fourfold.
+ */
+export const OKUN = 2;
 
 export interface PhillipsPath {
   t: number;
@@ -208,12 +212,12 @@ export function phillips(e: Economy, mode: Expectations, horizon = 40): Panel[] 
         markers,
       },
       scalars: [
-        { label: "Inflation before", value: core.pi0 },
-        { label: "Inflation target", value: core.target },
-        { label: "Natural unemployment uₙ", value: core.naturalU },
+        { label: "Inflation before", value: core.pi0, percent: true },
+        { label: "Inflation target", value: core.target, percent: true },
+        { label: "Natural unemployment uₙ", value: core.naturalU, percent: true },
         ...(adaptive
           ? [
-              { label: "Unemployment at impact", value: core.impactU, hint: "uₙ + (πᵉ − π*)/β" },
+              { label: "Unemployment at impact", value: core.impactU, percent: true, hint: "uₙ + (πᵉ − π*)/β" },
               {
                 label: "Sacrifice ratio",
                 value: core.sacrificeRatio,
@@ -222,14 +226,15 @@ export function phillips(e: Economy, mode: Expectations, horizon = 40): Panel[] 
               {
                 label: "Output cost (share of a year)",
                 value: core.outputCost,
-                hint: "Okun's law applied to the whole path: 0.5·(πᵉ − π*)/(βθ)",
+                percent: true,
+                hint: "Okun's law (coefficient 2) applied to the whole path: 2·(πᵉ − π*)/(βθ)",
               },
               { label: "Expectation half-life", value: core.halfLife, unit: "periods" },
             ]
           : [
               { label: "Excess unemployment", value: 0, hint: "Expectations moved with the announcement" },
               { label: "Sacrifice ratio", value: 0 },
-              { label: "Output cost (share of a year)", value: 0 },
+              { label: "Output cost (share of a year)", value: 0, percent: true },
             ]),
       ],
       notes: adaptive
@@ -262,7 +267,7 @@ export function phillips(e: Economy, mode: Expectations, horizon = 40): Panel[] 
         ],
       },
       scalars: [
-        { label: "Output gap at impact", value: path[0]?.outputGap ?? 0 },
+        { label: "Output gap at impact", value: path[0]?.outputGap ?? 0, percent: true },
         {
           label: `Excess unemployment over ${horizon} periods`,
           value: pathExcess,

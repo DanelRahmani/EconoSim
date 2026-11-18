@@ -7,6 +7,7 @@ import type {
   MarketOptions,
   MicroOptions,
   SweepParam,
+  TradeOptions,
   ZlbOptions,
 } from "./types";
 import type { Panel } from "./panel";
@@ -50,6 +51,8 @@ export interface RunOptions {
   game: GameOptions;
   /** Size of the negative demand shock in the zero-lower-bound model. */
   zlb: ZlbOptions;
+  /** Long-run trade elasticities for the trade-flows panel. */
+  trade: TradeOptions;
   /** Which parameter the comparative-statics panel nudges, or "none". */
   sweep: SweepParam;
   /** Which parameter the sweep curve puts on its x-axis, or "none". */
@@ -68,7 +71,13 @@ export const DEFAULT_MICRO: MicroOptions = { px: 1, py: 2, income: 24, weight: 0
 export const DEFAULT_MARKET: MarketOptions = { demandA: 20, demandB: 1, mc: 4, fixed: 10 };
 export const DEFAULT_EXTERNALITY: ExternalityOptions = { external: 2, tax: 0 };
 export const DEFAULT_GAME: GameOptions = { game: "prisoners", temptation: 5 };
-export const DEFAULT_ZLB: ZlbOptions = { demandShock: 0.12 };
+/**
+ * A recession-sized shock: enough to push the natural rate a little below zero,
+ * so the bound binds for a while. 12% gave a 20% output gap, a depression.
+ */
+export const DEFAULT_ZLB: ZlbOptions = { demandShock: 0.06 };
+/** Mid-range textbook estimates: Marshall-Lerner holds, but not by much. */
+export const DEFAULT_TRADE: TradeOptions = { etaX: 0.7, etaM: 0.6 };
 /** Slow expectations are the interesting case, so they are the default. */
 export const DEFAULT_EXPECTATIONS: Expectations = "adaptive";
 /** Comparative statics starts off: it is a question you ask, not a default view. */
@@ -86,6 +95,7 @@ export const DEFAULT_OPTIONS: RunOptions = {
   externality: DEFAULT_EXTERNALITY,
   game: DEFAULT_GAME,
   zlb: DEFAULT_ZLB,
+  trade: DEFAULT_TRADE,
   sweep: DEFAULT_SWEEP,
   sweepAxis: DEFAULT_SWEEP_AXIS,
   sweepFigure: DEFAULT_SWEEP_FIGURE,
@@ -99,6 +109,9 @@ export interface ModelDef {
   /** Models that plot a path over time honour `o.horizon`; the rest ignore it. */
   run: (e: Economy, o: RunOptions) => Panel[];
 }
+
+/** The models whose time paths follow the time-window dial; the control is shown only for these. */
+export const HORIZON_MODELS = new Set(["solow", "ak-growth", "adas", "zlb", "phillips", "debt", "currency-crisis", "dornbusch", "external-balance"]);
 
 export const MODELS: ModelDef[] = [
   { id: "cobb-douglas", label: "Cobb-Douglas", group: "Foundations", blurb: "The production function everything else builds on.", run: (e) => cobbDouglas(e) },
@@ -115,7 +128,7 @@ export const MODELS: ModelDef[] = [
   { id: "parity", label: "Parity conditions", group: "International macro", blurb: "UIP, CIP, PPP, the real exchange rate and the trilemma.", run: (e) => parity(e) },
   { id: "dornbusch", label: "Dornbusch overshooting", group: "International macro", blurb: "Why the exchange rate overshoots after a money shock.", run: (e, o) => dornbuschPanel(e, 10, o.horizon) },
   { id: "external-balance", label: "External balance", group: "International macro", blurb: "Current account, net foreign assets and debt dynamics.", run: (e, o) => externalBalance(e, o.horizon) },
-  { id: "trade-flows", label: "Trade flows", group: "International macro", blurb: "Marshall-Lerner, the J-curve and Dutch disease.", run: (e) => tradeFlows(e) },
+  { id: "trade-flows", label: "Trade flows", group: "International macro", blurb: "Marshall-Lerner, the J-curve and Dutch disease.", run: (e, o) => tradeFlows(e, o.trade) },
   { id: "policy-rule", label: "Policy rule", group: "International macro", blurb: "The Taylor rule and the policy stance.", run: (e) => policyRule(e) },
   { id: "consumer-choice", label: "Consumer choice", group: "Micro", blurb: "Budget lines, indifference curves and the demand that falls out of them.", run: (e, o) => consumerChoice(e, o.micro) },
   { id: "market-structure", label: "Competition vs monopoly", group: "Micro", blurb: "Deadweight loss, and who pays for market power.", run: (e, o) => marketStructure(e, o.market) },
@@ -153,7 +166,7 @@ export const MODEL_INPUTS: Record<string, ModelInputs> = {
   islm: { key: ["G", "T", "M"], uses: ISLM, structure: [] },
   adas: {
     key: ["G", "M", "lambda", "theta"],
-    uses: [...PRODUCTION.filter((k) => k !== "K0"), ...GROWTH, ...ISLM, "pStar", "importProp", "lambda", "theta"],
+    uses: [...PRODUCTION.filter((k) => k !== "K0"), ...GROWTH, ...ISLM, "pStar", "energyShare", "lambda", "theta"],
     structure: ["openness"],
   },
   zlb: { key: ["G", "M"], uses: [...PRODUCTION.filter((k) => k !== "K0"), ...GROWTH, ...ISLM], structure: [] },
@@ -162,10 +175,10 @@ export const MODEL_INPUTS: Record<string, ModelInputs> = {
   debt: { key: ["debtRatio", "primaryBalance", "rStar", "g"], uses: ["n", "g", "rStar", "rho", "debtRatio", "primaryBalance"], structure: [] },
   "currency-crisis": { key: ["reservesShare", "creditGrowth"], uses: ["M", "reservesShare", "creditGrowth"], structure: ["regime"] },
   mf: { key: ["G", "M", "rStar"], uses: [...ISLM, ...OPEN], structure: ["openness", "size", "regime"] },
-  parity: { key: ["rStar", "rho", "pStar"], uses: ["P", "rStar", "rho", "pStar"], structure: ["openness"] },
+  parity: { key: ["rStar", "rho", "pStar"], uses: ["P", "rStar", "rho", "pStar"], structure: ["openness", "regime"] },
   dornbusch: { key: ["M", "theta"], uses: ["M", "P", "kY", "hR", "rStar", "pStar", "theta"], structure: [] },
   "external-balance": { key: ["G", "T", "rStar"], uses: ["n", "g", ...ISLM, ...OPEN], structure: ["openness", "size", "regime"] },
-  "trade-flows": { key: ["fxSensitivity", "importProp", "X0"], uses: [...ISLM, ...OPEN], structure: ["openness", "size", "regime"] },
+  "trade-flows": { key: ["pStar", "X0"], uses: [...ISLM, ...OPEN, "pStar"], structure: ["openness", "size", "regime"] },
   "policy-rule": {
     key: ["piE", "piTarget", "rStar"],
     uses: [...PRODUCTION.filter((k) => k !== "K0"), ...GROWTH, ...ISLM, "rStar", "piE", "piTarget"],

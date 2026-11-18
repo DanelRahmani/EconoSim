@@ -119,7 +119,7 @@ export function islm(e: Economy): Panel[] {
       },
       scalars: [
         { label: "Output (Y*)", value: core.Y },
-        { label: "Interest rate (r*)", value: core.r, unit: "×100%" },
+        { label: "Interest rate (r*)", value: core.r, percent: true },
         { label: "Investment I", value: core.I, hint: "I₀ − b·r: what is left for investment once the rate has moved" },
         { label: "Fiscal multiplier dY/dG", value: core.fiscalMultiplier },
         { label: "Monetary multiplier dY/d(M/P)", value: core.monetaryMultiplier },
@@ -128,6 +128,11 @@ export function islm(e: Economy): Panel[] {
       notes: [
         "A rise in G shifts IS right: Y up, r up.",
         "A rise in M shifts LM right: Y up, r down.",
+        ...(core.r < 0
+          ? [
+              "The equilibrium interest rate is below zero. A nominal policy rate cannot go much below zero in practice (people would hold cash instead), so this equilibrium is out of reach: open the zero-lower-bound model to see what happens instead.",
+            ]
+          : []),
       ],
       trace: core.trace,
     },

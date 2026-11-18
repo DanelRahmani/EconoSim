@@ -141,7 +141,7 @@ export function consumerChoice(_e: Economy, m: MicroOptions): Panel[] {
         { label: "Spending pₓ·x at any price", value: w * m.income, hint: "Constant: the unit-elastic case in one number" },
       ],
       notes: [
-        "Double the price of x and the quantity halves: revenue pₓx is unchanged. A firm with Cobb-Douglas consumers faces a unit-elastic demand curve and never wants to change its price.",
+        "Double the price of x and the quantity halves: revenue pₓx is unchanged. Demand is unit-elastic, so marginal revenue is zero: a seller with any positive marginal cost would keep raising the price, selling less for the same revenue. That is why unit elasticity is a benchmark, not a market a profit-maximiser settles in.",
         "Slide the price of x and watch the optimum move along the budget line, but the *shares* of income never move.",
       ],
       trace: [],

@@ -29,6 +29,7 @@ const NUMERIC_KEYS: (keyof Economy)[] = [
   "foreignIncome",
   "X0",
   "importProp",
+  "energyShare",
   "fxSensitivity",
   "kappa",
   "fxPeg",

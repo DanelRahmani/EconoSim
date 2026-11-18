@@ -50,6 +50,7 @@ export interface Economy {
   foreignIncome: number;
   X0: number; // autonomous exports
   importProp: number; // marginal propensity to import (m)
+  energyShare: number; // cost share of imported energy in production (σ), for supply shocks
   fxSensitivity: number; // real-exchange-rate sensitivity of net exports (v)
   kappa: number; // degree of capital mobility (large country, finite BP slope)
   fxPeg: number; // the pegged real exchange rate when regime === "fixed"
@@ -141,6 +142,14 @@ export interface GameOptions {
   temptation: number;
 }
 
+/** Long-run trade elasticities for the Marshall-Lerner / J-curve panel. */
+export interface TradeOptions {
+  /** Export-volume elasticity to the real exchange rate. */
+  etaX: number;
+  /** Import-volume elasticity to the real exchange rate. */
+  etaM: number;
+}
+
 /** Size of the negative demand shock used by the zero-lower-bound model. */
 export interface ZlbOptions {
   /** Demand contraction, as a fraction of potential output. */
@@ -178,6 +187,9 @@ export function validateEconomy(e: Economy): ValidationIssue[] {
     "theta",
     "pcBeta",
     "wageSlope",
+    // Both enter through a logarithm (net exports, the energy price).
+    "pStar",
+    "fxPeg",
   ];
   for (const k of positive) {
     const v = e[k];
@@ -195,6 +207,9 @@ export function validateEconomy(e: Economy): ValidationIssue[] {
   unit("c1");
   unit("s");
   unit("un");
+  if (!(e.energyShare >= 0 && e.energyShare < 0.9)) {
+    issues.push({ field: "energyShare", message: "energyShare must be between 0 and 0.9" });
+  }
   if (e.n + e.g + e.delta <= 0) {
     issues.push({ field: "n", message: "n + g + delta must be positive" });
   }

@@ -41,6 +41,7 @@ export const PARAMS: ParamDef[] = [
   { key: "rStar", label: "World rate r*", min: 0, max: 0.1, step: 0.001, group: "Open economy", help: "The interest rate prevailing in world markets. A small open economy takes it as given." },
   { key: "rho", label: "Risk premium ρ", min: 0, max: 0.1, step: 0.001, group: "Open economy", help: "Extra yield investors demand to hold this country's assets, above the world rate." },
   { key: "pStar", label: "Foreign price level P*", min: 0.5, max: 2, step: 0.01, group: "Open economy", help: "The price level abroad, 1 in the baseline. Dearer imports (an oil shock) raise costs at home; in AD-AS they lower potential output." },
+  { key: "energyShare", label: "Imported energy share σ", min: 0, max: 0.4, step: 0.01, group: "Open economy", help: "The share of production costs spent on imported energy. It decides how hard a rise in the foreign price P* (an oil shock) hits potential output: Yn falls by the factor P*^(−σ/(1−σ))." },
   { key: "X0", label: "Exports X₀", min: 0, max: 60, step: 1, group: "Open economy", help: "Autonomous exports: sales abroad independent of income and the exchange rate." },
   { key: "importProp", label: "Import propensity m", min: 0, max: 0.3, step: 0.005, group: "Open economy", help: "The fraction of each extra unit of income spent on imports." },
   { key: "fxSensitivity", label: "FX sensitivity v", min: 1, max: 40, step: 1, group: "Open economy", help: "How strongly net exports react to the real exchange rate." },

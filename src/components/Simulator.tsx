@@ -12,13 +12,14 @@ import type {
   MarketOptions,
   MicroOptions,
   SweepParam,
+  TradeOptions,
   ZlbOptions,
 } from "@/lib/econ/types";
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
 import { GROUP_ORDER, PARAMS, PARAM_BY_KEY, orderedParams } from "@/lib/econ/params";
-import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_SWEEP, DEFAULT_SWEEP_AXIS, DEFAULT_SWEEP_FIGURE, DEFAULT_ZLB, HORIZON_PRESETS, MODELS, MODEL_GROUPS, getModel, modelInputs, runModel } from "@/lib/econ/registry";
+import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_SWEEP, DEFAULT_SWEEP_AXIS, DEFAULT_SWEEP_FIGURE, DEFAULT_TRADE, DEFAULT_ZLB, HORIZON_MODELS, HORIZON_PRESETS, MODELS, MODEL_GROUPS, getModel, modelInputs, runModel } from "@/lib/econ/registry";
 import { readState, shareUrl, type CompareMode } from "@/lib/econ/permalink";
 import { CUSTOM_FIELDS, relevantShocks, resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { CHANGE_TAGS, SHOCK_TAGS, mergePanels } from "@/lib/econ/compare";
@@ -123,8 +124,34 @@ function ZlbControls({ value, onChange }: { value: ZlbOptions; onChange: (v: Zlb
         value={value.demandShock * 100}
         min={0}
         max={60}
-        step={5}
+        step={1}
         onChange={(v) => onChange({ ...value, demandShock: v / 100 })}
+      />
+    </div>
+  );
+}
+
+/** Long-run trade elasticities for the Marshall-Lerner / J-curve panel. */
+function TradeControls({ value, onChange }: { value: TradeOptions; onChange: (v: TradeOptions) => void }) {
+  return (
+    <div className="grid gap-x-4 sm:grid-cols-2">
+      <ParamControl
+        label="Export elasticity ηX"
+        help="How strongly export volumes respond to a real depreciation, in the long run. Estimates are often between 0.5 and 1.5."
+        value={value.etaX}
+        min={0}
+        max={2}
+        step={0.05}
+        onChange={(v) => onChange({ ...value, etaX: v })}
+      />
+      <ParamControl
+        label="Import elasticity ηM"
+        help="How strongly import volumes fall after a real depreciation, in the long run. Marshall-Lerner holds when ηX + ηM > 1."
+        value={value.etaM}
+        min={0}
+        max={2}
+        step={0.05}
+        onChange={(v) => onChange({ ...value, etaM: v })}
       />
     </div>
   );
@@ -427,13 +454,14 @@ export function Simulator() {
   const [externality, setExternality] = useState<ExternalityOptions>(DEFAULT_EXTERNALITY);
   const [game, setGame] = useState<GameOptions>(DEFAULT_GAME);
   const [zlb, setZlb] = useState<ZlbOptions>(DEFAULT_ZLB);
+  const [trade, setTrade] = useState<TradeOptions>(DEFAULT_TRADE);
   const [sweep, setSweep] = useState<SweepParam>(DEFAULT_SWEEP);
   const [sweepAxis, setSweepAxis] = useState<SweepParam>(DEFAULT_SWEEP_AXIS);
   const [sweepFigure, setSweepFigure] = useState(DEFAULT_SWEEP_FIGURE);
 
   const options = useMemo(
-    () => ({ horizon, ai, expectations, micro, market, externality, game, zlb, sweep, sweepAxis, sweepFigure }),
-    [horizon, ai, expectations, micro, market, externality, game, zlb, sweep, sweepAxis, sweepFigure],
+    () => ({ horizon, ai, expectations, micro, market, externality, game, zlb, trade, sweep, sweepAxis, sweepFigure }),
+    [horizon, ai, expectations, micro, market, externality, game, zlb, trade, sweep, sweepAxis, sweepFigure],
   );
 
   // A shared link carries the whole view. The server has no URL to read, so the
@@ -456,6 +484,7 @@ export function Simulator() {
       setExternality(shared.externality);
       setGame(shared.game);
       setZlb(shared.zlb);
+      setTrade(shared.trade ?? DEFAULT_TRADE);
       setSweep(shared.sweep);
       setSweepAxis(shared.sweepAxis);
       setSweepFigure(shared.sweepFigure);
@@ -599,6 +628,8 @@ export function Simulator() {
       <ExpectationsControl value={expectations} onChange={setExpectations} />
     ) : model === "zlb" ? (
       <ZlbControls value={zlb} onChange={setZlb} />
+    ) : model === "trade-flows" ? (
+      <TradeControls value={trade} onChange={setTrade} />
     ) : model === "consumer-choice" ? (
       <MicroControls value={micro} onChange={setMicro} />
     ) : model === "market-structure" ? (
@@ -797,7 +828,7 @@ export function Simulator() {
             <ShareLink
               build={() =>
                 shareUrl(
-                  { economy, model, compare, horizon, ai, expectations, micro, market, externality, game, zlb, sweep, sweepAxis, sweepFigure, shocks },
+                  { economy, model, compare, horizon, ai, expectations, micro, market, externality, game, zlb, trade, sweep, sweepAxis, sweepFigure, shocks },
                   window.location.href,
                 )
               }
@@ -946,10 +977,10 @@ export function Simulator() {
                   index={i}
                   exportName={exportStem}
                   chartControls={
-                    scenario || p.timeseries ? (
+                    scenario || (p.timeseries && HORIZON_MODELS.has(model)) ? (
                       <div className="space-y-3">
                         {scenario}
-                        {p.timeseries && <HorizonControl value={horizon} onChange={setHorizon} />}
+                        {p.timeseries && HORIZON_MODELS.has(model) && <HorizonControl value={horizon} onChange={setHorizon} />}
                       </div>
                     ) : undefined
                   }

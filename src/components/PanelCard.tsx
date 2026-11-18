@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { seriesToTable, type Panel, type TableSpec } from "@/lib/econ/panel";
-import { fmtNum } from "@/lib/format";
+import { describeChange, fmtScalar } from "@/lib/format";
 import { CurveChart, Legend, SERIES_COLORS } from "./charts/CurveChart";
 import { TimeSeriesChart } from "./charts/TimeSeriesChart";
 import { Calculation } from "./math/Calculation";
@@ -45,7 +45,16 @@ function DataTable({ spec }: { spec: TableSpec }) {
                     cell.emphasis ? "bg-accent/10 text-accent" : "text-ink"
                   } ${cell.underline ? "underline decoration-accent decoration-2 underline-offset-4" : ""}`}
                 >
-                  {cell.text}
+                  {cell.parts
+                    ? cell.parts.map((part, k) => (
+                        <span
+                          key={k}
+                          className={part.underline ? "underline decoration-accent decoration-2 underline-offset-4" : undefined}
+                        >
+                          {part.text}
+                        </span>
+                      ))
+                    : cell.text}
                 </td>
               ))}
             </tr>
@@ -76,19 +85,15 @@ export function SolidHyphens({ text }: { text: string }) {
 }
 
 /** A small up/down chip showing a figure against its baseline value. */
-function Delta({ value, previous }: { value: number; previous: number }) {
-  const diff = value - previous;
-  if (!Number.isFinite(diff) || Math.abs(diff) < 1e-9) {
-    return <span className="font-mono text-[0.6875rem] text-muted">=</span>;
-  }
-  const up = diff > 0;
-  const pct = Math.abs(previous) > 1e-9 ? (diff / Math.abs(previous)) * 100 : null;
+function Delta({ value, previous, percent = false }: { value: number; previous: number; percent?: boolean }) {
+  const change = describeChange(value, previous, percent);
+  if (!change) return <span className="font-mono text-[0.6875rem] text-muted">=</span>;
   return (
     <span
-      title={`without shock / baseline: ${fmtNum(previous, 4)}`}
-      className={`shrink-0 font-mono text-[0.6875rem] ${up ? "text-gain" : "text-accent"}`}
+      title={`without shock / baseline: ${fmtScalar(previous, percent)}`}
+      className={`shrink-0 font-mono text-[0.6875rem] ${change.up ? "text-gain" : "text-accent"}`}
     >
-      {up ? "▲" : "▼"} {pct !== null ? `${Math.abs(pct).toFixed(1)}%` : fmtNum(Math.abs(diff), 2)}
+      {change.up ? "▲" : "▼"} {change.text}
     </span>
   );
 }
@@ -110,9 +115,9 @@ function ChangeSummary({ panel }: { panel: Panel }) {
         <span key={s.label} className="inline-flex items-baseline gap-1.5">
           <span className="text-muted">{s.label}</span>
           <span>
-            {fmtNum(s.previous!, 3)} → {fmtNum(s.value, 3)}
+            {fmtScalar(s.previous!, s.percent, 3)} → {fmtScalar(s.value, s.percent, 3)}
           </span>
-          <Delta value={s.value} previous={s.previous!} />
+          <Delta value={s.value} previous={s.previous!} percent={s.percent} />
         </span>
       ))}
       {moved.length > shown.length && <span className="text-muted">+{moved.length - shown.length} more below</span>}
@@ -217,8 +222,8 @@ export function PanelCard({
                 {s.hint && <InfoNote help={s.hint} label={s.label} />}
               </dt>
               <dd className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 font-mono text-[0.9375rem] leading-tight text-ink">
-                <AnimatedNumber value={s.value} />
-                {s.previous !== undefined && <Delta value={s.value} previous={s.previous} />}
+                <AnimatedNumber value={s.value} percent={s.percent} />
+                {s.previous !== undefined && <Delta value={s.value} previous={s.previous} percent={s.percent} />}
               </dd>
             </div>
           ))}

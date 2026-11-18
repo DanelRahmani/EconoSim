@@ -10,6 +10,9 @@ import { debtNext, debtSteadyState } from "./externalBalance";
  *
  *   bₜ₊₁ = (1 + r − g)·bₜ − pb
  *
+ * This is the usual linear approximation of the exact bₜ₊₁ = bₜ·(1 + r)/(1 + g) − pb,
+ * accurate while r and g are a few percent.
+ *
  * Debt as a ratio to GDP drifts up by the interest-growth differential applied
  * to the existing stock ("the snowball") and down by the primary balance. Three
  * numbers settle everything:
@@ -19,7 +22,7 @@ import { debtNext, debtSteadyState } from "./externalBalance";
  *   the steady state      b* = pb/(r − g)        — where b settles, when r > g
  *
  * When r ≤ g a positive primary balance is not needed to stabilise debt, and
- * `debtSteadyState` (shared with the external-balance model) returns Infinity.
+ * `debtSteadyState` returns Infinity.
  */
 
 export interface DebtCore {
@@ -57,7 +60,11 @@ export function debtCore(e: Economy, horizon = 60): DebtCore {
     differential,
     sub(v("r"), v("g")),
     { r, g },
-    differential > 0 ? "r > g: debt snowballs without a surplus" : "r ≤ g: growth alone outruns the interest bill",
+    differential > 0
+      ? "r > g: debt snowballs without a surplus"
+      : differential < 0
+        ? "r < g: growth outruns the interest bill"
+        : "r = g: the interest bill and growth cancel exactly",
   );
   const snowball = t.step("Snowball effect (r − g)·b", evaluate(snowballExpr, { r, g, b: b0 }), snowballExpr, {
     r,
@@ -128,29 +135,33 @@ export function debtDynamics(e: Economy, horizon = 60): Panel[] {
         ],
       },
       scalars: [
-        { label: "r", value: r },
-        { label: "g", value: g },
-        { label: "r − g", value: core.differential },
-        { label: "Snowball (r−g)·b", value: core.snowball, hint: "Extra debt this period created by the existing stock" },
+        { label: "r", value: r, percent: true },
+        { label: "g", value: g, percent: true },
+        { label: "r − g", value: core.differential, percent: true },
+        { label: "Snowball (r−g)·b", value: core.snowball, percent: true, hint: "Extra debt this period created by the existing stock" },
         {
           label: "Primary balance to stabilise",
           value: core.stabilisingBalance,
+          percent: true,
           hint: "A surplus of this size holds the debt ratio constant",
         },
         {
           label: "Current primary balance",
           value: e.primaryBalance,
+          percent: true,
           hint: "Positive = surplus after interest payments are excluded",
         },
         ...(finite
-          ? [{ label: "Debt ratio that stays put", value: core.steadyState, hint: "pb/(r − g): the balance pb exactly covers the snowball here" }]
-          : [{ label: "r − g", value: core.differential, hint: "r ≤ g, so no positive debt ratio is a knife edge" }]),
-        { label: `Debt in ${horizon} periods`, value: core.endDebt },
+          ? [{ label: "Debt ratio that stays put", value: core.steadyState, percent: true, hint: "pb/(r − g): the balance pb exactly covers the snowball here" }]
+          : []),
+        { label: `Debt in ${horizon} periods`, value: core.endDebt, percent: true },
       ],
       notes: [
-        core.differential <= 0
-          ? "r ≤ g, so growth outruns the interest bill: debt falls on its own even with a balanced primary budget. This is the case most advanced economies sat in for much of the last two decades."
-          : `r > g by ${(core.differential * 100).toFixed(1)} points, so debt snowballs at ${(core.snowball * 100).toFixed(1)}% of GDP a period unless the primary balance covers it.`,        e.primaryBalance < core.stabilisingBalance
+        core.differential < 0
+          ? "r < g, so growth outruns the interest bill: with a balanced primary budget the debt ratio falls on its own. This is the case most advanced economies sat in for much of the last two decades."
+          : core.differential > 0
+            ? `r > g by ${(core.differential * 100).toFixed(1)} points, so debt snowballs at ${(core.snowball * 100).toFixed(1)}% of GDP a period unless the primary balance covers it.`
+            : "r = g, so interest and growth cancel: with a balanced primary budget the debt ratio stays exactly where it is, and only the primary balance moves it.",        e.primaryBalance < core.stabilisingBalance
           ? `The current primary balance (${(e.primaryBalance * 100).toFixed(1)}% of GDP) is below the stabilising balance (${(core.stabilisingBalance * 100).toFixed(1)}%), so the debt ratio is rising.`
           : `The current primary balance (${(e.primaryBalance * 100).toFixed(1)}% of GDP) exceeds the stabilising balance (${(core.stabilisingBalance * 100).toFixed(1)}%), so the debt ratio is falling.`,
         "The honest caveat: r and g are treated as constants. In reality the dangerous case is r persistently above g with r itself rising as debt grows, a feedback this linear model cannot show.",      ],
@@ -182,12 +193,14 @@ export function debtDynamics(e: Economy, horizon = 60): Panel[] {
         {
           label: "Change over the window",
           value: core.endDebt - e.debtRatio,
+          percent: true,
           hint: "Positive means the debt ratio grew",
         },
         {
-          label: "Cumulative interest bill",
-          value: core.path.reduce((s, p) => s + Math.max(0, core.differential) * p.b, 0),
-          hint: "Sum of the snowball term over the window, in GDP points",
+          label: "Cumulative snowball (r − g)·b",
+          value: core.path.slice(0, -1).reduce((s, p) => s + core.differential * p.b, 0),
+          percent: true,
+          hint: "What interest net of growth added to the debt ratio over the window; negative when r < g",
         },
       ],
       trace: [],

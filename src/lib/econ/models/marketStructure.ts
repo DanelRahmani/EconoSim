@@ -197,6 +197,9 @@ export function marketStructure(_e: Economy, m: MarketOptions): Panel[] {
         core.psM > fixed
           ? `The monopolist covers its fixed cost of ${money(fixed)} with ${money(core.psM)} of operating profit, so it stays in business.`
           : `Operating profit of ${money(core.psM)} does not cover the fixed cost of ${money(fixed)}: the monopolist would exit, and the market would not be served at all. This is the natural-monopoly case for regulation rather than competition.`,
+        fixed > 0
+          ? `Under competition price is driven to marginal cost, which leaves nothing to cover the fixed cost: firms lose ${money(fixed)} and would exit in the long run. Competition at price = marginal cost is only sustainable when fixed costs are negligible; with large ones, the market tends towards a few firms or a regulated monopoly.`
+          : "With no fixed cost, competition at price = marginal cost is sustainable: firms just break even.",
         "Raise the fixed cost and the case for tolerating market power gets stronger. That tension is the whole of competition policy in one slider.",
       ],
       trace: [],

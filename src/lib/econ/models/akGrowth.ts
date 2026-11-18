@@ -176,7 +176,9 @@ export function akGrowth(e: Economy, horizon = 120): Panel[] {
           },
           {
             label: "Solow, g switched off",
-            points: core.path.map((p) => ({ x: p.t, y: (p.solow / core.outputPerWorker) * 100 })),
+            // Indexed to its own period-0 value: Solow's labour-augmenting A and
+            // this panel's Hicks-neutral A give the same start only when A = 1.
+            points: core.path.map((p) => ({ x: p.t, y: (p.solow / core.path[0].solow) * 100 })),
           },
         ],
       },

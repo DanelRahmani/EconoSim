@@ -175,8 +175,8 @@ export function zlb(e: Economy, horizon = 40, opts: ZlbOptions = { demandShock: 
           : [{ x: core.output, y: core.policyRate, label: "E" }],
       },
       scalars: [
-        { label: "Natural rate rₙ", value: core.naturalRate, hint: "Negative means the bound binds" },
-        { label: "Policy rate actually set", value: core.policyRate },
+        { label: "Natural rate rₙ", value: core.naturalRate, percent: true, hint: "Negative means the bound binds" },
+        { label: "Policy rate actually set", value: core.policyRate, percent: true },
         { label: "Natural output Yₙ", value: Yn },
         { label: "Output on the floor", value: core.output },
         {
@@ -219,6 +219,7 @@ export function zlb(e: Economy, horizon = 40, opts: ZlbOptions = { demandShock: 
         {
           label: "Natural rate at the trough",
           value: Math.min(...core.path.map((p) => p.naturalRate)),
+          percent: true,
         },
       ],
       notes: [

@@ -123,7 +123,7 @@ export function labourMarket(e: Economy): Panel[] {
         markers: [{ x: core.exactUn * 100, y: core.realWage, label: "uₙ" }],
       },
       scalars: [
-        { label: "Natural unemployment uₙ", value: core.exactUn, hint: "The exact solution of WS = PS" },
+        { label: "Natural unemployment uₙ", value: core.exactUn, percent: true, hint: "The exact solution of WS = PS" },
         { label: "Linear approximation (m+z)/γ", value: core.linearUn },
         { label: "Real wage (W/P)", value: core.realWage, hint: "1/(1+m): the mark-up is what stops the real wage rising further" },
         { label: "Natural employment", value: core.naturalEmployment },
@@ -132,7 +132,7 @@ export function labourMarket(e: Economy): Panel[] {
       ],
       notes: [
         `Higher wage-push factors z or a higher mark-up m both raise the natural rate; a steeper wage-setting curve γ lowers it. Adding 5 points of z here would push uₙ to ${pct(core.exactUn + 0.05 / e.wageSlope)}.`,
-        "This is where the Phillips curve's uₙ comes from. Nothing in the Phillips model explains it. It is inherited from the structure of wage and price setting.",
+        "This is the natural rate the Phillips curve takes as given: nothing in the Phillips model explains it, it comes from wage and price setting. In this simulator the Phillips model reads uₙ from its own slider, which defaults to the value derived here; move the mark-up or wage push and set that slider to match to carry the change across.",
         "The honest caveat: this is a static, one-period model of the labour market. It says nothing about how unemployment actually adjusts, which is what the WS-PS diagram is usually criticised for.",
       ],
       trace: core.trace,

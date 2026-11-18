@@ -6,9 +6,11 @@ country data.
 
 ## Production
 
-$$Y = A\,K^{\alpha}L^{1-\alpha}, \qquad y = k^{\alpha}, \qquad MPK = \alpha\,\frac{y}{k}$$
+$$Y = A\,K^{\alpha}L^{1-\alpha}, \qquad y = A\,k^{\alpha}, \qquad MPK = \alpha\,\frac{y}{k} = \alpha\frac{Y}{K}$$
 
-Per effective worker, $k$ denotes capital per unit of effective labour.
+Here $A$ is Hicks-neutral total factor productivity and $k = K/L$. Solow writes the same
+technology as labour-augmenting, $Y = K^{\alpha}(AL)^{1-\alpha}$, where $\hat k = K/(AL)$;
+the two are equivalent with $A_{TFP} = A^{1-\alpha}$.
 
 ## Solow-Swan
 
@@ -42,9 +44,23 @@ Fiscal multiplier $= \left[(1-c_1) + \tfrac{b k_Y}{h_R}\right]^{-1}$.
 
 ## AD-AS
 
-AD is the IS-LM output as $P$ varies. SRAS is $P = P^{e} + \lambda (Y - Y_n)$; LRAS is
-vertical at $Y_n$, the Solow steady-state output $Y_n = A\,L\,\hat y^{*}$. Expectations
-adjust as $\dot P^{e} = \theta (P - P^{e})$.
+AD is the IS-LM output as $P$ varies. SRAS is
+
+$$P = P^{e}\left(1 + \lambda\,\frac{Y - Y_n}{Y_n}\right)$$
+
+so $\lambda$ is unit-free: a 1% output gap raises prices $\lambda$% above expectations. LRAS
+is vertical at potential output, the Solow level net of the cost of imported energy:
+
+$$Y_n = A\,L\,\hat y^{*} \cdot (P^{*})^{-\sigma/(1-\sigma)}$$
+
+With energy a share $\sigma$ of costs, $Y = F(K,L)^{1-\sigma}E^{\sigma}$, firms buy energy until
+its marginal product equals its real price $P^{*}$, and value added then scales with
+$(P^{*})^{-\sigma/(1-\sigma)}$. An oil shock lowers $Y_n$: LRAS and SRAS shift left, prices
+rise and output falls (Blanchard's adverse supply shock). A closed economy has
+$\sigma$-free potential. Expectations adjust as $\dot P^{e} = \theta (P - P^{e})$.
+
+Calibration: the default demand side ($M = 72$, $I_0 = 51$) puts IS-LM output at
+$P = 1$ on potential, so AD-AS opens in equilibrium.
 
 ## Zero lower bound
 
@@ -62,14 +78,17 @@ kink and reports both multipliers beside each other.
 
 ## Phillips curve
 
-$$\pi = \pi^{e} - \beta\,(u - u_n), \qquad \frac{Y - Y_n}{Y_n} = -0.5\,(u - u_n)$$
+$$\pi = \pi^{e} - \beta\,(u - u_n), \qquad \frac{Y - Y_n}{Y_n} = -2\,(u - u_n)$$
+
+The second is Okun's law with the textbook coefficient of about 2.
 
 Expectations adjust as $\pi^{e}_{t+1} = \pi^{e}_{t} + \theta(\pi_t - \pi^{e}_t)$. The
 disinflation is cold turkey — the bank delivers the target at once and holds it — so
 unemployment must stay above its natural rate for as long as expectations lag, and the
 sacrifice ratio has the closed form
 
-$$\text{sacrifice ratio} = \frac{1}{\beta\,\theta}$$
+$$\text{sacrifice ratio} = \frac{1}{\beta\,\theta}, \qquad
+\text{output cost} = 2\,\frac{\pi^{e} - \pi^{*}}{\beta\,\theta}$$
 
 With a credible announcement $\pi^{e}$ jumps to the target at impact, unemployment never
 leaves $u_n$, and the cost is exactly zero. It is the same model with one switch flipped,
@@ -90,6 +109,9 @@ $u_n$; more wage flexibility (a larger $\gamma$) lowers it.
 ## Debt dynamics
 
 $$r = r^{*} + \rho, \qquad g = n + g_A, \qquad \Delta b = (r - g)\,b - \text{pb}$$
+
+This is the linear approximation of $b' = b\,(1+r)/(1+g) - \text{pb}$. The default
+risk premium $\rho = 1\%$ gives $r = 4\% > g = 3\%$, so the snowball is visible.
 
 The primary balance that holds the ratio still is $\text{pb} = (r-g)\,b$. Note what that
 is: a **knife edge, not a convergence point**. With $r > g$, $\Delta b$ *increases* in
@@ -112,12 +134,17 @@ model omits the row rather than reporting an infinity.
 
 ## Mundell-Fleming
 
-$$(1-c_1+m)Y + b r + v\varepsilon = c_0 - c_1T + I_0 + G + X_0$$
-$$k_Y Y - h_R r = M/P, \qquad -mY + \kappa r - v\varepsilon = \kappa(r^{*}+\rho) - X_0$$
+$$(1-c_1+m)Y + b r + v\ln\varepsilon = c_0 - c_1T + I_0 + G + X_0$$
+$$k_Y Y - h_R r = M/P, \qquad -mY + \kappa r - v\ln\varepsilon = \kappa(r^{*}+\rho) - X_0$$
 
 Conventions:
-- $\varepsilon$ is the **real exchange rate; a rise is an appreciation** (net exports fall).
-- $NX = X_0 - mY - v\varepsilon$.
+- $\varepsilon$ is the **real exchange rate**, the price of domestic goods in foreign goods
+  ($\varepsilon = P/(S P^{*})$, Mankiw's $eP/P^{*}$). **A rise is an appreciation** (net exports fall).
+- $NX = X_0 - mY - v\ln\varepsilon$. Net exports fall in $\ln\varepsilon$, so the system
+  stays linear in $\ln\varepsilon$ and $\varepsilon$ can never be negative. $v$ is the
+  change in net exports for a 100% (log-point) real appreciation.
+- The defaults ($X_0 = 11$, $\rho = 1\%$) put the floating $\varepsilon$ at exactly 1, the
+  same as the default peg, so switching regime does not by itself move the economy.
 - **Small country ⇒ perfect capital mobility** ($r = r^{*}+\rho$, horizontal BP). **Large
   country ⇒ finite $\kappa$**, giving an upward-sloping BP.
 - Floating: $\varepsilon$ clears the goods market. Fixed: $\varepsilon = \bar\varepsilon$ and
@@ -129,33 +156,48 @@ Classic results, and asserted in the tests:
 
 ## Parity conditions
 
-$$q = \frac{S\,P^{*}}{P}, \qquad \text{PPP: } S = \frac{P}{P^{*}}, \qquad
-i = i^{*} + \rho + E[\dot e] \text{ (UIP)}$$
+$$\varepsilon = \frac{P}{S\,P^{*}}, \qquad \text{PPP: } S = \frac{P}{P^{*}}, \qquad
+F = S(1 + i - i^{*}) \text{ (CIP)}, \qquad i = i^{*} + \rho + E[\dot s] \text{ (UIP)}$$
 
-The trilemma: at most two of {fixed rate, free capital mobility, independent monetary
-policy} can hold.
+$S$ is domestic currency per unit of foreign currency (a rise is a depreciation), and
+$\varepsilon$ is the same real exchange rate as in Mundell-Fleming (a rise is a real
+appreciation). Both parity conditions hold by construction: $F$ is priced by covered
+arbitrage and, with static expectations, $i = i^{*} + \rho$. The panel shows what they
+imply rather than testing them.
+
+The trilemma: a country chooses two of {fixed rate, free capital mobility, independent
+monetary policy}; the panel names the pair the current settings choose.
 
 ## External balance
 
-$$CA = S - I, \qquad \Delta d = (r-g)\,d - \text{pb}, \qquad
-\Delta d = 0 \text{ at } d = \frac{\text{pb}}{r-g}\ (r>g)$$
+$$CA = S - I = NX + r\,a, \qquad a' = a\,\frac{1+r}{1+g} + tb, \qquad tb = NX/Y$$
 
-With $r > g$ that ratio is a **knife edge, not a convergence point**: $\Delta d$ rises with
-$d$, so debt drifts away from it in both directions. When $r \le g$ there is no finite
-resting level at all, and the model reports that instead of plotting a line that does not
-exist.
+$a$ is net foreign assets as a share of output. Saving minus investment and the trade
+balance read off the goods market are computed separately and agree, because the goods
+market clears. When $r < g$ the ratio converges to $a^{*} = tb\,(1+g)/(g-r)$; when
+$r \ge g$ there is no steady state, and a debtor's position explodes unless the trade
+balance adjusts.
 
 ## Trade flows
 
-Marshall-Lerner: a real depreciation improves the trade balance when
-$|\eta_X| + |\eta_M| > 1$. The J-curve worsens the balance first, then improves it.
+After a depreciation $d$ from balanced trade, the trade balance changes, as a share of
+imports, by
+
+$$\frac{\Delta TB}{M} = (\eta_X + \eta_M - 1)\,d$$
+
+so it improves when $\eta_X + \eta_M > 1$ (Marshall-Lerner). Elasticities start at 20% of
+their long-run values and approach them as $\eta(t) = \eta_{SR} + (\eta_{LR} - \eta_{SR})(1 - e^{-t/\tau})$,
+which produces the J-curve. The long-run elasticities are a dial. The Mundell-Fleming
+block assumes Marshall-Lerner holds. Terms of trade are $P/P^{*}$.
 
 ## Dornbusch overshooting
 
 Money market $m - p = \phi y - \eta i$, UIP $\dot s = i - i^{*}$, sticky prices
 $\dot p = \theta\gamma(s + p^{*} - p)$. The stable saddlepath is
 $s - \bar s = (p - \bar p)/(\eta\lambda)$ with $\lambda<0$, so a monetary expansion pushes
-$s$ past its long-run value before it appreciates back.
+$s$ past its long-run value before it appreciates back. The economy starts at its old
+steady state, and the overshoot is $1/(\eta|\lambda|)$ of the long-run move. The log
+semi-elasticity $\eta$ is the IS-LM slope converted, $\eta = h_R\,P/M$.
 
 ## Consumer choice
 

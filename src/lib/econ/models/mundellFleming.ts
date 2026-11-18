@@ -8,7 +8,8 @@ import { islmCore } from "./islm";
 export interface MfCore {
   Y: number;
   r: number;
-  eps: number; // real exchange rate (higher = appreciation)
+  /** Real exchange rate ε = price of domestic goods in foreign goods. Higher = real appreciation. Always > 0. */
+  eps: number;
   M: number; // money supply (endogenous under a fixed rate)
   NX: number;
   trace: CalcStep[];
@@ -18,10 +19,17 @@ export interface MfCore {
 const rTarget = (e: Economy) => e.rStar + e.rho;
 
 /**
- * Mundell-Fleming.
- *   IS: (1−c1+m)·Y + b·r + v·ε = c0 − c1·T + I0 + G + X0
+ * Mundell-Fleming, with net exports NX = X0 − m·Y − v·ln ε.
+ *   IS: (1−c1+m)·Y + b·r + v·ln ε = c0 − c1·T + I0 + G + X0
  *   LM: kY·Y − hR·r = M/P
- *   BP: −m·Y + κ·r − v·ε = κ(r*+ρ) − X0
+ *   BP: −m·Y + κ·r − v·ln ε = κ(r*+ρ) − X0
+ *
+ * ε is the real exchange rate: the price of domestic goods in terms of foreign
+ * goods (Mankiw's ε = eP/P*), so a rise is a real appreciation. Net exports
+ * fall with ln ε rather than ε itself: the system stays linear in ln ε, and ε
+ * can never be negative. With NX linear in ε, a monetary expansion took ε from
+ * 0.28 to −1.02, a price that cannot exist. v is the trade-balance change for a
+ * 100% (log-point) real appreciation.
  *
  * Small country ⇒ perfect capital mobility (r = r*+ρ, horizontal BP).
  * Large country ⇒ finite κ, upward-sloping BP.
@@ -48,7 +56,7 @@ export function mfCore(e: Economy): MfCore {
   if (e.openness === "closed") {
     const base = islmCore(e);
     t.step("Closed economy IS-LM output", base.Y, undefined, undefined, "Openness is off, so the Mundell-Fleming block collapses to IS-LM");
-    return { Y: base.Y, r: base.r, eps: 0, M: e.M, NX: 0, trace: t.steps, note: "Closed economy: trade is switched off." };
+    return { Y: base.Y, r: base.r, eps: 1, M: e.M, NX: 0, trace: t.steps, note: "Closed economy: trade is switched off." };
   }
 
   const realMoney = e.M / e.P;
@@ -59,25 +67,28 @@ export function mfCore(e: Economy): MfCore {
     const r = t.step("World interest rate r = r* + ρ", rt, add(v("rStar"), v("rho")), { rStar: e.rStar, rho: e.rho });
     if (e.regime === "floating") {
       const Y = t.step("Output from LM at r = r*", (realMoney + e.hR * r) / e.kY, div(add(div(v("M"), v("P")), mul(v("hR"), v("r"))), v("kY")), { ...env, r });
-      const eps = t.step(
-        "Real exchange rate ε (clears the goods market)",
+      const lnEps = t.step(
+        "ln ε (clears the goods market)",
         (e.c0 - e.c1 * e.T + e.I0 + e.G + e.X0 - (1 - e.c1 + e.importProp) * Y - e.b * r) / e.fxSensitivity,
         div(sub(add(sub(add(v("c0"), v("I0"), v("G")), mul(v("c1"), v("T"))), v("X0")), add(mul(sub(add(num(1), v("m")), v("c1")), v("Y")), mul(v("b"), v("r")))), v("vv")),
         { ...env, Y, r },
       );
-      const NX = e.X0 - e.importProp * Y - e.fxSensitivity * eps;
+      const eps = t.step("Real exchange rate ε = exp(ln ε)", Math.exp(lnEps), undefined, undefined, "Above 1: domestic goods dearer than foreign (appreciated)");
+      const NX = e.X0 - e.importProp * Y - e.fxSensitivity * lnEps;
       return { Y, r, eps, M: e.M, NX, trace: t.steps, note: "Small open economy, floating rate: monetary policy is powerful, fiscal policy is not." };
     }
     // Fixed rate
     const eps = e.fxPeg;
+    const lnEps = Math.log(eps);
     const Y = t.step(
       "Output with a fixed rate",
-      (e.c0 - e.c1 * e.T + e.I0 - e.b * r + e.G + e.X0 - e.fxSensitivity * eps) / (1 - e.c1 + e.importProp),
-      div(sub(add(sub(add(v("c0"), v("I0"), v("G")), mul(v("c1"), v("T"))), add(mul(v("b"), v("r")), mul(v("vv"), v("eps")))), v("X0")), add(num(1), v("m"), sub(num(0), v("c1")))),
-      { ...env, r, eps },
+      (e.c0 - e.c1 * e.T + e.I0 - e.b * r + e.G + e.X0 - e.fxSensitivity * lnEps) / (1 - e.c1 + e.importProp),
+      div(sub(add(add(sub(add(v("c0"), v("I0"), v("G")), mul(v("c1"), v("T"))), v("X0")), num(0)), add(mul(v("b"), v("r")), mul(v("vv"), v("lneps")))), sub(add(num(1), v("m")), v("c1"))),
+      { ...env, r, lneps: lnEps },
+      "ln ε̄ is the log of the peg",
     );
     const M = t.step("Money supply adjusts (endogenous)", e.P * (e.kY * Y - e.hR * r), mul(v("P"), sub(mul(v("kY"), v("Y")), mul(v("hR"), v("r")))), { ...env, Y, r });
-    const NX = e.X0 - e.importProp * Y - e.fxSensitivity * eps;
+    const NX = e.X0 - e.importProp * Y - e.fxSensitivity * lnEps;
     return { Y, r, eps, M, NX, trace: t.steps, note: "Small open economy, fixed rate: fiscal policy is powerful, monetary policy is not." };
   }
 
@@ -94,25 +105,27 @@ export function mfCore(e: Economy): MfCore {
       e.kappa * rt - e.X0,
     ];
     const sol = solveLinear(A, bb) ?? [0, 0, 0];
-    const [Y, r, eps] = sol;
-    t.step("Joint solution for (Y, r, ε)", Y, undefined, undefined, "3×3 linear system: IS, LM and the upward-sloping BP curve");
-    const NX = e.X0 - e.importProp * Y - e.fxSensitivity * eps;
+    const [Y, r, lnEps] = sol;
+    t.step("Joint solution for (Y, r, ln ε)", Y, undefined, undefined, "3×3 linear system: IS, LM and the upward-sloping BP curve");
+    const eps = Math.exp(lnEps);
+    const NX = e.X0 - e.importProp * Y - e.fxSensitivity * lnEps;
     return { Y, r, eps, M: e.M, NX, trace: t.steps, note: "Large open economy, floating rate: the BP curve slopes upward, so policy spills over." };
   }
   const eps = e.fxPeg;
+  const lnPeg = Math.log(eps);
   const A = [
     [1 - e.c1 + e.importProp, e.b],
     [-e.importProp, e.kappa],
   ];
   const bb = [
-    e.c0 - e.c1 * e.T + e.I0 + e.G + e.X0 - e.fxSensitivity * eps,
-    e.kappa * rt - e.X0 + e.fxSensitivity * eps,
+    e.c0 - e.c1 * e.T + e.I0 + e.G + e.X0 - e.fxSensitivity * lnPeg,
+    e.kappa * rt - e.X0 + e.fxSensitivity * lnPeg,
   ];
   const sol = solveLinear(A, bb) ?? [0, 0];
   const [Y, r] = sol;
   t.step("Joint solution for (Y, r) at a fixed rate", Y, undefined, undefined, "2×2 system: IS and BP with ε pegged");
   const M = e.P * (e.kY * Y - e.hR * r);
-  const NX = e.X0 - e.importProp * Y - e.fxSensitivity * eps;
+  const NX = e.X0 - e.importProp * Y - e.fxSensitivity * lnPeg;
   return { Y, r, eps, M, NX, trace: t.steps, note: "Large open economy, fixed rate." };
 }
 
@@ -123,11 +136,12 @@ export function mundellFleming(e: Economy): Panel[] {
   const ys = linspace(0, yMax, 120);
   const realMoney = e.M / e.P;
 
+  const lnEps = Math.log(core.eps);
   const isR = (Y: number) =>
-    (e.c0 - e.c1 * e.T + e.I0 + e.G + e.X0 - (1 - e.c1 + e.importProp) * Y - e.fxSensitivity * core.eps) / e.b;
+    (e.c0 - e.c1 * e.T + e.I0 + e.G + e.X0 - (1 - e.c1 + e.importProp) * Y - e.fxSensitivity * lnEps) / e.b;
   const lmR = (Y: number) => (e.kY * Y - realMoney) / e.hR;
   const bpR = (Y: number) =>
-    e.size === "small" ? rt : (e.kappa * rt - e.X0 + e.importProp * Y + e.fxSensitivity * core.eps) / e.kappa;
+    e.size === "small" ? rt : (e.kappa * rt - e.X0 + e.importProp * Y + e.fxSensitivity * lnEps) / e.kappa;
 
   const series = [
     { label: "IS*", points: ys.map((Y) => ({ x: Y, y: isR(Y) })) },
@@ -153,8 +167,12 @@ export function mundellFleming(e: Economy): Panel[] {
       },
       scalars: [
         { label: "Output (Y*)", value: core.Y },
-        { label: "Interest rate (r*)", value: core.r },
-        { label: "Real exchange rate (ε)", value: core.eps, hint: "higher = appreciation" },
+        { label: "Interest rate (r*)", value: core.r, percent: true },
+        {
+          label: "Real exchange rate (ε)",
+          value: core.eps,
+          hint: "Price of domestic goods in foreign goods. Higher = real appreciation, which lowers net exports",
+        },
         { label: "Net exports (NX)", value: core.NX },
         { label: "Money supply (M)", value: core.M, hint: e.regime === "fixed" ? "endogenous" : "exogenous" },
         { label: "dY per unit of G", value: fiscalEffect, hint: "fiscal multiplier" },

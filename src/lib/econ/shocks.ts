@@ -14,14 +14,16 @@ export interface ShockDef {
   label: string;
   help: string;
   apply: (e: Economy) => Partial<Economy>;
+  /** When the preset only means something in some economies (a devaluation needs a peg). */
+  when?: (e: Economy) => boolean;
 }
 
 export const SHOCK_PRESETS: ShockDef[] = [
   {
     id: "monetary",
     label: "Monetary expansion",
-    help: "The central bank raises the money supply by 20%. Shifts LM right (lower r, higher Y in the short run).",
-    apply: (e) => ({ M: e.M * 1.2 }),
+    help: "The central bank raises the money supply by 10%. Shifts LM right: a lower interest rate and higher output in the short run. (A larger expansion can push the IS-LM rate below zero, which the zero-lower-bound model deals with.)",
+    apply: (e) => ({ M: e.M * 1.1 }),
   },
   {
     id: "fiscal",
@@ -56,14 +58,15 @@ export const SHOCK_PRESETS: ShockDef[] = [
   {
     id: "rate",
     label: "World rate hike",
-    help: "The world interest rate rises 2 percentage points. Tightens conditions in an open economy.",
+    help: "The world interest rate rises 2 percentage points. Under a fixed rate the domestic rate must follow it up, which tightens policy and lowers output. Under a float with free capital flows the currency depreciates instead, and in Mundell-Fleming output actually rises (less money is demanded at the higher rate, so the LM curve allows more output).",
     apply: (e) => ({ rStar: e.rStar + 0.02 }),
   },
   {
     id: "devalue",
     label: "Devaluation (fixed peg)",
-    help: "The peg is lowered 15% (a real depreciation). Boosts net exports if Marshall-Lerner holds.",
+    help: "The peg is lowered 15% (a real depreciation). Boosts net exports if Marshall-Lerner holds. Only meaningful under a fixed exchange rate.",
     apply: (e) => ({ fxPeg: Math.max(0.5, e.fxPeg * 0.85) }),
+    when: (e) => e.regime === "fixed",
   },
   {
     id: "pop",
@@ -85,12 +88,20 @@ export function shockKeys(def: ShockDef, e: Economy): (keyof Economy)[] {
 }
 
 /**
- * The presets that can move a model reading `uses`. A shock that touches nothing
- * the model reads would show "=" on every figure, which looks like a broken
- * button rather than an answer, so it is not offered.
+ * The presets that apply in full to a model reading `uses`, in this economy.
+ *
+ * Every field a preset moves must be one the model reads. A shock touching
+ * nothing the model reads shows "=" everywhere, which looks broken; one the
+ * model only half-reads is worse, because it gives a wrong answer (the AI
+ * preset cuts labour and adds capital, and AD-AS, which ignores the capital,
+ * showed only the job losses). And a preset with a condition, like a
+ * devaluation that needs a peg, is offered only when the condition holds.
  */
 export function relevantShocks(uses: (keyof Economy)[], e: Economy): ShockDef[] {
-  return SHOCK_PRESETS.filter((s) => shockKeys(s, e).some((k) => uses.includes(k)));
+  return SHOCK_PRESETS.filter((s) => {
+    const keys = shockKeys(s, e);
+    return keys.length > 0 && keys.every((k) => uses.includes(k)) && (s.when ? s.when(e) : true);
+  });
 }
 
 export function findShock(id: string): ShockDef | undefined {

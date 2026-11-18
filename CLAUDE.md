@@ -1,6 +1,6 @@
 # EconoSim — working notes for the next session
 
-_Last updated 2026-11-18 · 21 models · 174 tests · live at <https://econosim.danelrahmani.com>_
+_Last updated 2026-11-18 · 21 models · 196 tests · live at <https://econosim.danelrahmani.com>_
 _(the session log below carries the commit hashes; `git log` is the truth for HEAD)_
 
 This file is the handoff note: what exists, how to extend it without breaking it, what is
@@ -69,7 +69,7 @@ src/lib/econ/            the engine — pure, no React
   export.ts              panelToCsv / panelsToCsv — the figures *and* the working as a CSV
   glossary.ts            symbol reference shown in the Glossary tab
   models/*.ts            one file per model — 21 of them
-  engine.test.ts         the whole suite (174 tests)
+  engine.test.ts         the whole suite (196 tests)
 src/lib/scale.ts         axisDomain() — the axis rule, plus the zoom-window maths
 src/components/          PanelCard renders any Panel; CurveChart (SVG), TimeSeriesChart (Recharts)
 src/app/                 landing page + /simulator
@@ -183,6 +183,17 @@ Change one of these and the defaults stop being mutually consistent — check th
 before moving them. The demand side is pinned too: `M = 72` and `I0 = 51` put IS-LM output at
 P = 1 on the Solow potential (≈157, within 0.3%) with r ≈ 3.2%, next to r* = 3%. That is what
 lets AD-AS open in equilibrium and the ZLB scenario bind by default; a test holds both.
+The open economy is pinned the same way: `rho = 0.01` makes r = 4% > g = 3% (so debt and
+external-balance dynamics show the snowball), and `X0 = 11` puts the floating Mundell-Fleming
+ε at exactly 1, equal to the default peg. `energyShare = 0.1` sets how hard the oil shock hits.
+
+**Exchange-rate convention, everywhere.** ε is the price of domestic goods in foreign goods,
+ε = P/(S·P*), with S = domestic currency per foreign unit; a rise is a real appreciation.
+Mundell-Fleming's net exports fall in ln ε, so ε is always positive. Do not reintroduce a
+q = S·P*/P anywhere: it is the reciprocal and was labelled the wrong way round.
+
+**A time-path panel shows the time-window dial only if the model is in `HORIZON_MODELS`**
+(registry.ts); a test fails if that set and the models' real behaviour disagree.
 
 **`next dev` rewrites `AGENTS.md`.** Leave that file alone; the block is regenerated on every
 dev-server start, and removing it just recreates the uncommitted change.
@@ -235,6 +246,21 @@ the exact-arithmetic promise the trace panels make.
 ## Session log
 
 Work in this session, newest first:
+
+- 2026-11-18 — **economics review fixes.** A Sonnet review against the textbooks found real
+  errors; all were fixed with tests. Okun's coefficient 0.5 → 2 (the disinflation cost was
+  understated fourfold). The policy rule compared a nominal Taylor rate with the real IS-LM
+  rate; it now compares real with real and states the Taylor principle correctly. One ε
+  convention across Mundell-Fleming, parity and the glossary, and MF net exports in ln ε so ε
+  cannot go negative. External balance lost a fake `CA + (−CA)` step and hard-coded debt path;
+  it now checks S − I against NX and runs net foreign assets forward. Trade flows derives the
+  J-curve and Marshall-Lerner from elasticities (a new `trade` dial, in the permalink as `tr`)
+  and ties terms of trade to P*. The oil shock got its own energy share σ. Cobb-Douglas MPK now
+  includes A. Wording fixed in consumer choice, game theory (per-payoff best responses, no
+  single payoff for two equilibria), debt (r = g), Dornbusch, WS-PS, currency crisis
+  (Flood-Garber) and competition. Rates display as % with changes in pp; a change across zero
+  shows its size, not a meaningless percentage. Presets are offered only when they apply in
+  full. Default ZLB shock 12% → 6%. 182 → 196 tests.
 
 - 2026-11-18 — **usability pass after a live review.** `e3b1b5a` fixed the charts: ticks on a
   1/2/5 step (`niceTicks`), AD-AS no longer plotting negative prices, the oil shock actually

@@ -59,13 +59,21 @@ export interface Scalar {
   hint?: string;
   /** The same figure under the pinned baseline, when comparing. */
   previous?: number;
+  /** A rate or share stored as a fraction (0.032): shown as 3.2%, and its change in percentage points. */
+  percent?: boolean;
 }
 
 /** One cell of a panel table. */
 export interface TableCell {
   text: string;
-  /** Underline the cell — in a game matrix, this is a best response. */
+  /** Underline the whole cell. */
   underline?: boolean;
+  /**
+   * The cell in pieces, each underlined or not — in a game matrix, each
+   * player's payoff is underlined where it is that player's best response.
+   * `text` stays the plain-text version (for CSV and screen readers).
+   */
+  parts?: { text: string; underline?: boolean }[];
   /** Tint the cell — a Nash equilibrium, or a figure being singled out. */
   emphasis?: boolean;
 }

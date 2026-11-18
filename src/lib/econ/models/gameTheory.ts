@@ -129,7 +129,8 @@ export interface GameCore {
   /** Mixed equilibrium: probability the row player picks row 0, and the column player col 0. */
   mixed: { p: number; q: number; payoffs: [number, number] } | null;
   /** Payoff to the row player at the (first) pure equilibrium. */
-  equilibriumPayoff: [number, number];
+  /** Payoffs in the equilibrium, when there is exactly one (pure, or else mixed). */
+  equilibriumPayoff: [number, number] | null;
   /** Joint payoff lost when both defect instead of cooperating — prisoner's dilemma only. */
   dilemmaCost: number | null;
   /** Discount factor from which cooperation is sustainable in the repeated game. */
@@ -190,9 +191,11 @@ export function gameCore(m: GameOptions): GameCore {
       : nash[1][0]
         ? [1, 0]
         : [1, 1];
-  const equilibriumPayoff: [number, number] = nashCount
-    ? payoff[firstNash[0]][firstNash[1]]
-    : (mixed?.payoffs ?? payoff[firstNash[0]][firstNash[1]]);
+  // A single equilibrium has one payoff. With two pure equilibria there is no
+  // single answer (the model cannot say which one is played), so none is
+  // reported; with none, the mixed equilibrium's expected payoffs are.
+  const equilibriumPayoff: [number, number] | null =
+    nashCount === 1 ? payoff[firstNash[0]][firstNash[1]] : nashCount === 0 && mixed ? mixed.payoffs : null;
 
   // Prisoner's dilemma extras.
   const isPd = def.id === "prisoners";
@@ -210,7 +213,7 @@ export function gameCore(m: GameOptions): GameCore {
     { R: r },
     "Written down for comparison with the equilibrium below",
   );
-  t.step("Joint payoff in equilibrium", equilibriumPayoff[0] + equilibriumPayoff[1]);
+  if (equilibriumPayoff) t.step("Joint payoff in equilibrium", equilibriumPayoff[0] + equilibriumPayoff[1]);
 
   return {
     def,
@@ -236,7 +239,13 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
   const cells: TableCell[][] = [0, 1].map((i) =>
     [0, 1].map((j) => ({
       text: `${payoff[i][j][0]}, ${payoff[i][j][1]}`,
-      underline: core.bestResponseRow[j][i] && core.bestResponseCol[i][j],
+      // Each payoff is underlined where it is that player's best response to the
+      // other's choice; a cell with both underlined is a Nash equilibrium.
+      parts: [
+        { text: String(payoff[i][j][0]), underline: core.bestResponseRow[j][i] },
+        { text: ", " },
+        { text: String(payoff[i][j][1]), underline: core.bestResponseCol[i][j] },
+      ],
       emphasis: core.nash[i][j],
     })),
   );
@@ -251,6 +260,13 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
 
   const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
+  // The row player's two payoff lines, at q = 0 and q = 1.
+  const gap0 = b(0, 1) - b(1, 1);
+  const gap1 = b(0, 0) - b(1, 0);
+  const minGap = Math.min(Math.abs(gap0), Math.abs(gap1));
+  const crossesInside = gap0 * gap1 < 0;
+  const qCross = crossesInside ? gap0 / (gap0 - gap1) : 0;
+
   return [
     {
       id: "game-matrix",
@@ -263,7 +279,7 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
           { label: def.rows[1], cells: cells[1] },
         ],
         caption:
-          "Each cell shows (row player's payoff, column player's payoff). Underlined payoffs are best responses; tinted cells are Nash equilibria.",
+          "Each cell shows (row player's payoff, column player's payoff). A payoff is underlined when it is that player's best response to the other's choice; a cell with both underlined (tinted) is a Nash equilibrium.",
       },
       scalars: [
         {
@@ -281,8 +297,18 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
               { label: `Mixed equilibrium: ${def.cols[0]}`, value: core.mixed.q },
             ]
           : []),
-        { label: "Row player's equilibrium payoff", value: core.equilibriumPayoff[0] },
-        { label: "Column player's equilibrium payoff", value: core.equilibriumPayoff[1] },
+        ...(core.equilibriumPayoff
+          ? [
+              {
+                label: core.nashCount === 1 ? "Row player's equilibrium payoff" : "Row player's expected payoff (mixed)",
+                value: core.equilibriumPayoff[0],
+              },
+              {
+                label: core.nashCount === 1 ? "Column player's equilibrium payoff" : "Column player's expected payoff (mixed)",
+                value: core.equilibriumPayoff[1],
+              },
+            ]
+          : []),
         ...(core.dilemmaCost !== null
           ? [
               {
@@ -315,7 +341,7 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
             ? "Two pure equilibria. Both are stable, so this game has an equilibrium-selection problem: conventions, history and expectations decide which one a market lands on. A one-shot payoff matrix cannot say which."
             : "No pure equilibrium. Any predictable choice can be exploited, so the only equilibrium is to randomise.",
         core.cooperationThreshold !== null
-          ? `Backward induction says defect in a single play, and cooperation is therefore unreachable in the one-shot game. But if the game repeats and players are patient enough (a discount factor of at least ${core.cooperationThreshold.toFixed(3)} here), cooperation becomes an equilibrium: the threat of future punishment is worth more than today's temptation.`
+          ? `In a single play defecting is a dominant strategy, so cooperation is unreachable in the one-shot game. But if the game repeats indefinitely and players are patient enough (a discount factor of at least ${core.cooperationThreshold.toFixed(3)} here), cooperation becomes an equilibrium: the threat of future punishment is worth more than today's temptation.`
           : "The honest caveat: Nash equilibrium is a solution concept, not a prediction. It says nothing about how players get there, and in games with two equilibria it does not say which one a market chooses.",
       ],
       trace: core.trace,
@@ -353,16 +379,18 @@ export function gameTheory(_e: Economy, m: GameOptions): Panel[] {
             ]
           : [
               {
-                label: "Gap between the lines",
-                value: Math.abs(b(1, 1) - b(0, 1)),
-                hint: "Never zero: one strategy is better whatever the other player does",
+                label: "Smallest gap between the lines",
+                value: minGap,
+                hint: "The lines are straight, so the smallest gap is at one end: q = 0 or q = 100%",
               },
             ]),
       ],
       notes: [
         core.mixed
           ? `The lines cross at ${pct(core.mixed.q)}. That is the column player's equilibrium mixture: any more or less of "${def.cols[0]}" and the row player would switch, and the column player's own payoff would fall.`
-          : "The lines never cross: one strategy dominates, which is why a dominant-strategy game has no mixed equilibrium. There is nothing to mix about.",
+          : crossesInside
+            ? `The row player's lines cross at ${pct(qCross)}, but the column player has a dominant strategy, so it never mixes and there is no mixed equilibrium.`
+            : "The lines never cross: one of the row player's strategies is better whatever the column player does, so there is nothing to mix about.",
       ],
       trace: [],
     },

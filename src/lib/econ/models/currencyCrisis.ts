@@ -28,7 +28,7 @@ import { linspace } from "../math";
  * reserves left — reaches the peg at exactly T*. That is not a coincidence, it is
  * the arithmetic, and it happens here because real money demand is assumed
  * constant. With interest-sensitive money demand a speculative attack arrives
- * *before* reserves are exhausted (Obstfeld 1986) — a refinement this version
+ * *before* reserves are exhausted (Flood and Garber 1984) — a refinement this version
  * deliberately does not attempt.
  */
 
@@ -137,7 +137,7 @@ export function currencyCrisis(e: Economy, horizon = 50): Panel[] {
           hint: "−ln(1 − R₀/M) / ln(1 + μ)",
         },
         {
-          label: "Domestic credit by the horizon end (share of M)",
+          label: "Domestic credit at the horizon (× today's money supply)",
           value: core.creditShareThen,
           hint: "Above 1 the peg is long gone",
         },
@@ -151,7 +151,7 @@ export function currencyCrisis(e: Economy, horizon = 50): Panel[] {
         fixed
           ? "The regime is set to Fixed, so this is the case the model is about."
           : "The regime is currently Floating, so there is no peg here to defend. Switch the exchange rate to Fixed to make this the model's case.",
-        "The honest caveat: with constant real money demand the attack lands exactly when reserves reach zero. Allow money demand to depend on the interest rate and the peg breaks slightly *before* exhaustion. That is Obstfeld's refinement, which this version deliberately does not model.",
+        "The honest caveat: with constant real money demand the attack lands exactly when reserves reach zero. Allow money demand to depend on the interest rate and the peg breaks slightly *before* exhaustion. That is Flood and Garber's (1984) refinement, which this version deliberately does not model.",
       ],
       trace: core.trace,
     },

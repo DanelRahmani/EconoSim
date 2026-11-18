@@ -31,6 +31,7 @@ import {
   DEFAULT_SWEEP_AXIS,
   DEFAULT_SWEEP_FIGURE,
   DEFAULT_ZLB,
+  DEFAULT_TRADE,
   MODELS,
 } from "./registry";
 import { CUSTOM_FIELDS, SHOCK_PRESETS, type ShockMode, type ShockSpec } from "./shocks";
@@ -47,6 +48,7 @@ import type {
   MicroOptions,
   SweepParam,
   ZlbOptions,
+  TradeOptions,
 } from "./types";
 
 export type CompareMode = "current" | "baseline" | "both";
@@ -63,6 +65,8 @@ export interface SimState {
   externality: ExternalityOptions;
   game: GameOptions;
   zlb: ZlbOptions;
+  /** Optional so links made before the dial existed still decode. */
+  trade?: TradeOptions;
   sweep: SweepParam;
   sweepAxis: SweepParam;
   sweepFigure: string;
@@ -114,6 +118,7 @@ export function encodeState(s: SimState): string {
       ex: s.externality,
       g: s.game,
       z: s.zlb,
+      tr: s.trade,
       sw: s.sweep,
       sa: s.sweepAxis,
       sf: s.sweepFigure,
@@ -201,6 +206,14 @@ function sanitiseGame(raw: unknown): GameOptions {
   };
 }
 
+function sanitiseTrade(raw: unknown): TradeOptions {
+  if (!isRecord(raw)) return DEFAULT_TRADE;
+  return {
+    etaX: bounded(raw.etaX, 0, 2, DEFAULT_TRADE.etaX),
+    etaM: bounded(raw.etaM, 0, 2, DEFAULT_TRADE.etaM),
+  };
+}
+
 function sanitiseZlb(raw: unknown): ZlbOptions {
   if (!isRecord(raw)) return DEFAULT_ZLB;
   return { demandShock: bounded(raw.demandShock, 0, 0.6, DEFAULT_ZLB.demandShock) };
@@ -270,6 +283,7 @@ export function decodeState(token: string | null | undefined): SimState | null {
       externality: sanitiseExternality(raw.ex),
       game: sanitiseGame(raw.g),
       zlb: sanitiseZlb(raw.z),
+      trade: sanitiseTrade(raw.tr),
       sweep: SWEEPABLE.includes(raw.sw as keyof Economy) ? (raw.sw as SweepParam) : DEFAULT_SWEEP,
       sweepAxis: SWEEPABLE.includes(raw.sa as keyof Economy) ? (raw.sa as SweepParam) : DEFAULT_SWEEP_AXIS,
       // A figure name is only ever used to look a label up in the model's own

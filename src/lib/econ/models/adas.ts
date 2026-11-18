@@ -1,4 +1,4 @@
-import { add, div, mul, num, sub, v } from "../expr";
+import { add, div, mul, num, pow, sub, v } from "../expr";
 import type { Economy } from "../types";
 import type { Panel } from "../panel";
 import { Tracer } from "../trace";
@@ -12,17 +12,22 @@ export function naturalOutput(e: Economy): number {
 }
 
 /**
- * How much of potential output survives the cost of imported inputs: 1 − m·(P* − 1).
+ * How much of potential output survives the price of imported energy:
+ *   Yn / Yn(P* = 1) = P*^(−σ/(1−σ))
  *
- * A share m of the economy's inputs is bought abroad at the foreign price P*
- * (1 in the baseline). Dearer imports — an oil shock — make the same factors
- * produce less, so potential output falls: LRAS and SRAS both shift left, the
- * textbook adverse supply shock. A closed economy buys nothing abroad, so its
- * factor is 1. Floored at 0.1 so an extreme P* cannot drive potential to zero.
+ * Production uses imported energy with cost share σ, Y = F(K, L)^(1−σ)·E^σ.
+ * Firms buy energy until its marginal product equals its real price P* (the
+ * domestic price is normalised to 1), and GDP is output net of the energy
+ * bill. Solving that out, value added scales with P*^(−σ/(1−σ)). So dearer
+ * energy — an oil shock — makes the same capital and labour produce less:
+ * potential output falls, LRAS and SRAS shift left, prices rise and output
+ * falls (Blanchard's adverse supply shock). A closed economy buys no energy
+ * abroad, so its factor is 1.
  */
 export function importCostFactor(e: Economy): number {
-  if (e.openness !== "open") return 1;
-  return Math.max(0.1, 1 - e.importProp * (e.pStar - 1));
+  if (e.openness !== "open" || e.energyShare <= 0) return 1;
+  const s = Math.min(0.9, e.energyShare);
+  return Math.pow(e.pStar, -s / (1 - s));
 }
 
 /** Potential output in AD-AS: the Solow level, net of the imported-input cost. */
@@ -99,13 +104,11 @@ export function adas(e: Economy, horizon = 60): Panel[] {
   const Yn = Ysolow * factor;
   if (e.openness === "open") {
     t.step(
-      "Natural output Yn (net of imported-input cost)",
+      "Natural output Yn = Y_s·P*^(−σ/(1−σ))",
       Yn,
-      mul(v("Y_s"), sub(num(1), mul(v("m"), sub(v("P^*"), num(1))))),
-      { Y_s: Ysolow, m: e.importProp, "P^*": e.pStar },
-      factor === 0.1
-        ? "Floored: the imported-input cost is never allowed to take more than 90% of potential output"
-        : "A dearer foreign price level P* (an oil shock) makes the same factors produce less: LRAS shifts left",
+      mul(v("Y_s"), pow(v("P^*"), div(sub(num(0), v("sigma")), sub(num(1), v("sigma"))))),
+      { Y_s: Ysolow, sigma: Math.min(0.9, e.energyShare), "P^*": e.pStar },
+      "Dearer imported energy (an oil shock) makes the same capital and labour produce less: LRAS shifts left",
     );
   }
   const eq = shortRunEquilibrium(e, e.P, Yn);
