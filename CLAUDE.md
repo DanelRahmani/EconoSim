@@ -17,7 +17,7 @@ arithmetic that produced every figure. No backend, no database, no data feeds �
 is client-side, which is a deliberate design constraint, not an omission.
 
 Stack: Next.js 16 (App Router, Turbopack) · React 19 · TypeScript strict · Tailwind 4 ·
-Recharts 3 · KaTeX · Vitest 5. Private repo: `DanelRahmani/EconoSim` (branch `master`).
+KaTeX · Vitest 5. Every chart is our own SVG (`CurveChart`); Recharts was removed. Private repo: `DanelRahmani/EconoSim` (branch `master`).
 
 The governing principle: **the maths shown is the maths executed.** Every model records its
 own `CalcStep[]` as it computes, and the expression AST that renders LaTeX is the same one
@@ -71,7 +71,8 @@ src/lib/econ/            the engine — pure, no React
   models/*.ts            one file per model — 21 of them
   engine.test.ts         the whole suite (196 tests)
 src/lib/scale.ts         axisDomain() — the axis rule, plus the zoom-window maths
-src/components/          PanelCard renders any Panel; CurveChart (SVG), TimeSeriesChart (Recharts)
+src/components/          PanelCard renders any Panel; CurveChart (SVG) draws every chart, and
+                         TimeSeriesChart is a thin wrapper that thins long paths and adds a readout
 src/app/                 landing page + /simulator
 docs/models.md           equations and sign conventions (STALE — see gaps below)
 ```
@@ -151,15 +152,21 @@ imported from inside a model file — the cycle this codebase already avoids els
 
 **Lint is strict about hooks.** `react-hooks/set-state-in-effect` and `react-hooks/refs` are
 errors. Established patterns: do all `setState` inside `requestAnimationFrame` callbacks (see
-`useAnimatedNumber`, `useTweenedEconomy`, and the permalink load in `Simulator`), and read
-browser state through a module-level store with `useSyncExternalStore` (`theme-store.ts`,
-`presets-store.ts`).
+`useAnimatedNumber`, `useMorph`, and the permalink load in `Simulator`), and read browser
+state through a module-level store with `useSyncExternalStore` (`theme-store.ts`,
+`presets-store.ts`, `chart-style-store.ts`).
 
-**Recharts specifics.** Do not add its built-in `<Legend>` — there is already an interactive
-HTML legend and two legends overlap. Axis ticks bypass the tooltip formatter, so both axes
-need `tickFormatter={formatTick}` or you get `10.000000000000002` on the axis. Any custom
-tooltip must be in-flow, never absolutely positioned inside the scrolling parameter sidebar,
-or it gets clipped.
+**Animation is geometry, not economics.** The model runs once per change, on a
+`useDeferredValue` copy of the economy; `useMorph` then eases the *drawn* lines and markers
+from the old picture to the new one. Never go back to easing the economy and re-running the
+model every frame: that was the source of the choppy charts (20–40ms a frame on AD-AS). Keep
+`mergePanels`' `sameLine` cheap too — it runs on every slider event. `PanelCard` is memoised,
+and its chart objects are `useMemo`'d so a morph only restarts when the picture changes.
+
+**Line labels** are a swatch in the line's own colour and dash, the name in ink, and the
+comparison tag ("shock", "new", "base") quieter — `splitTag` in `series-label.ts`. The white
+chart style (`.chart-white` in globals.css) works only because the charts draw exclusively with
+theme tokens; keep it that way.
 
 **A chart axis never opens below zero for non-negative data.** `axisDomain()` in
 `src/lib/scale.ts` pads by 8% of the span but clamps at zero when the data is non-negative.

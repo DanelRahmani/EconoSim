@@ -29,6 +29,16 @@ export function sameLine(a: Point[], b: Point[]): boolean {
   const sy = Math.max(...ys) - Math.min(...ys) || 1;
   const tol = 1e-4;
 
+  // Fast path: the same grid of x values (the usual case, one linspace) is
+  // compared point by point. It runs on every slider movement, so the geometric
+  // check below is kept for lines that were genuinely resampled.
+  if (fa.length === fb.length && fa.every((p, i) => Math.abs(p.x - fb[i].x) <= tol * sx)) {
+    return fa.every((p, i) => Math.abs(p.y - fb[i].y) <= tol * sy);
+  }
+  // Otherwise compare a bounded sample of each line against the other: enough to
+  // tell a moved curve from a resampled one, at a fixed cost.
+  const sample = (pts: Point[]) => (pts.length <= 40 ? pts : Array.from({ length: 40 }, (_, k) => pts[Math.round((k * (pts.length - 1)) / 39)]));
+
   const onLine = (p: Point, line: Point[]) => {
     let best = Infinity;
     for (let i = 1; i < line.length; i++) {
@@ -48,7 +58,7 @@ export function sameLine(a: Point[], b: Point[]): boolean {
   const inA = fa.filter((p) => p.x >= lo && p.x <= hi);
   const inB = fb.filter((p) => p.x >= lo && p.x <= hi);
   if (!inA.length && !inB.length) return false;
-  return inA.every((p) => onLine(p, fb)) && inB.every((p) => onLine(p, fa));
+  return sample(inA).every((p) => onLine(p, fb)) && sample(inB).every((p) => onLine(p, fa));
 }
 
 /**

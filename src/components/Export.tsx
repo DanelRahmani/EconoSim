@@ -49,7 +49,8 @@ function svgText(svg: SVGSVGElement): string {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
-  const root = getComputedStyle(document.documentElement);
+  // Read the tokens from the chart itself, so a white chart exports as white.
+  const root = getComputedStyle(svg);
   const tokens = CHART_TOKENS.map((token) => `${token}:${root.getPropertyValue(token).trim()}`).join(";");
   const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
   style.textContent = `:root{${tokens}}text{font-family:${getComputedStyle(svg).fontFamily || "sans-serif"}}`;

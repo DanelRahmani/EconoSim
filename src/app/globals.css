@@ -413,3 +413,28 @@ details.disclosure[open] > :not(summary) {
 .font-mono {
   font-variant-numeric: tabular-nums;
 }
+
+/* --- White chart ------------------------------------------------------------
+ * A chart drawn on plain white paper with print colours, whatever the site theme.
+ * The chart components draw only with these tokens, so redefining them here is
+ * the whole switch; exports read them from the chart itself, so they match too. */
+.chart-white {
+  --surface: #ffffff;
+  --surface-2: #f4f4f4;
+  --ink: #111111;
+  --muted: #555555;
+  --hairline: #e4e4e4;
+  --accent: #c0182f;
+  --accent-ink: #ffffff;
+  --gain: #1a7f5a;
+  --series-2: #1f6fb2;
+  --series-3: #b25f00;
+  --series-4: #2a8a5c;
+  --series-6: #7a3db8;
+  background: #ffffff;
+  color: #111111;
+  border: 1px solid #e4e4e4;
+  border-radius: 12px;
+  padding: 10px 10px 4px;
+  color-scheme: light;
+}

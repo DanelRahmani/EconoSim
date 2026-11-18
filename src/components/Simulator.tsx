@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Wordmark } from "@/components/ui/Wordmark";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AiOptions,
   Economy,
@@ -25,7 +25,6 @@ import { CUSTOM_FIELDS, relevantShocks, resolveShocks, type ShockSpec } from "@/
 import { CHANGE_TAGS, SHOCK_TAGS, mergePanels } from "@/lib/econ/compare";
 import { sweepAxisPanel, sweepPanel } from "@/lib/econ/comparativeStatics";
 import type { Panel } from "@/lib/econ/panel";
-import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
 import { PanelCard, SolidHyphens } from "./PanelCard";
 import { ParamControl, Segmented } from "./ParamControl";
 import { ParametersPanel } from "./ParametersPanel";
@@ -545,13 +544,17 @@ export function Simulator() {
     [shocks, shockPresets, inputs.uses],
   );
 
-  // Ease the economy so curves and figures morph instead of jumping.
-  const tweened = useTweenedEconomy(shockedEconomy);
+  // The model runs once per change, on a deferred copy of the economy: while a
+  // slider is dragged React keeps the slider responsive and skips stale runs. The
+  // charts then morph their drawn geometry to the new result (useMorph), which is
+  // far smoother than easing the economy and re-running the model every frame.
+  const settled = useDeferredValue(shockedEconomy);
+  const settledBase = useDeferredValue(economy);
 
   // With shocks active the reference is the same economy without them; otherwise
   // it is the pinned baseline.
-  const reference = hasShocks ? economy : baseline;
-  const shownEconomy = compare === "baseline" ? reference : tweened;
+  const reference = hasShocks ? settledBase : baseline;
+  const shownEconomy = compare === "baseline" ? reference : settled;
 
   const modelPanels = useMemo(() => {
     if (model === "glossary") return [];
@@ -565,15 +568,14 @@ export function Simulator() {
     }
   }, [model, shownEconomy, reference, compare, options, hasShocks]);
 
-  // The sweep panels interrogate the settled economy rather than the tweened one:
-  // each re-runs the model many times, and once per animation frame would be waste.
+  // The sweep panels re-run the model many times, so they read the deferred economy too.
   const sweepPanels = useMemo(() => {
     if (model === "glossary") return [];
     const extras: Panel[] = [];
     const directions = sweepPanel({
       modelId: model,
       modelLabel: getModel(model).label,
-      economy: shockedEconomy,
+      economy: settled,
       options,
       param: sweep,
       paramLabel: sweep === "none" ? undefined : PARAM_LABEL(sweep),
@@ -582,7 +584,7 @@ export function Simulator() {
     const curve = sweepAxisPanel({
       modelId: model,
       modelLabel: getModel(model).label,
-      economy: shockedEconomy,
+      economy: settled,
       options,
       param: sweepAxis,
       paramLabel: sweepAxis === "none" ? undefined : PARAM_LABEL(sweepAxis),
@@ -591,7 +593,7 @@ export function Simulator() {
     });
     if (curve) extras.push(curve);
     return extras;
-  }, [model, shockedEconomy, options, sweep, sweepAxis, sweepFigure]);
+  }, [model, settled, options, sweep, sweepAxis, sweepFigure]);
 
   const panels = useMemo(
     () => (modelPanels ? [...modelPanels, ...sweepPanels] : null),

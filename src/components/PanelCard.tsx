@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { seriesToTable, type Panel, type TableSpec } from "@/lib/econ/panel";
 import { describeChange, fmtScalar } from "@/lib/format";
-import { CurveChart, Legend, SERIES_COLORS } from "./charts/CurveChart";
+import { CurveChart, Legend, SERIES_COLORS, ZoomButton } from "./charts/CurveChart";
+import { chartStyleStore } from "./charts/chart-style-store";
 import { TimeSeriesChart } from "./charts/TimeSeriesChart";
 import { Calculation } from "./math/Calculation";
 import { PanelExport } from "./Export";
@@ -141,7 +142,7 @@ function ChangeSummary({ panel }: { panel: Panel }) {
 }
 
 /** Renders one model output panel: charts, scalars, notes and the maths. */
-export function PanelCard({
+function PanelCardImpl({
   panel,
   index = 0,
   chartControls,
@@ -174,11 +175,33 @@ export function PanelCard({
     if (!groups.includes(g)) groups.push(g);
     colors[s.label] = SERIES_COLORS[groups.indexOf(g) % SERIES_COLORS.length];
   });
-  const legend = source.length > 1 ? source.map((s) => ({ label: s.label, color: colors[s.label] })) : [];
-  const visible = <T extends { label: string }>(series: T[]) => series.filter((s) => !hidden.includes(s.label));
+  const legend =
+    source.length > 1
+      ? source.map((s) => ({ label: s.label, color: colors[s.label], dashed: !!(s.ghost || s.dashed) }))
+      : [];
 
-  const chart = panel.chart ? { ...panel.chart, series: visible(panel.chart.series) } : undefined;
-  const timeseries = panel.timeseries ? { ...panel.timeseries, series: visible(panel.timeseries.series) } : undefined;
+  // Memoised so the charts' morph only restarts when the picture really changes.
+  const chart = useMemo(
+    () => (panel.chart ? { ...panel.chart, series: panel.chart.series.filter((s) => !hidden.includes(s.label)) } : undefined),
+    [panel.chart, hidden],
+  );
+  const timeseries = useMemo(
+    () =>
+      panel.timeseries
+        ? { ...panel.timeseries, series: panel.timeseries.series.filter((s) => !hidden.includes(s.label)) }
+        : undefined,
+    [panel.timeseries, hidden],
+  );
+  const chartStyle = useSyncExternalStore(chartStyleStore.subscribe, chartStyleStore.get, chartStyleStore.getServer);
+  const white = chartStyle === "white";
+  const styleToggle = (
+    <ZoomButton
+      label="White"
+      title={white ? "Draw the chart in the site's theme" : "Draw the chart on plain white, with print colours"}
+      pressed={white}
+      onClick={() => chartStyleStore.set(white ? "theme" : "white")}
+    />
+  );
   // The text alternative keeps every series, including any hidden from the legend:
   // hiding a line is a reading choice, not a reason to drop it from the data.
   const dataTable = panel.chart || panel.timeseries ? seriesToTable(panel.chart ?? panel.timeseries!) : undefined;
@@ -196,8 +219,12 @@ export function PanelCard({
       {chartControls && <div className="mt-3">{chartControls}</div>}
 
       {(chart || timeseries) && (
-        <div className="mt-3" ref={chartRef}>
-          {chart ? <CurveChart spec={chart} colors={colors} /> : timeseries && <TimeSeriesChart spec={timeseries} colors={colors} />}
+        <div className={`mt-3 ${white ? "chart-white" : ""}`} ref={chartRef}>
+          {chart ? (
+            <CurveChart spec={chart} colors={colors} tools={styleToggle} />
+          ) : (
+            timeseries && <TimeSeriesChart spec={timeseries} colors={colors} tools={styleToggle} />
+          )}
         </div>
       )}
 
@@ -262,3 +289,9 @@ export function PanelCard({
     </section>
   );
 }
+
+/**
+ * Memoised: while a slider is dragged the Simulator re-renders on every input
+ * event, but a panel only needs to redraw when its own result changes.
+ */
+export const PanelCard = memo(PanelCardImpl);
