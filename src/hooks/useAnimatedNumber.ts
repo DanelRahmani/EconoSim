@@ -5,18 +5,26 @@ import { useEffect, useRef, useState } from "react";
 /**
  * Tweens a displayed number toward `value` so figures ease rather than jump.
  * All state updates happen inside animation frames. Respects prefers-reduced-motion.
+ *
+ * A value that is already changing every frame (the economy is easing, so the figures
+ * derived from it are too) is shown as it arrives: easing it a second time only
+ * made the numbers trail the chart. Only a discrete jump is eased.
  */
-export function useAnimatedNumber(value: number, duration = 500): number {
+export function useAnimatedNumber(value: number, duration = 240): number {
   const [display, setDisplay] = useState(value);
   const shownRef = useRef(value);
+  const lastChangeRef = useRef(0);
 
   useEffect(() => {
     const target = value;
     const from = shownRef.current;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0;
+    const now0 = performance.now();
+    const streaming = now0 - lastChangeRef.current < 120;
+    lastChangeRef.current = now0;
 
-    if (reduce || !Number.isFinite(target) || from === target) {
+    if (reduce || streaming || !Number.isFinite(target) || from === target) {
       raf = requestAnimationFrame(() => {
         shownRef.current = target;
         setDisplay(target);

@@ -234,7 +234,7 @@ export function ShockControls({
         )}
       </div>
 
-      <details className="mt-3 rounded-xl border border-hairline bg-surface2/50">
+      <details className="disclosure mt-3 rounded-xl border border-hairline bg-surface2/50">
         <summary className="cursor-pointer select-none list-none px-3 py-2 text-[0.75rem] text-muted marker:content-none hover:text-ink">
           What does each preset do?
         </summary>

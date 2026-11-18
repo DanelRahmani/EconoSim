@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -11,6 +12,13 @@ import {
 } from "recharts";
 import type { TimeSeriesSpec } from "@/lib/econ/panel";
 import { SERIES_COLORS } from "./CurveChart";
+
+/** Same identity rule as CurveChart: "IS (new)" is still the line that was "IS". */
+const stableId = (label: string, ghost?: boolean) =>
+  `${ghost ? "ghost:" : ""}${label.replace(/ \((shock|new|base)\)$/, "")}`;
+
+/** How long the opening draw-in runs before the lines simply follow their data. */
+const DRAW_MS = 450;
 
 const AXIS_TICK = { fontSize: 11, fill: "var(--muted)" } as const;
 
@@ -35,6 +43,18 @@ export function TimeSeriesChart({
   height?: number;
   colors?: Record<string, string>;
 }) {
+  // The lines draw in once, when the chart appears. After that the economy is
+  // already easing between values frame by frame, so animating each update as well
+  // made the lines lag behind a slider; they now track their data directly.
+  const [draw, setDraw] = useState(true);
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = setTimeout(() => setDraw(false), reduce ? 0 : DRAW_MS + 100);
+    return () => clearTimeout(timer);
+  }, []);
+  // A line that arrives after that (the baseline, when Compare comes on) fades in.
+  const [initialIds] = useState(() => new Set(spec.series.map((s) => stableId(s.label, s.ghost))));
+
   // Merge the series into rows keyed on x so Recharts can plot them together.
   const byX = new Map<number, Record<string, number>>();
   spec.series.forEach((s) => {
@@ -117,7 +137,8 @@ export function TimeSeriesChart({
           .sort((a, b) => Number(!!b.ghost) - Number(!!a.ghost))
           .map((s, i) => (
           <Line
-            key={s.label}
+            key={stableId(s.label, s.ghost)}
+            className={initialIds.has(stableId(s.label, s.ghost)) ? undefined : "fade-in"}
             type="monotone"
             dataKey={s.label}
             name={s.label}
@@ -149,8 +170,8 @@ export function TimeSeriesChart({
                 <g key={`none-${s.label}-${props.index}`} />
               )
             }
-            isAnimationActive
-            animationDuration={400}
+            isAnimationActive={draw}
+            animationDuration={DRAW_MS}
             animationEasing="ease-out"
             connectNulls
           />

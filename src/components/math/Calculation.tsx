@@ -12,9 +12,9 @@ export function Calculation({ steps }: { steps: CalcStep[] }) {
   if (!steps.length) return null;
   const rendered = steps.map(renderStep);
   return (
-    <details className="calc-math group mt-4 rounded-xl border border-hairline bg-surface2/50">
+    <details className="disclosure calc-math group mt-4 rounded-xl border border-hairline bg-surface2/50">
       <summary className="flex cursor-pointer select-none list-none items-center gap-2 px-3.5 py-3 text-sm font-medium text-ink marker:content-none">
-        <span aria-hidden className="text-accent transition-transform duration-300 group-open:rotate-90">
+        <span aria-hidden className="text-accent transition-transform duration-200 group-open:rotate-90">
           ▶
         </span>
         Show the calculation

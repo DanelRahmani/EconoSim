@@ -49,7 +49,7 @@ function keyOf(e: Economy): string {
  * figures morph instead of jumping when a slider moves. Recompute is throttled
  * to ~30fps and only runs while the tween is active.
  */
-export function useTweenedEconomy(target: Economy, duration = 280): Economy {
+export function useTweenedEconomy(target: Economy, duration = 200): Economy {
   const [shown, setShown] = useState<Economy>(target);
   const shownRef = useRef(target);
   const key = keyOf(target);

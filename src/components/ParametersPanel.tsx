@@ -110,23 +110,26 @@ export function ParametersPanel({
             <span>
               {showMore ? "Fewer parameters" : `More parameters (${sliders.more.length})`}
             </span>
-            <span aria-hidden className={`transition-transform ${showMore ? "rotate-180" : ""}`}>
+            <span aria-hidden className={`transition-transform duration-200 ${showMore ? "rotate-180" : ""}`}>
               ▾
             </span>
           </button>
-          {showMore &&
-            GROUP_ORDER.map((g) => {
-              const defs = sliders.more.filter((p) => p.group === g);
-              if (!defs.length) return null;
-              return (
-                <div key={g} className="mt-2">
-                  <div className="font-mono text-[0.6875rem] text-muted/70">{g}</div>
-                  {defs.map((p) => (
-                    <Slider key={p.key} p={p} economy={economy} update={update} />
-                  ))}
-                </div>
-              );
-            })}
+          {showMore && (
+            <div className="tab-in">
+              {GROUP_ORDER.map((g) => {
+                const defs = sliders.more.filter((p) => p.group === g);
+                if (!defs.length) return null;
+                return (
+                  <div key={g} className="mt-2">
+                    <div className="font-mono text-[0.6875rem] text-muted/70">{g}</div>
+                    {defs.map((p) => (
+                      <Slider key={p.key} p={p} economy={economy} update={update} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

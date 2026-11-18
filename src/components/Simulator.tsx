@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Wordmark } from "@/components/ui/Wordmark";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AiOptions,
   Economy,
@@ -438,6 +438,21 @@ export function Simulator() {
   const [showMore, setShowMore] = useState(false);
   // On a phone the parameters live in a sheet over the bottom of the screen.
   const [sheetOpen, setSheetOpen] = useState(false);
+  // The sheet stays mounted for its exit animation: `sheetOpen` is the intent,
+  // `sheetMounted` is whether the DOM is still there.
+  const [sheetMounted, setSheetMounted] = useState(false);
+  const sheetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const toggleSheet = () => {
+    clearTimeout(sheetTimer.current);
+    if (sheetOpen) {
+      setSheetOpen(false);
+      sheetTimer.current = setTimeout(() => setSheetMounted(false), 170);
+    } else {
+      setSheetMounted(true);
+      setSheetOpen(true);
+    }
+  };
+  useEffect(() => () => clearTimeout(sheetTimer.current), []);
   const [tab, setTab] = useState<"params" | "shocks" | "analysis">("params");
   const [compare, setCompare] = useState<CompareMode>("current");
   // Once the reader picks a comparison view themselves, stop choosing it for them.
@@ -672,7 +687,7 @@ export function Simulator() {
   };
 
   const economyPresets = (
-    <details className="card reveal group p-4">
+    <details className="disclosure card reveal group p-4">
       <summary className="flex cursor-pointer list-none items-center justify-between font-mono text-[0.75rem] text-muted marker:content-none hover:text-ink">
         <span>Economy presets</span>
         <span aria-hidden className="transition-transform group-open:rotate-180">
@@ -733,7 +748,7 @@ export function Simulator() {
               role="tab"
               aria-selected={activeTab === t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 rounded-full px-2 py-1 text-[0.75rem] transition-colors ${
+              className={`flex-1 rounded-full px-2 py-1 text-[0.75rem] transition-colors duration-200 ease-out ${
                 activeTab === t.id ? "bg-accent text-accentink" : "text-muted hover:text-ink"
               }`}
             >
@@ -743,6 +758,7 @@ export function Simulator() {
           ))}
       </div>
 
+      <div key={activeTab} className="tab-in">
       {activeTab === "params" && (
         <ParametersPanel
           economy={economy}
@@ -784,6 +800,7 @@ export function Simulator() {
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 
@@ -848,7 +865,7 @@ export function Simulator() {
               >
                 ⋯
               </summary>
-              <div className="absolute right-0 top-full z-40 mt-2 w-60 space-y-1 rounded-xl border border-hairline bg-surface p-2 shadow-lg">
+              <div className="menu-in absolute right-0 top-full z-40 mt-2 w-60 space-y-1 rounded-xl border border-hairline bg-surface p-2 shadow-lg">
                 <button
                   type="button"
                   onClick={pinBaseline}
@@ -1011,8 +1028,11 @@ export function Simulator() {
 
       {/* Phone: the controls in a sheet, so a slider and its chart share the screen. */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-bg/95 backdrop-blur-xl lg:hidden">
-        {sheetOpen && (
-          <div id="parameter-sheet" className="max-h-[55vh] overflow-y-auto px-4 pb-2 pt-3">
+        {sheetMounted && (
+          <div
+            id="parameter-sheet"
+            className={`max-h-[55vh] overflow-y-auto px-4 pb-2 pt-3 ${sheetOpen ? "sheet-in" : "sheet-out"}`}
+          >
             {controlTabs}
             {activeTab === "params" && inputs.uses.length > 0 && <div className="mt-3">{economyPresets}</div>}
           </div>
@@ -1021,7 +1041,7 @@ export function Simulator() {
           type="button"
           aria-expanded={sheetOpen}
           aria-controls="parameter-sheet"
-          onClick={() => setSheetOpen(!sheetOpen)}
+          onClick={toggleSheet}
           className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-ink"
         >
           <span>
@@ -1033,7 +1053,7 @@ export function Simulator() {
               </span>
             )}
           </span>
-          <span aria-hidden className={`text-muted transition-transform ${sheetOpen ? "rotate-180" : ""}`}>
+          <span aria-hidden className={`text-muted transition-transform duration-200 ${sheetOpen ? "rotate-180" : ""}`}>
             ▴
           </span>
         </button>

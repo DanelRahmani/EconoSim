@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { seriesToTable, type Panel, type TableSpec } from "@/lib/econ/panel";
 import { describeChange, fmtScalar } from "@/lib/format";
 import { CurveChart, Legend, SERIES_COLORS } from "./charts/CurveChart";
@@ -91,7 +91,7 @@ function Delta({ value, previous, percent = false }: { value: number; previous: 
   return (
     <span
       title={`without shock / baseline: ${fmtScalar(previous, percent)}`}
-      className={`shrink-0 font-mono text-[0.6875rem] ${change.up ? "text-gain" : "text-accent"}`}
+      className={`fade-in shrink-0 font-mono text-[0.6875rem] ${change.up ? "text-gain" : "text-accent"}`}
     >
       {change.up ? "▲" : "▼"} {change.text}
     </span>
@@ -107,21 +107,36 @@ function ChangeSummary({ panel }: { panel: Panel }) {
   const moved = (panel.scalars ?? []).filter(
     (s) => s.previous !== undefined && Math.abs(s.value - s.previous) > 1e-9 * Math.max(1, Math.abs(s.previous)),
   );
-  if (!moved.length) return null;
   const shown = moved.slice(0, 4);
+  // While a slider drags, the figures are re-eased every frame. Screen readers get
+  // the sentence once the values settle, not thirty times a second.
+  const sentence = shown
+    .map((s) => `${s.label} ${fmtScalar(s.previous!, s.percent, 3)} to ${fmtScalar(s.value, s.percent, 3)}`)
+    .join(", ");
+  const [spoken, setSpoken] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSpoken(sentence), 600);
+    return () => clearTimeout(timer);
+  }, [sentence]);
+  if (!moved.length) return <p className="sr-only" aria-live="polite">{spoken}</p>;
   return (
-    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-accent/5 px-3 py-2 font-mono text-[0.75rem] text-ink" aria-live="polite">
-      {shown.map((s) => (
-        <span key={s.label} className="inline-flex items-baseline gap-1.5">
-          <span className="text-muted">{s.label}</span>
-          <span>
-            {fmtScalar(s.previous!, s.percent, 3)} → {fmtScalar(s.value, s.percent, 3)}
+    <>
+      <p className="sr-only" aria-live="polite">
+        {spoken}
+      </p>
+      <div className="fade-in mt-3 flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-accent/5 px-3 py-2 font-mono text-[0.75rem] text-ink">
+        {shown.map((s) => (
+          <span key={s.label} className="inline-flex items-baseline gap-1.5">
+            <span className="text-muted">{s.label}</span>
+            <span>
+              {fmtScalar(s.previous!, s.percent, 3)} → {fmtScalar(s.value, s.percent, 3)}
+            </span>
+            <Delta value={s.value} previous={s.previous!} percent={s.percent} />
           </span>
-          <Delta value={s.value} previous={s.previous!} percent={s.percent} />
-        </span>
-      ))}
-      {moved.length > shown.length && <span className="text-muted">+{moved.length - shown.length} more below</span>}
-    </div>
+        ))}
+        {moved.length > shown.length && <span className="text-muted">+{moved.length - shown.length} more below</span>}
+      </div>
+    </>
   );
 }
 
@@ -171,7 +186,7 @@ export function PanelCard({
   return (
     <section
       className={flat ? "border-t border-hairline pt-4" : "card reveal p-5"}
-      style={index && !flat ? { animationDelay: `${index * 80}ms` } : undefined}
+      style={index && !flat ? { animationDelay: `${Math.min(index, 4) * 40}ms` } : undefined}
     >
       <h3 className="font-display text-lg font-semibold tracking-[-0.01em] text-ink">
         <SolidHyphens text={panel.title} />
@@ -191,7 +206,7 @@ export function PanelCard({
       {panel.table && <DataTable spec={panel.table} />}
 
       {dataTable && (
-        <details className="mt-3">
+        <details className="disclosure mt-3">
           <summary className="cursor-pointer font-mono text-[0.75rem]  text-muted transition-colors hover:text-ink">
             Data table
           </summary>

@@ -188,13 +188,16 @@ input[type="range"].slider::-moz-range-thumb {
   outline-offset: 2px;
 }
 
-/* --- Motion ----------------------------------------------------------------- */
+/* --- Motion -----------------------------------------------------------------
+ * Calm, quick, purposeful. Enters are 150-350ms ease-out and move only opacity and
+ * a few pixels; nothing here is meant to be noticed, only to say "this just arrived".
+ * Under prefers-reduced-motion every one of them becomes a plain fade.
+ */
 
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(14px);
-    filter: blur(5px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -202,8 +205,9 @@ input[type="range"].slider::-moz-range-thumb {
   }
 }
 
+/* A card arriving. Stagger is set per card and capped in PanelCard. */
 .reveal {
-  animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* The dash is measured in screen space (the lines use non-scaling-stroke), so on a
@@ -227,7 +231,18 @@ input[type="range"].slider::-moz-range-thumb {
 .chart-line {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: draw 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: draw 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Fades up to whatever opacity the element already has, so a ghost curve at 0.5
+   arrives at 0.5. Used for anything that appears in an already-drawn chart. */
+@keyframes fade-from {
+  from {
+    opacity: 0;
+  }
+}
+.fade-in {
+  animation: fade-from 0.3s ease-out backwards;
 }
 
 /* The stitch sewing itself in under the wordmark, once, on load. */
@@ -258,9 +273,92 @@ input[type="range"].slider::-moz-range-thumb {
 }
 
 .pop-in {
-  animation: pop-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: pop-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Tab content swapping in: a fade with a 4px settle, quick enough to be unnoticed. */
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.tab-in {
+  animation: tab-in 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* The mobile controls sheet rises from the bottom bar and sinks back into it. */
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes sheet-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+.sheet-in {
+  animation: sheet-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sheet-out {
+  animation: sheet-out 0.16s ease-in both;
+  pointer-events: none;
+}
+
+/* A popover menu opens from its trigger corner. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.menu-in {
+  transform-origin: top right;
+  animation: menu-in 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Native <details>: the content fades in on open, and where the browser supports
+   ::details-content the height eases too, so what is below does not jump. */
+details.disclosure[open] > :not(summary) {
+  animation: tab-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@supports selector(::details-content) {
+  details.disclosure {
+    interpolate-size: allow-keywords;
+  }
+  details.disclosure::details-content {
+    height: 0;
+    overflow: clip;
+    transition:
+      height 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+      content-visibility 0.22s allow-discrete;
+  }
+  details.disclosure[open]::details-content {
+    height: auto;
+  }
+}
+
+/* Reduced motion: no movement anywhere. Anything that enters does so as a short fade,
+   and the line draw-in becomes a fade of the finished line. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -268,6 +366,33 @@ input[type="range"].slider::-moz-range-thumb {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal,
+  .pop-in,
+  .tab-in,
+  .sheet-in,
+  .menu-in,
+  .fade-in,
+  .chart-line,
+  details.disclosure[open] > :not(summary) {
+    animation-name: fade-from !important;
+    animation-duration: 0.15s !important;
+    animation-timing-function: ease-out !important;
+    animation-fill-mode: backwards !important;
+  }
+  .chart-line {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+  .sheet-out {
+    animation-name: none !important;
+  }
+  details.disclosure::details-content {
+    transition: none !important;
+  }
+  .card-hover:hover {
+    transform: none;
   }
 }
 

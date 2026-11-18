@@ -18,6 +18,15 @@ export const SERIES_COLORS = [
 
 const DEFAULT_WIDTH = 560;
 
+/**
+ * Identity of a series or marker across comparison modes. "IS" becomes "IS (new)"
+ * when the comparison switches on; it is the same curve, so it keeps its React key
+ * and is never redrawn from nothing. A baseline ghost is a different thing and
+ * gets its own identity (so it can fade in on its own).
+ */
+const stableId = (label: string, ghost?: boolean) =>
+  `${ghost ? "ghost:" : ""}${label.replace(/ \((shock|new|base)\)$/, "")}`;
+
 /** Rough width of a marker label in viewBox units, at its 11px bold size. */
 const labelWidth = (text: string) => text.length * 6.6 + 4;
 
@@ -108,6 +117,11 @@ export function CurveChart({
   const pad = { l: 56, r: 18, t: 16, b: 44 };
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
+
+  // The curves present on first render draw themselves in. Anything that arrives
+  // later (a baseline ghost when Compare comes on) fades in instead, and a curve
+  // whose label merely changed is the same element, so it is not redrawn.
+  const [initialIds] = useState(() => new Set(spec.series.map((s) => stableId(s.label, s.ghost))));
 
   const [zoom, setZoom] = useState<Window | null>(null);
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null);
@@ -228,14 +242,19 @@ export function CurveChart({
         const pts = finite(pointsInWindow(s.points, [x0, x1]));
         if (pts.length < 2) return null;
         const d = pts.map((p, j) => `${j === 0 ? "M" : "L"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ");
+        const id = stableId(s.label, s.ghost);
+        const drawsIn = !s.dashed && initialIds.has(id);
         return (
           <path
-            key={s.label}
+            key={id}
             clipPath={`url(#${clipId})`}
             d={d}
             pathLength={s.dashed ? undefined : 1}
-            className={s.dashed ? "pop-in" : "chart-line"}
-            style={{ animationDelay: `${i * 90}ms`, opacity: s.ghost ? 0.5 : s.dashed ? 0.7 : undefined }}
+            className={drawsIn ? "chart-line" : "fade-in"}
+            style={{
+              animationDelay: drawsIn ? `${i * 60}ms` : undefined,
+              opacity: s.ghost ? 0.5 : s.dashed ? 0.7 : undefined,
+            }}
             fill="none"
             stroke={colorOf(s)}
             strokeWidth={s.ghost ? 1.75 : 2.25}
@@ -250,7 +269,8 @@ export function CurveChart({
         const at = linePlacement[i];
         return (
           <text
-            key={`end-${l.series.label}`}
+            key={`end-${stableId(l.series.label, l.series.ghost)}`}
+            className={l.series.ghost ? "fade-in" : undefined}
             x={l.x + at.dx}
             y={l.y + at.dy}
             textAnchor={at.anchor}
@@ -270,7 +290,7 @@ export function CurveChart({
       {shownMarkers.map((m, i) => {
         const at = labelPlacement[i];
         return (
-          <g key={m.label + m.x}>
+          <g key={stableId(m.label, m.ghost)} className={m.ghost ? "fade-in" : undefined}>
             {m.ghost ? (
               <circle cx={sx(m.x)} cy={sy(m.y)} r={4.5} fill="var(--surface)" stroke="var(--muted)" strokeWidth={1.75} />
             ) : (
