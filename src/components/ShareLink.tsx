@@ -34,7 +34,7 @@ export function ShareLink({ build }: { build: () => string }) {
   };
 
   return (
-    <>
+    <div className="relative">
       <button
         type="button"
         onClick={open}
@@ -46,7 +46,7 @@ export function ShareLink({ build }: { build: () => string }) {
       </button>
 
       {url && (
-        <div className="flex basis-full flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface2/60 px-3 py-2">
+        <div className="absolute right-0 top-full z-40 mt-2 flex w-[min(calc(100vw-2rem),26rem)] flex-wrap items-center gap-2 rounded-xl border border-hairline bg-surface px-3 py-2 shadow-lg">
           <label htmlFor="share-url" className="font-mono text-[0.75rem]  text-muted">
             Link
           </label>
@@ -70,6 +70,6 @@ export function ShareLink({ build }: { build: () => string }) {
           </span>
         </div>
       )}
-    </>
+    </div>
   );
 }

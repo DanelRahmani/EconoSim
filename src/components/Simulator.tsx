@@ -409,6 +409,8 @@ export function Simulator() {
   const [shocks, setShocks] = useState<ShockSpec[]>([]);
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [showMore, setShowMore] = useState(false);
+  // On a phone the parameters live in a sheet over the bottom of the screen.
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [compare, setCompare] = useState<CompareMode>("current");
   // Once the reader picks a comparison view themselves, stop choosing it for them.
   const [compareTouched, setCompareTouched] = useState(false);
@@ -747,8 +749,8 @@ export function Simulator() {
         </div>
       </header>
 
-      <div className="relative z-10 mx-auto grid max-w-[1520px] gap-4 p-4 lg:grid-cols-[220px_minmax(0,1fr)_300px]">
-        <aside className="space-y-4">
+      <div className="relative z-10 mx-auto grid max-w-[1520px] gap-4 p-4 pb-24 lg:grid-cols-[220px_minmax(0,1fr)_300px] lg:pb-4">
+        <aside className="hidden space-y-4 lg:block">
           <nav aria-label="Models" className="card reveal p-4">
             <h2 className="mb-2.5 font-mono text-[0.75rem] text-muted">Models</h2>
             {MODEL_GROUPS.map((g) => (
@@ -769,6 +771,31 @@ export function Simulator() {
         </aside>
 
         <main key={model} className="min-w-0 space-y-4">
+          <div className="lg:hidden">
+            <label htmlFor="model-picker" className="mb-1 block font-mono text-[0.6875rem] text-muted">
+              Model
+            </label>
+            <select
+              id="model-picker"
+              value={model}
+              onChange={(e) => selectModel(e.target.value)}
+              className="w-full rounded-xl border border-hairline bg-surface px-3 py-2.5 text-sm font-medium text-ink focus:border-accent focus:outline-none"
+            >
+              {MODEL_GROUPS.map((g) => (
+                <optgroup key={g} label={g}>
+                  {MODELS.filter((m) => m.group === g).map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+              <optgroup label="Reference">
+                <option value="glossary">Glossary</option>
+              </optgroup>
+            </select>
+          </div>
+
           {model !== "glossary" && (
             <p className="px-1 text-sm leading-relaxed text-muted">{getModel(model).blurb}</p>
           )}
@@ -876,7 +903,7 @@ export function Simulator() {
           )}
         </main>
 
-        <aside className="lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
+        <aside className="hidden lg:sticky lg:top-16 lg:block lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
           <div className="card reveal p-4">
             <h2 className="mb-1 font-mono text-[0.75rem] text-muted">Parameters</h2>
             <ParametersPanel
@@ -890,6 +917,43 @@ export function Simulator() {
             />
           </div>
         </aside>
+      </div>
+
+      {/* Phone: the parameters in a sheet, so a slider and its chart share the screen. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-bg/95 backdrop-blur-xl lg:hidden">
+        {sheetOpen && (
+          <div id="parameter-sheet" className="max-h-[50vh] overflow-y-auto px-4 pb-2 pt-3">
+            <ParametersPanel
+              economy={economy}
+              update={update}
+              inputs={inputs}
+              sliders={sliders}
+              showMore={showMore}
+              onShowMore={setShowMore}
+              modelLabel={modelLabel}
+            />
+            {inputs.uses.length > 0 && <div className="mt-3">{economyPresets}</div>}
+          </div>
+        )}
+        <button
+          type="button"
+          aria-expanded={sheetOpen}
+          aria-controls="parameter-sheet"
+          onClick={() => setSheetOpen(!sheetOpen)}
+          className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium text-ink"
+        >
+          <span>
+            {sheetOpen ? "Hide parameters" : "Parameters"}
+            {!sheetOpen && sliders.key.length > 0 && (
+              <span className="ml-2 font-mono text-[0.6875rem] text-muted">
+                {sliders.key.map((p) => p.label.split(" ").pop()).join(" · ")}
+              </span>
+            )}
+          </span>
+          <span aria-hidden className={`text-muted transition-transform ${sheetOpen ? "rotate-180" : ""}`}>
+            ▴
+          </span>
+        </button>
       </div>
     </div>
   );

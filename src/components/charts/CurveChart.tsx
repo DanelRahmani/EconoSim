@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ChartSpec, Point } from "@/lib/econ/panel";
 import { fmtNum } from "@/lib/format";
 import { axisDomain, niceTicks, clampWindow, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
@@ -85,8 +85,20 @@ export function CurveChart({
   label?: string;
 }) {
   const clipId = useId();
+  // The SVG scales to its box, and its text with it: a 560-unit chart drawn 330px
+  // wide set 10-unit tick labels at under 6px. Measuring the box and drawing in
+  // its own pixels keeps the text at its intended size on a phone.
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [measured, setMeasured] = useState<number | null>(null);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => setMeasured(Math.round(entry.contentRect.width)));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const H = height;
-  const W = width;
+  const W = measured && measured < width ? Math.max(280, measured) : width;
   const pad = { l: 56, r: 18, t: 16, b: 44 };
   const iw = W - pad.l - pad.r;
   const ih = H - pad.t - pad.b;
@@ -126,10 +138,10 @@ export function CurveChart({
   );
 
   return (
-    <div>
+    <div ref={boxRef}>
       {interactive && (
       <div className="mb-1.5 flex items-center justify-end gap-1.5">
-        <span className="mr-auto font-mono text-[0.75rem]  text-muted/70">
+        <span className="mr-auto hidden font-mono text-[0.75rem] text-muted/70 sm:inline">
           {view ? `zoomed ${x0.toFixed(2)} – ${x1.toFixed(2)} (${spec.xLabel})` : "drag across the chart to zoom"}
         </span>
         <ZoomButton label="+" title="Zoom in" onClick={() => setZoom(zoomWindow([x0, x1], full, 0.5))} />
