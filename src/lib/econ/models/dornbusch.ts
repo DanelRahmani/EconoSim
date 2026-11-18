@@ -93,7 +93,7 @@ export function dornbuschPanel(e: Economy, dmPct = 10, horizon = 40): Panel[] {
       ],
       notes: [
         "The exchange rate jumps at once to s(0), past its new long-run level, then appreciates steadily back towards it as prices catch up.",
-        "The overshoot is 1/(η·|λ|) of the long-run move: it is larger when money demand is less interest-sensitive (small η) or prices adjust slowly (small |λ|).",
+        "The overshoot is 1/(η·|λ|) of the long-run move: it is larger when money demand is less interest-sensitive (small η) or prices adjust slowly (small |λ|). Raise γ_D or θ and prices catch up faster, so the overshoot shrinks.",
       ],
       trace: r.trace,
     },

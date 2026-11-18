@@ -107,6 +107,7 @@ export const GLOSSARY: GlossaryGroup[] = [
       { symbol: "Golden rule", name: "Golden rule", meaning: "The saving rate that maximises long-run consumption. It happens exactly where s = α." },
       { symbol: "Marshall-Lerner", name: "Marshall-Lerner condition", meaning: "A depreciation improves the trade balance only if the export and import price elasticities sum to more than one." },
       { symbol: "Overshooting", name: "Dornbusch overshooting", meaning: "Because prices are sticky, a money shock pushes the exchange rate past its long-run value before it comes back." },
+      { symbol: "γ_D", latex: "\\gamma_D", name: "Demand response to the real rate (Dornbusch)", meaning: "How fast prices respond to the exchange rate being away from its long-run level. Larger means faster price adjustment and a smaller overshoot." },
     ],
   },
 ];

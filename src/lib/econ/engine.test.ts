@@ -1601,3 +1601,14 @@ describe("time-window control", () => {
     }
   });
 });
+
+describe("Dornbusch adjustment slider", () => {
+  it("a faster price response shrinks the overshoot, which is always 1 + 1/(η|λ|)", () => {
+    const e = defaultEconomy();
+    const ratio = (gamma: number) => dornbusch({ ...e, gamma }, Math.log(1.1)).overshootRatio;
+    expect(ratio(2)).toBeLessThan(ratio(0.5));
+    const r = dornbusch(e, Math.log(1.1));
+    const eta = (e.hR * e.P) / e.M;
+    expect(r.overshootRatio).toBeCloseTo(1 + 1 / (eta * Math.abs(r.lambda)), 9);
+  });
+});

@@ -176,7 +176,7 @@ export const MODEL_INPUTS: Record<string, ModelInputs> = {
   "currency-crisis": { key: ["reservesShare", "creditGrowth"], uses: ["M", "reservesShare", "creditGrowth"], structure: ["regime"] },
   mf: { key: ["G", "M", "rStar"], uses: [...ISLM, ...OPEN], structure: ["openness", "size", "regime"] },
   parity: { key: ["rStar", "rho", "pStar"], uses: ["P", "rStar", "rho", "pStar"], structure: ["openness", "regime"] },
-  dornbusch: { key: ["M", "theta"], uses: ["M", "P", "kY", "hR", "rStar", "pStar", "theta"], structure: [] },
+  dornbusch: { key: ["M", "gamma", "theta"], uses: ["M", "P", "kY", "hR", "rStar", "pStar", "theta", "gamma"], structure: [] },
   "external-balance": { key: ["G", "T", "rStar"], uses: ["n", "g", ...ISLM, ...OPEN], structure: ["openness", "size", "regime"] },
   "trade-flows": { key: ["pStar", "X0"], uses: [...ISLM, ...OPEN, "pStar"], structure: ["openness", "size", "regime"] },
   "policy-rule": {

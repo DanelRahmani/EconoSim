@@ -51,6 +51,8 @@ export const PARAMS: ParamDef[] = [
   { key: "lambda", label: "SRAS slope λ", min: 0.1, max: 2, step: 0.05, group: "Adjustment", help: "How far prices rise above expectations for each 1% that output is above potential. Low λ: a flat SRAS, sticky prices. High λ: a steep SRAS, flexible prices." },
   { key: "theta", label: "Expectations speed θ", min: 0.05, max: 1, step: 0.05, group: "Adjustment", help: "How quickly price expectations catch up to realised prices, and so how fast the economy returns to potential output. In the Phillips curve it also sets the sacrifice ratio 1/(βθ)." },
 
+  { key: "gamma", label: "Demand response to the real rate γ_D", min: 0.1, max: 3, step: 0.05, group: "Adjustment", help: "Dornbusch: how strongly demand, and so prices, respond when the exchange rate is away from its long-run level, ṗ = θ·γ_D·(s + p* − p). Larger γ_D: prices catch up faster, the adjustment root |λ| grows, and the overshoot 1/(η·|λ|) shrinks." },
+
   { key: "piE", label: "Expected inflation πᵉ", min: 0, max: 0.2, step: 0.005, group: "Inflation & labour", help: "The inflation rate people expect, and the rate the economy starts at. A high πᵉ makes a disinflation expensive." },
   { key: "piTarget", label: "Inflation target π*", min: 0, max: 0.15, step: 0.005, group: "Inflation & labour", help: "What the central bank announces and delivers. The gap between πᵉ and π* is the size of the disinflation." },
   { key: "pcBeta", label: "Phillips slope β", min: 0.1, max: 1.5, step: 0.05, group: "Inflation & labour", help: "How strongly unemployment pushes inflation away from expectations. A steeper curve means a cheaper disinflation." },
