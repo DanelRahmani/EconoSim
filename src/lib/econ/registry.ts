@@ -124,6 +124,64 @@ export const MODELS: ModelDef[] = [
   { id: "ai-boom", label: "AI boom", group: "Applied scenarios", blurb: "AI doing a share of labour tasks, funded by capital instead.", run: (e, o) => aiBoom(e, o.ai) },
 ];
 
+/** The structural switches in the Parameters panel. */
+export type StructureSwitch = "openness" | "size" | "regime";
+
+/**
+ * What each model reads from the economy, so the Parameters panel can show only
+ * the sliders that do something. `key` is shown first, in this order — the dials
+ * a student reaches for; `uses` is every slider the model reads; `structure` the
+ * switches that change it. A test perturbs every parameter of every model and
+ * fails if these lists and the model's real behaviour ever disagree.
+ */
+export interface ModelInputs {
+  key: (keyof Economy)[];
+  uses: (keyof Economy)[];
+  structure: StructureSwitch[];
+}
+
+const PRODUCTION: (keyof Economy)[] = ["A", "alpha", "L", "K0"];
+const GROWTH: (keyof Economy)[] = ["s", "n", "g", "delta"];
+const ISLM: (keyof Economy)[] = ["G", "T", "M", "P", "c0", "c1", "I0", "b", "kY", "hR"];
+const OPEN: (keyof Economy)[] = ["rStar", "rho", "X0", "importProp", "fxSensitivity", "kappa", "fxPeg"];
+const NONE: ModelInputs = { key: [], uses: [], structure: [] };
+
+export const MODEL_INPUTS: Record<string, ModelInputs> = {
+  "cobb-douglas": { key: ["A", "alpha", "K0", "L"], uses: PRODUCTION, structure: [] },
+  solow: { key: ["s", "n", "g", "delta"], uses: [...PRODUCTION, ...GROWTH], structure: [] },
+  "ak-growth": { key: ["s", "A", "delta"], uses: [...PRODUCTION, ...GROWTH], structure: [] },
+  islm: { key: ["G", "T", "M"], uses: ISLM, structure: [] },
+  adas: {
+    key: ["G", "M", "lambda", "theta"],
+    uses: [...PRODUCTION.filter((k) => k !== "K0"), ...GROWTH, ...ISLM, "pStar", "importProp", "lambda", "theta"],
+    structure: ["openness"],
+  },
+  zlb: { key: ["G", "M"], uses: [...PRODUCTION.filter((k) => k !== "K0"), ...GROWTH, ...ISLM], structure: [] },
+  phillips: { key: ["piE", "piTarget", "pcBeta"], uses: ["theta", "piE", "un", "pcBeta", "piTarget"], structure: [] },
+  "labour-market": { key: ["wagePush", "markup", "wageSlope"], uses: [...PRODUCTION, "wagePush", "markup", "wageSlope"], structure: [] },
+  debt: { key: ["debtRatio", "primaryBalance", "rStar", "g"], uses: ["n", "g", "rStar", "rho", "debtRatio", "primaryBalance"], structure: [] },
+  "currency-crisis": { key: ["reservesShare", "creditGrowth"], uses: ["M", "reservesShare", "creditGrowth"], structure: ["regime"] },
+  mf: { key: ["G", "M", "rStar"], uses: [...ISLM, ...OPEN], structure: ["openness", "size", "regime"] },
+  parity: { key: ["rStar", "rho", "pStar"], uses: ["P", "rStar", "rho", "pStar"], structure: ["openness"] },
+  dornbusch: { key: ["M", "theta"], uses: ["M", "P", "kY", "hR", "rStar", "pStar", "theta"], structure: [] },
+  "external-balance": { key: ["G", "T", "rStar"], uses: ["n", "g", ...ISLM, ...OPEN], structure: ["openness", "size", "regime"] },
+  "trade-flows": { key: ["fxSensitivity", "importProp", "X0"], uses: [...ISLM, ...OPEN], structure: ["openness", "size", "regime"] },
+  "policy-rule": {
+    key: ["piE", "piTarget", "rStar"],
+    uses: [...PRODUCTION.filter((k) => k !== "K0"), ...GROWTH, ...ISLM, "rStar", "piE", "piTarget"],
+    structure: [],
+  },
+  "consumer-choice": NONE,
+  "market-structure": NONE,
+  externalities: NONE,
+  "game-theory": NONE,
+  "ai-boom": { key: ["A", "alpha"], uses: PRODUCTION, structure: [] },
+};
+
+export function modelInputs(id: string): ModelInputs {
+  return MODEL_INPUTS[id] ?? NONE;
+}
+
 export function getModel(id: string): ModelDef {
   return MODELS.find((m) => m.id === id) ?? MODELS[0];
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CUSTOM_FIELDS, SHOCK_PRESETS, type ShockMode, type ShockSpec, type ResolvedShock } from "@/lib/econ/shocks";
+import { type CustomField, type ShockDef, type ShockMode, type ShockSpec, type ResolvedShock } from "@/lib/econ/shocks";
 
 const MODES: { value: ShockMode; label: string; hint: string }[] = [
   { value: "percent", label: "%", hint: "Change by a percentage" },
@@ -14,6 +14,8 @@ const MODES: { value: ShockMode; label: string; hint: string }[] = [
  * shock any field yourself — raising technology, cutting the birth rate, and so on.
  */
 export function ShockControls({
+  presets,
+  fields,
   specs,
   applied,
   onTogglePreset,
@@ -21,6 +23,10 @@ export function ShockControls({
   onRemove,
   onClear,
 }: {
+  /** The presets that can move the current model. */
+  presets: ShockDef[];
+  /** The fields the current model reads, for the custom builder. */
+  fields: CustomField[];
   specs: ShockSpec[];
   applied: ResolvedShock[];
   onTogglePreset: (id: string) => void;
@@ -30,16 +36,16 @@ export function ShockControls({
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [key, setKey] = useState<string>(CUSTOM_FIELDS[0].key as string);
+  const [key, setKey] = useState<string>((fields[0]?.key as string) ?? "");
   const [mode, setMode] = useState<ShockMode>("percent");
   const [amount, setAmount] = useState("10");
 
-  const field = CUSTOM_FIELDS.find((f) => (f.key as string) === key) ?? CUSTOM_FIELDS[0];
+  const field = fields.find((f) => (f.key as string) === key) ?? fields[0];
   const isPresetOn = (id: string) => specs.some((s) => s.kind === "preset" && s.id === id);
 
   const add = () => {
-    const value = Number(amount);
-    if (!Number.isFinite(value)) return;
+    const value = Number(amount.replace(",", "."));
+    if (!field || !Number.isFinite(value)) return;
     onAddCustom({
       label: name.trim() || `${field.label} ${mode === "absolute" ? "=" : mode === "percent" ? `${value}%` : `${value > 0 ? "+" : ""}${value}`}`,
       key: field.key,
@@ -71,7 +77,7 @@ export function ShockControls({
       </p>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {SHOCK_PRESETS.map((s) => {
+        {presets.map((s) => {
           const on = isPresetOn(s.id);
           return (
             <button
@@ -115,7 +121,7 @@ export function ShockControls({
 
       {/* Custom shock builder */}
       <div className="mt-3 border-t border-hairline pt-3">
-        {!open ? (
+        {fields.length === 0 ? null : !open ? (
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -142,13 +148,15 @@ export function ShockControls({
               <label className="text-[0.75rem] text-muted">
                 What changes
                 <select
-                  value={key}
+                  value={(field?.key as string) ?? ""}
                   onChange={(e) => setKey(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-accent focus:outline-none"
                 >
-                  {["Production", "Growth", "Fiscal", "Monetary", "External"].map((g) => (
+                  {["Production", "Growth", "Fiscal", "Monetary", "External"]
+                    .filter((g) => fields.some((f) => f.group === g))
+                    .map((g) => (
                     <optgroup key={g} label={g}>
-                      {CUSTOM_FIELDS.filter((f) => f.group === g).map((f) => (
+                      {fields.filter((f) => f.group === g).map((f) => (
                         <option key={f.key as string} value={f.key as string}>
                           {f.label}
                         </option>
@@ -183,9 +191,9 @@ export function ShockControls({
               <label className="text-[0.75rem] text-muted">
                 Amount
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={amount}
-                  step={mode === "percent" ? 1 : field.step}
                   onChange={(e) => setAmount(e.target.value)}
                   className="mt-1 w-24 rounded-lg border border-hairline bg-surface px-2.5 py-1.5 text-right font-mono text-xs text-ink focus:border-accent focus:outline-none"
                 />
@@ -221,7 +229,7 @@ export function ShockControls({
           What does each preset do?
         </summary>
         <dl className="space-y-2 px-3 pb-3 pt-1">
-          {SHOCK_PRESETS.map((s) => (
+          {presets.map((s) => (
             <div key={s.id}>
               <dt className="text-[0.75rem] font-medium text-ink">{s.label}</dt>
               <dd className="text-[0.6875rem] leading-relaxed text-muted">{s.help}</dd>

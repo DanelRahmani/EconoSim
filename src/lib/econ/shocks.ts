@@ -79,6 +79,20 @@ export const SHOCK_PRESETS: ShockDef[] = [
   },
 ];
 
+/** The economy fields a preset moves, read off the preset itself. */
+export function shockKeys(def: ShockDef, e: Economy): (keyof Economy)[] {
+  return Object.keys(def.apply(e)) as (keyof Economy)[];
+}
+
+/**
+ * The presets that can move a model reading `uses`. A shock that touches nothing
+ * the model reads would show "=" on every figure, which looks like a broken
+ * button rather than an answer, so it is not offered.
+ */
+export function relevantShocks(uses: (keyof Economy)[], e: Economy): ShockDef[] {
+  return SHOCK_PRESETS.filter((s) => shockKeys(s, e).some((k) => uses.includes(k)));
+}
+
 export function findShock(id: string): ShockDef | undefined {
   return SHOCK_PRESETS.find((s) => s.id === id);
 }
@@ -108,6 +122,7 @@ export const CUSTOM_FIELDS: CustomField[] = [
   { key: "rho", label: "Risk premium ρ", group: "External", step: 0.001 },
   { key: "X0", label: "Exports X₀", group: "External", step: 1 },
   { key: "importProp", label: "Import propensity m", group: "External", step: 0.005 },
+  { key: "pStar", label: "Foreign price level P*", group: "External", step: 0.01 },
 ];
 
 export type ShockMode = "percent" | "delta" | "absolute";

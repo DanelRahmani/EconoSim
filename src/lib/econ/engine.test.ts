@@ -38,10 +38,13 @@ import {
   sweepPanel,
 } from "@/lib/econ/comparativeStatics";
 import { exportName, panelToCsv, panelsToCsv } from "@/lib/econ/export";
+import { MODEL_INPUTS, modelInputs } from "@/lib/econ/registry";
+import { PARAMS, SLIDER_KEYS } from "@/lib/econ/params";
+import { relevantShocks } from "@/lib/econ/shocks";
 import { axisDomain, clampWindow, niceTicks, pointsInWindow, zoomWindow, type Window } from "@/lib/scale";
 import type { Panel } from "@/lib/econ/panel";
 import { seriesToTable } from "@/lib/econ/panel";
-import type { SweepParam } from "@/lib/econ/types";
+import type { Economy, SweepParam } from "@/lib/econ/types";
 import { phillipsCore, phillipsPath } from "@/lib/econ/models/phillips";
 import { naturalUnemployment } from "@/lib/econ/models/labourMarket";
 import { debtCore } from "@/lib/econ/models/debtDynamics";
@@ -1331,5 +1334,56 @@ describe("AD-AS chart and supply shocks", () => {
   it("a closed economy does not feel the foreign price", () => {
     const e = { ...defaultEconomy(), openness: "closed" as const };
     expect(importCostFactor({ ...e, pStar: 2 })).toBe(1);
+  });
+});
+
+describe("per-model parameter lists", () => {
+  const base = defaultEconomy();
+  const variants: Economy[] = [];
+  for (const openness of ["open", "closed"] as const)
+    for (const size of ["small", "large"] as const)
+      for (const regime of ["floating", "fixed"] as const) variants.push({ ...base, openness, size, regime });
+
+  /** Every slider and switch that changes the model's output, found by perturbing each one. */
+  const reads = (id: string) => {
+    const run = (e: Economy) => JSON.stringify(runModel(id, e, DEFAULT_OPTIONS));
+    const sliders = new Set<keyof Economy>();
+    const switches = new Set<string>();
+    for (const v of variants) {
+      const sig = run(v);
+      for (const k of SLIDER_KEYS) {
+        const x = v[k] as number;
+        if (run({ ...v, [k]: x === 0 ? 0.01 : x * 1.07 } as Economy) !== sig) sliders.add(k);
+      }
+      if (run({ ...v, openness: v.openness === "open" ? "closed" : "open" }) !== sig) switches.add("openness");
+      if (run({ ...v, size: v.size === "small" ? "large" : "small" }) !== sig) switches.add("size");
+      if (run({ ...v, regime: v.regime === "fixed" ? "floating" : "fixed" }) !== sig) switches.add("regime");
+    }
+    return { sliders, switches };
+  };
+
+  it("covers every model", () => {
+    for (const m of MODELS) expect(MODEL_INPUTS[m.id], m.id).toBeDefined();
+  });
+
+  for (const m of MODELS) {
+    it(`${m.id} lists exactly the parameters it reads`, () => {
+      const inputs = modelInputs(m.id);
+      const { sliders, switches } = reads(m.id);
+      expect([...new Set(inputs.uses)].sort(), "sliders").toEqual([...sliders].sort());
+      expect([...inputs.structure].sort(), "switches").toEqual([...switches].sort());
+      for (const k of inputs.key) expect(inputs.uses, `key ${k}`).toContain(k);
+    });
+  }
+
+  it("every slider is read by at least one model", () => {
+    const used = new Set(Object.values(MODEL_INPUTS).flatMap((i) => i.uses));
+    for (const p of PARAMS) expect(used.has(p.key), p.key).toBe(true);
+  });
+
+  it("offers only shocks that move the model", () => {
+    expect(relevantShocks(modelInputs("game-theory").uses, base)).toHaveLength(0);
+    expect(relevantShocks(modelInputs("adas").uses, base).map((s) => s.id)).toContain("oil");
+    expect(relevantShocks(modelInputs("islm").uses, base).map((s) => s.id)).not.toContain("oil");
   });
 });

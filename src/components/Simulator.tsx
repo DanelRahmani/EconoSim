@@ -5,30 +5,29 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { useEffect, useMemo, useState } from "react";
 import type {
   AiOptions,
-  CountrySize,
   Economy,
-  ExchangeRegime,
   ExternalityOptions,
   Expectations,
   GameOptions,
   MarketOptions,
   MicroOptions,
-  Openness,
   SweepParam,
   ZlbOptions,
 } from "@/lib/econ/types";
 import { validateEconomy } from "@/lib/econ/types";
 import { defaultEconomy, withDefaults } from "@/lib/econ/defaults";
 import { COUNTRIES } from "@/lib/econ/countries";
-import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_SWEEP, DEFAULT_SWEEP_AXIS, DEFAULT_SWEEP_FIGURE, DEFAULT_ZLB, HORIZON_PRESETS, MODELS, MODEL_GROUPS, getModel, runModel } from "@/lib/econ/registry";
+import { GROUP_ORDER, PARAMS, PARAM_BY_KEY, orderedParams } from "@/lib/econ/params";
+import { DEFAULT_AI, DEFAULT_EXTERNALITY, DEFAULT_EXPECTATIONS, DEFAULT_GAME, DEFAULT_HORIZON, DEFAULT_MARKET, DEFAULT_MICRO, DEFAULT_MODEL, DEFAULT_SWEEP, DEFAULT_SWEEP_AXIS, DEFAULT_SWEEP_FIGURE, DEFAULT_ZLB, HORIZON_PRESETS, MODELS, MODEL_GROUPS, getModel, modelInputs, runModel } from "@/lib/econ/registry";
 import { readState, shareUrl, type CompareMode } from "@/lib/econ/permalink";
-import { resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
+import { CUSTOM_FIELDS, relevantShocks, resolveShocks, type ShockSpec } from "@/lib/econ/shocks";
 import { mergePanels } from "@/lib/econ/compare";
 import { sweepAxisPanel, sweepPanel } from "@/lib/econ/comparativeStatics";
 import type { Panel } from "@/lib/econ/panel";
 import { useTweenedEconomy } from "@/hooks/useTweenedEconomy";
 import { PanelCard } from "./PanelCard";
 import { ParamControl, Segmented } from "./ParamControl";
+import { ParametersPanel } from "./ParametersPanel";
 import { ShareLink } from "./ShareLink";
 import { ExportAllCsv } from "./Export";
 import { ShockControls } from "./ShockControls";
@@ -37,87 +36,31 @@ import { PresetManager } from "./PresetManager";
 import { ThemeToggle } from "./theme/ThemeToggle";
 import { InfoNote } from "./ui/InfoNote";
 
-interface ParamDef {
-  key: keyof Economy;
-  label: string;
-  min: number;
-  max: number;
-  step: number;
-  group: string;
-  simple?: boolean;
-  help: string;
-}
-
-const PARAMS: ParamDef[] = [
-  { key: "A", label: "Technology A", min: 0.5, max: 2, step: 0.01, group: "Production", simple: true, help: "Total factor productivity: how much output you get from a given amount of capital and labour. A higher A raises potential output." },
-  { key: "alpha", label: "Capital share α", min: 0.1, max: 0.6, step: 0.01, group: "Production", simple: true, help: "The share of income that goes to capital (about 0.33 in most countries). The rest, 1−α, is labour's share." },
-  { key: "L", label: "Labour L", min: 10, max: 1000, step: 1, group: "Production", help: "The size of the workforce." },
-  { key: "K0", label: "Initial capital K₀", min: 10, max: 2000, step: 1, group: "Production", help: "The starting capital stock. The Solow model grows it toward its steady state." },
-
-  { key: "s", label: "Saving rate s", min: 0.05, max: 0.5, step: 0.01, group: "Growth (long run)", simple: true, help: "The share of income households save. More saving builds more capital, but does not raise long-run growth per worker." },
-  { key: "n", label: "Population growth n", min: -0.02, max: 0.05, step: 0.001, group: "Growth (long run)", simple: true, help: "How fast the workforce grows. Higher n needs more investment just to keep capital per worker constant." },
-  { key: "g", label: "Tech growth g", min: 0, max: 0.05, step: 0.001, group: "Growth (long run)", simple: true, help: "How fast productivity improves over time." },
-  { key: "delta", label: "Depreciation δ", min: 0.01, max: 0.15, step: 0.005, group: "Growth (long run)", simple: true, help: "The share of the capital stock that wears out each period." },
-
-  { key: "G", label: "Government G", min: 0, max: 100, step: 1, group: "Fiscal & money", simple: true, help: "Government spending. Raising it shifts the IS curve right." },
-  { key: "T", label: "Taxes T", min: 0, max: 100, step: 1, group: "Fiscal & money", simple: true, help: "Lump-sum taxes. They reduce disposable income and shift the IS curve left." },
-  { key: "M", label: "Money supply M", min: 10, max: 300, step: 1, group: "Fiscal & money", simple: true, help: "How much money the central bank has supplied. Raising it shifts the LM curve right." },
-  { key: "P", label: "Price level P", min: 0.5, max: 2, step: 0.01, group: "Fiscal & money", help: "Average prices. Real money balances are M/P." },
-
-  { key: "c0", label: "Autonomous consumption c₀", min: 0, max: 50, step: 1, group: "Behaviour", help: "Consumption that happens regardless of income." },
-  { key: "c1", label: "MPC c₁", min: 0.1, max: 0.95, step: 0.01, group: "Behaviour", help: "The marginal propensity to consume, the fraction of each extra unit of income that is spent. Higher c1 makes the IS curve flatter and the fiscal multiplier bigger." },
-  { key: "I0", label: "Autonomous investment I₀", min: 0, max: 200, step: 1, group: "Behaviour", help: "Investment that happens regardless of the interest rate." },
-  { key: "b", label: "Investment sensitivity b", min: 10, max: 500, step: 5, group: "Behaviour", help: "How strongly investment reacts to the interest rate." },
-  { key: "kY", label: "Money demand k", min: 0.1, max: 1.5, step: 0.01, group: "Behaviour", help: "How much money people want to hold per unit of income. Higher k tilts the LM curve up." },
-  { key: "hR", label: "Money demand h", min: 20, max: 500, step: 5, group: "Behaviour", help: "How strongly money demand falls as the interest rate rises. Higher h flattens the LM curve." },
-
-  { key: "rStar", label: "World rate r*", min: 0, max: 0.1, step: 0.001, group: "Open economy", simple: true, help: "The interest rate prevailing in world markets. A small open economy takes it as given." },
-  { key: "rho", label: "Risk premium ρ", min: 0, max: 0.1, step: 0.001, group: "Open economy", simple: true, help: "Extra yield investors demand to hold this country's assets, above the world rate." },
-  { key: "X0", label: "Exports X₀", min: 0, max: 60, step: 1, group: "Open economy", help: "Autonomous exports: sales abroad independent of income and the exchange rate." },
-  { key: "importProp", label: "Import propensity m", min: 0, max: 0.3, step: 0.005, group: "Open economy", help: "The fraction of each extra unit of income spent on imports." },
-  { key: "fxSensitivity", label: "FX sensitivity v", min: 1, max: 40, step: 1, group: "Open economy", help: "How strongly net exports react to the real exchange rate." },
-  { key: "kappa", label: "Capital mobility κ", min: 1, max: 100, step: 1, group: "Open economy", help: "How freely capital crosses the border. Small κ means a steeper BP curve (less mobile)." },
-  { key: "fxPeg", label: "Peg level ε̄", min: 0.5, max: 1.5, step: 0.01, group: "Open economy", help: "The real exchange rate the central bank defends when the regime is Fixed." },
-
-  { key: "lambda", label: "SRAS slope λ", min: 0.1, max: 2, step: 0.05, group: "Adjustment", help: "How strongly prices respond to an output gap, i.e. how flexible short-run supply is." },
-  { key: "theta", label: "Expectations speed θ", min: 0.05, max: 1, step: 0.05, group: "Adjustment", help: "How quickly price expectations catch up to realised prices, and so how fast the economy returns to potential output. In the Phillips curve it also sets the sacrifice ratio 1/(βθ)." },
-
-  { key: "piE", label: "Expected inflation πᵉ", min: 0, max: 0.2, step: 0.005, group: "Inflation & labour", simple: true, help: "The inflation rate people expect, and the rate the economy starts at. A high πᵉ makes a disinflation expensive." },
-  { key: "piTarget", label: "Inflation target π*", min: 0, max: 0.15, step: 0.005, group: "Inflation & labour", simple: true, help: "What the central bank announces and delivers. The gap between πᵉ and π* is the size of the disinflation." },
-  { key: "pcBeta", label: "Phillips slope β", min: 0.1, max: 1.5, step: 0.05, group: "Inflation & labour", simple: true, help: "How strongly unemployment pushes inflation away from expectations. A steeper curve means a cheaper disinflation." },
-  { key: "un", label: "Natural unemployment uₙ", min: 0.01, max: 0.2, step: 0.005, group: "Inflation & labour", help: "The unemployment rate that leaves inflation unchanged. The WS-PS model derives it; this slider overrides it for the Phillips curve." },
-  { key: "wagePush", label: "Wage push z", min: 0, max: 0.15, step: 0.005, group: "Inflation & labour", help: "Benefits, union strength, minimum wages: anything that lets workers win a higher real wage at a given unemployment rate." },
-  { key: "markup", label: "Firms' mark-up m", min: 0, max: 0.4, step: 0.005, group: "Inflation & labour", help: "The mark-up firms charge over marginal cost. It fixes the real wage they can pay, and so helps set the natural rate." },
-  { key: "wageSlope", label: "Wage-setting slope γ", min: 0.3, max: 3, step: 0.05, group: "Inflation & labour", help: "How sharply the real wage workers can win falls as unemployment rises. A steeper curve means a lower natural rate." },
-
-  { key: "debtRatio", label: "Debt ratio b₀", min: 0, max: 2, step: 0.05, group: "Debt & balance of payments", simple: true, help: "Government debt as a share of GDP at the start." },
-  { key: "primaryBalance", label: "Primary balance pb", min: -0.1, max: 0.1, step: 0.005, group: "Debt & balance of payments", simple: true, help: "The budget balance excluding interest payments, as a share of GDP. Positive is a surplus; debt is stable only if pb covers (r − g)·b." },
-  { key: "reservesShare", label: "Reserves (share of M)", min: 0.05, max: 0.95, step: 0.05, group: "Debt & balance of payments", help: "Foreign reserves as a share of the money supply. The rest of the money supply is domestic credit, which is what drains the reserves." },
-  { key: "creditGrowth", label: "Domestic credit growth μ", min: 0, max: 0.4, step: 0.005, group: "Debt & balance of payments", help: "How fast the government borrows from the central bank. Financing a deficit this way is what dates the collapse of a peg." },
-];
-
-const GROUP_ORDER = ["Production", "Growth (long run)", "Fiscal & money", "Behaviour", "Open economy", "Adjustment", "Inflation & labour", "Debt & balance of payments"];
-
 /** Parameter labels by key, for prose outside the sidebar. */
-const PARAM_LABEL: Partial<Record<keyof Economy, string>> = Object.fromEntries(
-  PARAMS.map((p) => [p.key, p.label]),
-);
+const PARAM_LABEL = (key: keyof Economy) => PARAM_BY_KEY[key]?.label;
 
 /** The slider range of each parameter, so a sweep can cover what the UI can reach. */
-const PARAM_RANGE: Partial<Record<keyof Economy, [number, number]>> = Object.fromEntries(
-  PARAMS.map((p) => [p.key, [p.min, p.max] as [number, number]]),
-);
+const PARAM_RANGE = (key: keyof Economy): [number, number] => {
+  const p = PARAM_BY_KEY[key];
+  return p ? [p.min, p.max] : [0, 1];
+};
 
-/** The parameter list as grouped `<option>`s, shared by both sweep pickers. */
-const PARAM_GROUPS = GROUP_ORDER.map((g) => (
-  <optgroup key={g} label={g}>
-    {PARAMS.filter((p) => p.group === g).map((p) => (
-      <option key={p.key} value={p.key}>
-        {p.label}
-      </option>
-    ))}
-  </optgroup>
-));
+/** One model's parameters as grouped `<option>`s, for both sweep pickers. */
+function paramOptions(uses: (keyof Economy)[]) {
+  return GROUP_ORDER.map((g) => {
+    const defs = PARAMS.filter((p) => p.group === g && uses.includes(p.key));
+    if (!defs.length) return null;
+    return (
+      <optgroup key={g} label={g}>
+        {defs.map((p) => (
+          <option key={p.key} value={p.key}>
+            {p.label}
+          </option>
+        ))}
+      </optgroup>
+    );
+  });
+}
 
 /** Scenario controls for the AI boom model. */
 function AiControls({ value, onChange }: { value: AiOptions; onChange: (v: AiOptions) => void }) {
@@ -363,7 +306,10 @@ function SweepControl({
   figure,
   onFigureChange,
   figures,
+  params,
 }: {
+  /** The current model's parameters, as grouped options. */
+  params: React.ReactNode;
   value: SweepParam;
   onChange: (v: SweepParam) => void;
   axis: SweepParam;
@@ -385,7 +331,7 @@ function SweepControl({
           className="max-w-[16rem] rounded-md border border-hairline bg-surface px-2 py-1 font-mono text-[0.6875rem] text-ink"
         >
           <option value="none">Off</option>
-          {PARAM_GROUPS}
+          {params}
         </select>
         <InfoNote
           label="comparative statics"
@@ -404,7 +350,7 @@ function SweepControl({
           className="max-w-[16rem] rounded-md border border-hairline bg-surface px-2 py-1 font-mono text-[0.6875rem] text-ink"
         >
           <option value="none">Off</option>
-          {PARAM_GROUPS}
+          {params}
         </select>
         <select
           id="sweep-figure"
@@ -462,7 +408,7 @@ export function Simulator() {
   const [baseline, setBaseline] = useState<Economy>(() => defaultEconomy());
   const [shocks, setShocks] = useState<ShockSpec[]>([]);
   const [model, setModel] = useState(DEFAULT_MODEL);
-  const [expert, setExpert] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [compare, setCompare] = useState<CompareMode>("current");
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
   const [ai, setAi] = useState<AiOptions>(DEFAULT_AI);
@@ -509,6 +455,22 @@ export function Simulator() {
   }, []);
 
   const update = (patch: Partial<Economy>) => setEconomy((e) => ({ ...e, ...patch }));
+
+  const inputs = modelInputs(model);
+  const sliders = orderedParams(inputs.key, inputs.uses);
+  const shockPresets = useMemo(() => relevantShocks(inputs.uses, economy), [inputs.uses, economy]);
+  const shockFields = useMemo(() => CUSTOM_FIELDS.filter((f) => inputs.uses.includes(f.key)), [inputs.uses]);
+
+  /** Switch model, dropping analysis picks the new model does not read (they would only draw flat lines). */
+  const selectModel = (id: string) => {
+    const uses = modelInputs(id).uses;
+    setModel(id);
+    if (sweep !== "none" && !uses.includes(sweep)) setSweep("none");
+    if (sweepAxis !== "none" && !uses.includes(sweepAxis)) {
+      setSweepAxis("none");
+      setSweepFigure("");
+    }
+  };
   const issues = useMemo(() => validateEconomy(economy), [economy]);
 
   const { economy: shockedEconomy, applied } = useMemo(() => resolveShocks(economy, shocks), [economy, shocks]);
@@ -543,7 +505,7 @@ export function Simulator() {
       economy: shockedEconomy,
       options,
       param: sweep,
-      paramLabel: sweep === "none" ? undefined : PARAM_LABEL[sweep],
+      paramLabel: sweep === "none" ? undefined : PARAM_LABEL(sweep),
     });
     if (directions) extras.push(directions);
     const curve = sweepAxisPanel({
@@ -552,8 +514,8 @@ export function Simulator() {
       economy: shockedEconomy,
       options,
       param: sweepAxis,
-      paramLabel: sweepAxis === "none" ? undefined : PARAM_LABEL[sweepAxis],
-      range: sweepAxis === "none" ? [0, 1] : (PARAM_RANGE[sweepAxis] ?? [0, 1]),
+      paramLabel: sweepAxis === "none" ? undefined : PARAM_LABEL(sweepAxis),
+      range: sweepAxis === "none" ? [0, 1] : PARAM_RANGE(sweepAxis),
       figure: sweepFigure,
     });
     if (curve) extras.push(curve);
@@ -652,16 +614,6 @@ export function Simulator() {
                 onChange={setCompare}
               />
             </div>
-            <div className="w-[9.5rem]">
-              <Segmented
-                value={expert ? "expert" : "simple"}
-                options={[
-                  { value: "simple", label: "Simple" },
-                  { value: "expert", label: "Expert" },
-                ]}
-                onChange={(v) => setExpert(v === "expert")}
-              />
-            </div>
             <button
               type="button"
               onClick={() => {
@@ -691,6 +643,7 @@ export function Simulator() {
 
       <div className="relative z-10 mx-auto grid max-w-[1520px] gap-4 p-4 lg:grid-cols-[230px_minmax(0,1fr)_300px]">
         <aside className="space-y-4">
+          {inputs.uses.length > 0 && (
           <div className="card reveal p-4">
             <h2 className="mb-2.5 font-mono text-[0.75rem]  text-muted">Country presets</h2>
             <div className="flex flex-wrap gap-1.5">
@@ -717,6 +670,7 @@ export function Simulator() {
               Stylised approximations (World Bank / PWT / AMECO), editable. Real-side parameters only.
             </p>
           </div>
+          )}
 
           <PresetManager current={economy} onLoad={loadEconomy} />
 
@@ -733,7 +687,7 @@ export function Simulator() {
                         key={m.id}
                         type="button"
                         title={m.blurb}
-                        onClick={() => setModel(m.id)}
+                        onClick={() => selectModel(m.id)}
                         className={`relative rounded-md py-1.5 pl-3 pr-2 text-left text-xs transition-all duration-200 ${
                           active ? "bg-accent/10 font-medium text-accent" : "text-muted hover:bg-surface2 hover:text-ink"
                         }`}
@@ -755,7 +709,7 @@ export function Simulator() {
               <div className="mb-1 font-mono text-[0.75rem]  text-muted/70">Reference</div>
               <button
                 type="button"
-                onClick={() => setModel("glossary")}
+                onClick={() => selectModel("glossary")}
                 title="What every symbol and switch means"
                 className={`relative w-full rounded-md py-1.5 pl-3 pr-2 text-left text-xs transition-all duration-200 ${
                   model === "glossary" ? "bg-accent/10 font-medium text-accent" : "text-muted hover:bg-surface2 hover:text-ink"
@@ -774,8 +728,10 @@ export function Simulator() {
         </aside>
 
         <main key={model} className="min-w-0 space-y-4">
-          {model !== "glossary" && (
+          {model !== "glossary" && (shockPresets.length > 0 || shocks.length > 0) && (
             <ShockControls
+              presets={shockPresets}
+              fields={shockFields}
               specs={shocks}
               applied={applied}
               onTogglePreset={togglePreset}
@@ -823,7 +779,7 @@ export function Simulator() {
                     scenario || i === 0 || p.timeseries ? (
                       <>
                         {scenario}
-                        {i === 0 && (
+                        {i === 0 && inputs.uses.length > 0 && (
                           <SweepControl
                             value={sweep}
                             onChange={setSweep}
@@ -832,6 +788,7 @@ export function Simulator() {
                             figure={sweepFigure}
                             onFigureChange={setSweepFigure}
                             figures={figureOptions}
+                            params={paramOptions(inputs.uses)}
                           />
                         )}
                         {p.timeseries && <HorizonControl value={horizon} onChange={setHorizon} />}
@@ -852,59 +809,15 @@ export function Simulator() {
         <aside className="lg:sticky lg:top-16 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
           <div className="card reveal p-4">
             <h2 className="mb-1 font-mono text-[0.75rem]  text-muted">Parameters</h2>
-
-            <Segmented<Openness>
-              label="Openness"
-              help="Closed switches trade off, so the open-economy models collapse to plain IS-LM. Open lets the country trade and borrow abroad."
-              value={economy.openness}
-              options={[
-                { value: "closed", label: "Closed" },
-                { value: "open", label: "Open" },
-              ]}
-              onChange={(v) => update({ openness: v })}
+            <ParametersPanel
+              economy={economy}
+              update={update}
+              inputs={inputs}
+              sliders={sliders}
+              showMore={showMore}
+              onShowMore={setShowMore}
+              modelLabel={model === "glossary" ? "The glossary" : getModel(model).label}
             />
-            <Segmented<CountrySize>
-              label="Country size"
-              help="Small: perfect capital mobility, so the country takes the world interest rate as given and its own policy does not move world rates. Large: its borrowing does move the world rate, so the BP curve slopes and policy spills over."
-              value={economy.size}
-              options={[
-                { value: "small", label: "Small" },
-                { value: "large", label: "Large" },
-              ]}
-              onChange={(v) => update({ size: v })}
-            />
-            <Segmented<ExchangeRegime>
-              label="Exchange rate"
-              help="Floating: the exchange rate adjusts, so monetary policy is powerful. Fixed: the peg is defended and the money supply adjusts instead, so fiscal policy is powerful and monetary policy loses its independent effect."
-              value={economy.regime}
-              options={[
-                { value: "floating", label: "Floating" },
-                { value: "fixed", label: "Fixed" },
-              ]}
-              onChange={(v) => update({ regime: v })}
-            />
-
-            {GROUP_ORDER.map((g) => {
-              const defs = PARAMS.filter((p) => p.group === g && (expert || p.simple));
-              if (!defs.length) return null;
-              return (
-                <div key={g} className="mt-3 border-t border-hairline pt-3">
-                  <div className="mb-1 font-mono text-[0.75rem]  text-muted/70">{g}</div>
-                  {defs.map((p) => (
-                    <ParamControl
-                      key={p.key}
-                      label={p.label}
-                      help={p.help}
-                      value={economy[p.key] as number}
-                      min={p.min}
-                      max={p.max}
-                      step={p.step}
-                      onChange={(v) => update({ [p.key]: v } as Partial<Economy>)}
-                    />
-                  ))}
-                </div>
-              );
-            })}
           </div>
         </aside>
       </div>
